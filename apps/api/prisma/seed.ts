@@ -58,6 +58,64 @@ async function main() {
 
     console.log('✅ Created developer user:', dev.email);
 
+    // Create security admin user
+    const securityPassword = await bcrypt.hash('security123', 12);
+    const securityAdmin = await prisma.user.upsert({
+        where: { email: 'security@acme.com' },
+        update: {},
+        create: {
+            email: 'security@acme.com',
+            name: 'Security Admin',
+            passwordHash: securityPassword,
+            organizationId: org.id,
+            emailVerifiedAt: new Date(),
+            roles: {
+                create: [{ role: 'SECURITY_ADMIN', scope: 'ORGANIZATION', scopeId: org.id }],
+            },
+        },
+    });
+
+    console.log('✅ Created security admin user:', securityAdmin.email);
+
+    // Create viewer user
+    const viewerPassword = await bcrypt.hash('viewer123', 12);
+    const viewer = await prisma.user.upsert({
+        where: { email: 'viewer@acme.com' },
+        update: {},
+        create: {
+            email: 'viewer@acme.com',
+            name: 'Viewer User',
+            passwordHash: viewerPassword,
+            organizationId: org.id,
+            emailVerifiedAt: new Date(),
+            roles: {
+                create: [{ role: 'VIEWER', scope: 'ORGANIZATION', scopeId: org.id }],
+            },
+        },
+    });
+
+    console.log('✅ Created viewer user:', viewer.email);
+
+    // Create password policy for organization
+    await prisma.passwordPolicy.upsert({
+        where: { organizationId: org.id },
+        update: {},
+        create: {
+            organizationId: org.id,
+            minLength: 8,
+            requireUppercase: true,
+            requireLowercase: true,
+            requireNumbers: true,
+            requireSpecial: false,
+            maxAgeDays: 90,
+            historyCount: 5,
+            lockoutThreshold: 5,
+            lockoutDurationMin: 30,
+        },
+    });
+
+    console.log('✅ Created password policy for organization');
+
     // Create projects
     const projects = await Promise.all([
         prisma.project.upsert({
