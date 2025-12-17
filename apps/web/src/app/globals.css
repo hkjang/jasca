@@ -53,6 +53,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -99,4 +100,192 @@
 
 .status-ignored {
   @apply bg-gray-100 text-gray-600 dark:bg-gray-800/30 dark:text-gray-400;
+}
+
+/* Additional Status badges */
+.status-assigned {
+  @apply bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300;
+}
+
+.status-fix_submitted {
+  @apply bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300;
+}
+
+.status-verifying {
+  @apply bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300;
+}
+
+.status-closed {
+  @apply bg-slate-100 text-slate-600 dark:bg-slate-800/30 dark:text-slate-400;
+}
+
+.status-false_positive {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300;
+}
+
+/* Typography - 수치 가독성 최적화 */
+.font-numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.text-score {
+  @apply font-mono text-lg font-bold;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Heading styles */
+.heading-1 {
+  @apply text-3xl font-bold tracking-tight text-slate-900 dark:text-white;
+}
+
+.heading-2 {
+  @apply text-2xl font-semibold tracking-tight text-slate-900 dark:text-white;
+}
+
+.heading-3 {
+  @apply text-xl font-semibold text-slate-900 dark:text-white;
+}
+
+.heading-4 {
+  @apply text-lg font-medium text-slate-900 dark:text-white;
+}
+
+/* Body text */
+.body-text {
+  @apply text-base text-slate-600 dark:text-slate-300;
+}
+
+.caption-text {
+  @apply text-xs text-slate-500 dark:text-slate-400;
+}
+
+/* Interactive elements */
+.interactive-card {
+  @apply transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer;
+}
+
+/* Focus states for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900;
+}
+
+/* Animation utilities */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--background)) 50%,
+      hsl(var(--muted)) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Animate in utilities */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fadeIn;
+}
+
+.slide-in-from-bottom-2 {
+  animation-name: slideInFromBottom;
+}
+
+.slide-in-from-right {
+  animation-name: slideInFromRight;
+}
+
+.zoom-in-95 {
+  animation-name: zoomIn;
+}
+
+.duration-150 {
+  animation-duration: 150ms;
+}
+
+.duration-200 {
+  animation-duration: 200ms;
+}
+
+.duration-300 {
+  animation-duration: 300ms;
+}
+
+/* Scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-slate-100 dark:bg-slate-800 rounded;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-600 rounded hover:bg-slate-400 dark:hover:bg-slate-500;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
 }
