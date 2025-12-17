@@ -15,6 +15,7 @@ import {
     LogOut,
     User,
     Loader2,
+    FolderKanban,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/auth-api';
@@ -22,6 +23,7 @@ import { useHasMounted } from '@/hooks/use-has-mounted';
 
 const navigation = [
     { name: '대시보드', href: '/dashboard', icon: LayoutDashboard },
+    { name: '프로젝트', href: '/dashboard/projects', icon: FolderKanban },
     { name: '스캔 결과', href: '/dashboard/scans', icon: FileSearch },
     { name: '취약점', href: '/dashboard/vulnerabilities', icon: AlertTriangle },
     { name: '정책', href: '/dashboard/policies', icon: FileText },

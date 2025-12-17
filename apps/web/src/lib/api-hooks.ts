@@ -219,13 +219,62 @@ export function useDeletePolicy() {
 export interface Project {
     id: string;
     name: string;
+    slug: string;
     description?: string;
-    repositoryUrl?: string;
+    organizationId: string;
+    createdAt: string;
+    updatedAt: string;
+    // Extended fields
+    stats?: {
+        totalScans: number;
+        lastScanAt?: string;
+        vulnerabilities: {
+            critical: number;
+            high: number;
+            medium: number;
+            low: number;
+            total: number;
+        };
+    };
+    riskLevel?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+    policyViolations?: number;
+    organization?: {
+        name: string;
+    };
 }
 
-export function useProjects() {
-    return useQuery<Project[]>({
-        queryKey: ['projects'],
-        queryFn: () => authFetch(`${API_BASE}/projects`),
+export function useProjects(organizationId?: string) {
+    return useQuery<{ data: Project[]; total: number }>({
+        queryKey: ['projects', organizationId],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (organizationId) params.set('organizationId', organizationId);
+            params.set('limit', '50');
+            return authFetch(`${API_BASE}/projects?${params.toString()}`);
+        },
+    });
+}
+
+export function useProject(id: string) {
+    return useQuery<Project>({
+        queryKey: ['project', id],
+        queryFn: () => authFetch(`${API_BASE}/projects/${id}`),
+        enabled: !!id,
+    });
+}
+
+export function useProjectScans(projectId: string) {
+    return useQuery<{ data: Scan[]; total: number }>({
+        queryKey: ['project-scans', projectId],
+        queryFn: () => authFetch(`${API_BASE}/scans?projectId=${projectId}&limit=20`),
+        enabled: !!projectId,
+    });
+}
+
+export function useProjectVulnerabilityTrend(projectId: string, days = 30) {
+    return useQuery<{ date: string; critical: number; high: number; medium: number; low: number }[]>({
+        queryKey: ['project-vuln-trend', projectId, days],
+        queryFn: () => authFetch(`${API_BASE}/projects/${projectId}/vulnerability-trend?days=${days}`),
+        enabled: !!projectId,
     });
 }

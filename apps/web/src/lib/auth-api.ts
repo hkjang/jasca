@@ -11,6 +11,8 @@ interface RegisterRequest {
     email: string;
     password: string;
     name: string;
+    organizationId?: string;
+    invitationCode?: string;
 }
 
 interface AuthResponse {
@@ -19,6 +21,7 @@ interface AuthResponse {
     expiresIn: number;
     requiresMfa?: boolean;
     mfaToken?: string;
+    requiresEmailVerification?: boolean;
 }
 
 interface MfaVerifyRequest {

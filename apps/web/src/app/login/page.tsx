@@ -7,6 +7,13 @@ import { Shield, Mail, Lock, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/auth-api';
 
+// SSO Provider icons (simplified)
+const SsoProviders = [
+    { id: 'google', name: 'Google', icon: '🔵', color: 'hover:bg-red-50 dark:hover:bg-red-900/20' },
+    { id: 'github', name: 'GitHub', icon: '⚫', color: 'hover:bg-slate-100 dark:hover:bg-slate-700' },
+    { id: 'microsoft', name: 'Microsoft', icon: '🟦', color: 'hover:bg-blue-50 dark:hover:bg-blue-900/20' },
+];
+
 export default function LoginPage() {
     const router = useRouter();
     const { setUser, setTokens, setMfaRequired, setError, setLoading, isLoading, error, requiresMfa, mfaToken } = useAuthStore();
@@ -14,6 +21,11 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [mfaCode, setMfaCode] = useState('');
+
+    const handleSsoLogin = (providerId: string) => {
+        // Redirect to SSO endpoint
+        window.location.href = `/api/auth/sso/${providerId}?redirect=/dashboard`;
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,56 +114,84 @@ export default function LoginPage() {
                     )}
 
                     {!requiresMfa ? (
-                        <form onSubmit={handleLogin} className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    이메일
-                                </label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="name@company.com"
-                                        required
-                                    />
+                        <>
+                            {/* SSO Options */}
+                            <div className="space-y-3 mb-6">
+                                <p className="text-sm text-slate-400 text-center">SSO로 로그인</p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {SsoProviders.map((provider) => (
+                                        <button
+                                            key={provider.id}
+                                            onClick={() => handleSsoLogin(provider.id)}
+                                            className={`flex flex-col items-center gap-1 p-3 border border-slate-600 rounded-lg transition-colors ${provider.color}`}
+                                        >
+                                            <span className="text-xl">{provider.icon}</span>
+                                            <span className="text-xs text-slate-400">{provider.name}</span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                    비밀번호
-                                </label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="••••••••"
-                                        required
-                                    />
+                            <div className="relative mb-6">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-slate-700" />
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="px-2 bg-slate-800/50 text-slate-500">또는 이메일로 로그인</span>
                                 </div>
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                        로그인 중...
-                                    </>
-                                ) : (
-                                    '로그인'
-                                )}
-                            </button>
-                        </form>
+                            <form onSubmit={handleLogin} className="space-y-5">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                        이메일
+                                    </label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="w-full bg-slate-900/50 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder="name@company.com"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                        비밀번호
+                                    </label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                                        <input
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full bg-slate-900/50 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder="••••••••"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                            로그인 중...
+                                        </>
+                                    ) : (
+                                        '로그인'
+                                    )}
+                                </button>
+                            </form>
+                        </>
                     ) : (
                         <form onSubmit={handleMfaVerify} className="space-y-5">
                             <p className="text-slate-400 text-sm text-center mb-4">
@@ -204,3 +244,4 @@ export default function LoginPage() {
         </div>
     );
 }
+
