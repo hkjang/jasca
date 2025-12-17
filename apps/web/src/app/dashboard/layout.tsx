@@ -14,9 +14,11 @@ import {
     ChevronRight,
     LogOut,
     User,
+    Loader2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/auth-api';
+import { useHasMounted } from '@/hooks/use-has-mounted';
 
 const navigation = [
     { name: '대시보드', href: '/dashboard', icon: LayoutDashboard },
@@ -35,13 +37,14 @@ export default function DashboardLayout({
     const router = useRouter();
     const [collapsed, setCollapsed] = useState(false);
     const { user, isAuthenticated, refreshToken, logout } = useAuthStore();
+    const hasMounted = useHasMounted();
 
-    // Auth guard - redirect if not authenticated
+    // Auth guard - redirect if not authenticated (after hydration)
     useEffect(() => {
-        if (!isAuthenticated) {
+        if (hasMounted && !isAuthenticated) {
             router.push('/login');
         }
-    }, [isAuthenticated, router]);
+    }, [isAuthenticated, router, hasMounted]);
 
     const handleLogout = async () => {
         try {
@@ -55,6 +58,15 @@ export default function DashboardLayout({
             router.push('/login');
         }
     };
+
+    // Show loading while hydrating
+    if (!hasMounted) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     // Don't render if not authenticated
     if (!isAuthenticated) {
