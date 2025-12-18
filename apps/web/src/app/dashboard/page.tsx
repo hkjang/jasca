@@ -21,6 +21,9 @@ import { StatCard, Card, CardHeader, CardTitle, CardContent } from '@/components
 import { StatCardSkeleton, ChartSkeleton } from '@/components/ui/skeleton';
 import { SeverityBadge } from '@/components/ui/badge';
 import { useStatsOverview, useStatsByProject, useStatsTrend } from '@/lib/api-hooks';
+import { AiButton, AiButtonGroup, AiResultPanel } from '@/components/ai';
+import { useAiExecution, useDashboardAiContext } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 const SEVERITY_COLORS = {
     Critical: '#dc2626',
@@ -86,6 +89,32 @@ export default function DashboardPage() {
         }
     };
 
+    // AI Execution
+    const collectDashboardContext = useDashboardAiContext();
+    const {
+        execute: executeSummary,
+        isLoading: aiLoading,
+        result: aiResult,
+        previousResults: aiPreviousResults,
+        estimateTokens,
+        cancel: cancelAi,
+        progress: aiProgress,
+    } = useAiExecution('dashboard.summary');
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleAiSummary = () => {
+        const context = collectDashboardContext(overview, projectStats);
+        executeSummary(context);
+    };
+
+    const handleRegenerate = () => {
+        const context = collectDashboardContext(overview, projectStats);
+        executeSummary(context);
+    };
+
+    const estimatedTokens = overview ? estimateTokens(collectDashboardContext(overview, projectStats)) : 0;
+
     if (isLoading) {
         return (
             <div className="space-y-6">
@@ -119,6 +148,24 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-6">
+            {/* Header with AI Button */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">대시보드</h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">전체 취약점 현황을 확인하세요</p>
+                </div>
+                <AiButton
+                    action="dashboard.summary"
+                    variant="primary"
+                    size="md"
+                    context={collectDashboardContext(overview, projectStats)}
+                    estimatedTokens={estimatedTokens}
+                    loading={aiLoading}
+                    onExecute={handleAiSummary}
+                    onCancel={cancelAi}
+                />
+            </div>
+
             {/* Stats Cards - Critical/High first for priority */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
@@ -351,6 +398,18 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* AI Result Panel */}
+            <AiResultPanel
+                isOpen={activePanel?.key === 'dashboard.summary'}
+                onClose={closePanel}
+                result={aiResult}
+                previousResults={aiPreviousResults}
+                loading={aiLoading}
+                loadingProgress={aiProgress}
+                onRegenerate={handleRegenerate}
+                action="dashboard.summary"
+            />
         </div>
     );
 }

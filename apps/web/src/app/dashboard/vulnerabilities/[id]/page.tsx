@@ -22,6 +22,9 @@ import {
     ChevronUp,
 } from 'lucide-react';
 import { useVulnerability } from '@/lib/api-hooks';
+import { AiButton, AiButtonGroup, AiResultPanel } from '@/components/ai';
+import { useAiExecution, useVulnerabilityAiContext } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 function getSeverityBadge(severity: string) {
     const colors: Record<string, string> = {
@@ -83,6 +86,48 @@ export default function VulnerabilityDetailPage() {
     const [showAiGuide, setShowAiGuide] = useState(true);
     const [showHistory, setShowHistory] = useState(false);
 
+    // AI Execution for Action Guide
+    const collectVulnContext = useVulnerabilityAiContext();
+    const {
+        execute: executeActionGuide,
+        isLoading: actionGuideLoading,
+        result: actionGuideResult,
+        previousResults: actionGuidePrevious,
+        estimateTokens: estimateActionGuideTokens,
+        cancel: cancelActionGuide,
+        progress: actionGuideProgress,
+    } = useAiExecution('vuln.actionGuide', { entityId: vulnId });
+
+    // AI Execution for Impact Analysis
+    const {
+        execute: executeImpactAnalysis,
+        isLoading: impactLoading,
+        result: impactResult,
+        previousResults: impactPrevious,
+        estimateTokens: estimateImpactTokens,
+        cancel: cancelImpact,
+        progress: impactProgress,
+    } = useAiExecution('vuln.impactAnalysis', { entityId: vulnId });
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleActionGuide = () => {
+        if (vuln) {
+            const context = collectVulnContext(vuln);
+            executeActionGuide(context);
+        }
+    };
+
+    const handleImpactAnalysis = () => {
+        if (vuln) {
+            const context = collectVulnContext(vuln);
+            executeImpactAnalysis(context);
+        }
+    };
+
+    const estimatedActionGuideTokens = vuln ? estimateActionGuideTokens(collectVulnContext(vuln)) : 0;
+    const estimatedImpactTokens = vuln ? estimateImpactTokens(collectVulnContext(vuln)) : 0;
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -127,6 +172,26 @@ export default function VulnerabilityDetailPage() {
                         <p className="text-slate-500 mt-1">{vuln.title}</p>
                     )}
                 </div>
+                <AiButtonGroup>
+                    <AiButton
+                        action="vuln.actionGuide"
+                        variant="primary"
+                        size="md"
+                        estimatedTokens={estimatedActionGuideTokens}
+                        loading={actionGuideLoading}
+                        onExecute={handleActionGuide}
+                        onCancel={cancelActionGuide}
+                    />
+                    <AiButton
+                        action="vuln.impactAnalysis"
+                        variant="secondary"
+                        size="md"
+                        estimatedTokens={estimatedImpactTokens}
+                        loading={impactLoading}
+                        onExecute={handleImpactAnalysis}
+                        onCancel={cancelImpact}
+                    />
+                </AiButtonGroup>
                 <a
                     href={`https://nvd.nist.gov/vuln/detail/${vuln.cveId}`}
                     target="_blank"
@@ -319,6 +384,30 @@ export default function VulnerabilityDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* AI Result Panel - Action Guide */}
+            <AiResultPanel
+                isOpen={activePanel?.key === `vuln.actionGuide:${vulnId}`}
+                onClose={closePanel}
+                result={actionGuideResult}
+                previousResults={actionGuidePrevious}
+                loading={actionGuideLoading}
+                loadingProgress={actionGuideProgress}
+                onRegenerate={handleActionGuide}
+                action="vuln.actionGuide"
+            />
+
+            {/* AI Result Panel - Impact Analysis */}
+            <AiResultPanel
+                isOpen={activePanel?.key === `vuln.impactAnalysis:${vulnId}`}
+                onClose={closePanel}
+                result={impactResult}
+                previousResults={impactPrevious}
+                loading={impactLoading}
+                loadingProgress={impactProgress}
+                onRegenerate={handleImpactAnalysis}
+                action="vuln.impactAnalysis"
+            />
         </div>
     );
 }

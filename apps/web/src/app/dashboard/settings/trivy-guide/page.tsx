@@ -72,7 +72,7 @@ export default function TrivyGuidePage() {
     // Fetch real tokens and scans from API
     const { data: tokens = [] } = useApiTokens();
     const { data: scansData } = useScans();
-    const recentScans = scansData?.data?.slice(0, 5) || [];
+    const recentScans = scansData?.results?.slice(0, 5) || [];
 
     // Get first available token or empty string
     const currentToken = tokens.length > 0 ? tokens[0] : null;

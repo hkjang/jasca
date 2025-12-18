@@ -1,14 +1,27 @@
-import { Controller, Post, Get, Body, UseGuards, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Query, BadRequestException, Req, ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { AiService } from './ai.service';
+import { AiActionType, AI_ACTION_METADATA } from './ai-actions';
+import { Request } from 'express';
 
 interface TestConnectionDto {
     provider: 'openai' | 'anthropic' | 'vllm' | 'ollama' | 'custom';
     apiUrl: string;
     apiKey?: string;
+}
+
+interface ExecuteAiDto {
+    action: AiActionType;
+    context: Record<string, unknown>;
+    estimatedTokens?: number;
+}
+
+interface EstimateAiDto {
+    action: AiActionType;
+    context: Record<string, unknown>;
 }
 
 interface OllamaModel {
@@ -21,10 +34,76 @@ interface OllamaListResponse {
     models: OllamaModel[];
 }
 
+interface RequestWithUser extends Request {
+    user?: {
+        userId: string;
+        email: string;
+        role: Role;
+    };
+}
+
 @Controller('ai')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AiController {
     constructor(private readonly aiService: AiService) { }
+
+    /**
+     * Execute AI action
+     */
+    @Post('execute')
+    async executeAi(@Body() dto: ExecuteAiDto, @Req() req: RequestWithUser) {
+        const user = req.user;
+        if (!user) {
+            throw new BadRequestException('User not authenticated');
+        }
+
+        // Check role-based access
+        const metadata = AI_ACTION_METADATA[dto.action];
+        if (metadata?.requiredRoles && metadata.requiredRoles.length > 0) {
+            if (!metadata.requiredRoles.includes(user.role)) {
+                throw new ForbiddenException('Insufficient permissions for this AI action');
+            }
+        }
+
+        const startTime = Date.now();
+
+        try {
+            const result = await this.aiService.executeAction(dto.action, dto.context, user.userId);
+            const durationMs = Date.now() - startTime;
+
+            return {
+                id: result.id,
+                action: dto.action,
+                content: result.content,
+                summary: result.summary,
+                model: result.model,
+                inputTokens: result.inputTokens,
+                outputTokens: result.outputTokens,
+                durationMs,
+            };
+        } catch (error) {
+            throw new BadRequestException(
+                error instanceof Error ? error.message : 'AI execution failed'
+            );
+        }
+    }
+
+    /**
+     * Estimate tokens for AI action
+     */
+    @Post('estimate')
+    async estimateTokens(@Body() dto: EstimateAiDto) {
+        const estimate = this.aiService.estimateTokens(dto.action, dto.context);
+        const metadata = AI_ACTION_METADATA[dto.action];
+
+        return {
+            action: dto.action,
+            inputTokens: estimate.inputTokens,
+            outputTokens: estimate.outputTokens,
+            totalTokens: estimate.inputTokens + estimate.outputTokens,
+            maxContextTokens: metadata?.maxContextTokens || 2000,
+        };
+    }
 
     /**
      * Test connection to AI provider

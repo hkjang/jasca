@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AiActionType, AI_PROMPTS, AI_ACTION_METADATA } from './ai-actions';
 
 export interface RiskSummary {
     projectId: string;
@@ -22,11 +23,354 @@ export interface RemediationGuide {
     generatedAt: Date;
 }
 
+export interface AiExecutionResult {
+    id: string;
+    action: AiActionType;
+    content: string;
+    summary?: string;
+    model?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+}
+
+export interface TokenEstimate {
+    inputTokens: number;
+    outputTokens: number;
+}
+
 @Injectable()
 export class AiService {
     private readonly logger = new Logger(AiService.name);
 
     constructor(private readonly prisma: PrismaService) { }
+
+    /**
+     * Execute AI action with given context
+     */
+    async executeAction(
+        action: AiActionType,
+        context: Record<string, unknown>,
+        userId: string,
+    ): Promise<AiExecutionResult> {
+        this.logger.log(`Executing AI action: ${action} for user: ${userId}`);
+
+        // Get the prompt template
+        const promptTemplate = AI_PROMPTS[action];
+        const metadata = AI_ACTION_METADATA[action];
+
+        // Build the full prompt with context
+        const contextStr = JSON.stringify(context, null, 2);
+        const fullPrompt = `${promptTemplate}\n\n**컨텍스트 데이터:**\n\`\`\`json\n${contextStr}\n\`\`\``;
+
+        // Mask PII in context
+        const maskedContext = this.maskPii(contextStr);
+
+        // TODO: Get AI settings from database and call actual LLM API
+        // For now, generate a mock response based on action type
+        const content = await this.generateMockResponse(action, context);
+
+        // Estimate tokens
+        const estimate = this.estimateTokens(action, context);
+
+        // Log the execution (in production, save to database)
+        this.logger.log(`AI execution completed. Input tokens: ${estimate.inputTokens}, Output tokens: ${estimate.outputTokens}`);
+
+        return {
+            id: crypto.randomUUID(),
+            action,
+            content,
+            summary: this.generateSummaryFromContent(content),
+            model: 'mock-model-v1', // Would be from AI settings
+            inputTokens: estimate.inputTokens,
+            outputTokens: estimate.outputTokens,
+        };
+    }
+
+    /**
+     * Estimate tokens for given action and context
+     */
+    estimateTokens(action: AiActionType, context: Record<string, unknown>): TokenEstimate {
+        const metadata = AI_ACTION_METADATA[action];
+        const contextStr = JSON.stringify(context);
+
+        // Rough estimation: ~4 characters per token
+        const contextTokens = Math.ceil(contextStr.length / 4);
+        const promptTokens = 500; // Base prompt tokens
+
+        return {
+            inputTokens: Math.min(contextTokens + promptTokens, metadata?.maxContextTokens || 2000),
+            outputTokens: metadata?.expectedOutputTokens || 500,
+        };
+    }
+
+    /**
+     * Mask PII in text
+     */
+    private maskPii(text: string): string {
+        // Mask email addresses
+        let masked = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]');
+        // Mask phone numbers (Korean format)
+        masked = masked.replace(/\d{2,3}-\d{3,4}-\d{4}/g, '[PHONE]');
+        // Mask IP addresses
+        masked = masked.replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '[IP]');
+        return masked;
+    }
+
+    /**
+     * Generate summary from content (first meaningful sentence)
+     */
+    private generateSummaryFromContent(content: string): string {
+        const lines = content.split('\n').filter(line => line.trim().length > 0);
+        if (lines.length === 0) return '';
+
+        // Find first non-header line
+        for (const line of lines) {
+            if (!line.startsWith('#') && !line.startsWith('-') && line.length > 20) {
+                return line.slice(0, 150) + (line.length > 150 ? '...' : '');
+            }
+        }
+        return lines[0].slice(0, 150);
+    }
+
+    /**
+     * Generate mock response for development
+     * TODO: Replace with actual LLM integration
+     */
+    private async generateMockResponse(
+        action: AiActionType,
+        context: Record<string, unknown>,
+    ): Promise<string> {
+        // Simulate processing delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        switch (action) {
+            case 'dashboard.summary':
+                return this.generateDashboardSummaryMock(context);
+            case 'dashboard.riskAnalysis':
+                return this.generateRiskAnalysisMock(context);
+            case 'project.analysis':
+                return this.generateProjectAnalysisMock(context);
+            case 'vuln.actionGuide':
+                return this.generateVulnActionGuideMock(context);
+            case 'vuln.priorityReorder':
+                return this.generatePriorityReorderMock(context);
+            case 'policy.interpretation':
+                return this.generatePolicyInterpretationMock(context);
+            case 'notification.summary':
+                return this.generateNotificationSummaryMock(context);
+            case 'guide.trivyCommand':
+                return this.generateTrivyCommandMock(context);
+            default:
+                return this.generateGenericMock(action, context);
+        }
+    }
+
+    private generateDashboardSummaryMock(context: Record<string, unknown>): string {
+        const overview = context.overview as Record<string, unknown> | undefined;
+        return `## 취약점 현황 요약
+
+현재 시스템의 보안 상태를 분석한 결과, 전반적인 보안 수준은 **주의 필요** 단계입니다.
+
+### 주요 발견 사항
+- Critical 등급 취약점이 발견되어 즉각적인 조치가 필요합니다
+- 최근 7일간 취약점 추이가 증가하는 양상을 보이고 있습니다
+- 특정 프로젝트에 취약점이 집중되어 있습니다
+
+### 권장 조치
+1. Critical 취약점에 대한 긴급 패치 적용
+2. High 취약점 해결을 위한 7일 내 계획 수립
+3. 취약점 발생 패턴 분석 및 예방 조치 강화
+
+*이 분석은 AI가 자동 생성한 것으로, 상세 검토가 필요합니다.*`;
+    }
+
+    private generateRiskAnalysisMock(context: Record<string, unknown>): string {
+        return `## 조직 위험 분석 결과
+
+### Top 5 위험 요인
+
+1. **오래된 의존성 패키지 (위험도: 높음)**
+   - 다수의 프로젝트에서 업데이트되지 않은 npm 패키지 사용
+   - 알려진 취약점을 포함한 버전 사용 중
+
+2. **Critical CVE 미조치 (위험도: 높음)**
+   - 30일 이상 미해결된 Critical 취약점 존재
+   - 공개 익스플로잇 존재 가능성
+
+3. **컨테이너 이미지 취약점 (위험도: 중간)**
+   - 베이스 이미지 업데이트 필요
+   - alpine 기반 이미지로 전환 권장
+
+4. **일관성 없는 정책 적용 (위험도: 중간)**
+   - 프로젝트별 보안 정책 편차 존재
+   - 통합 보안 기준 필요
+
+5. **스캔 주기 불규칙 (위험도: 낮음)**
+   - 일부 프로젝트 스캔 미실행
+   - 자동화된 스캔 파이프라인 구축 권장`;
+    }
+
+    private generateProjectAnalysisMock(context: Record<string, unknown>): string {
+        return `## 프로젝트 보안 분석
+
+### 분석 개요
+프로젝트의 보안 상태를 종합적으로 분석했습니다.
+
+### 주요 리스크 원인
+1. **오래된 Node.js 패키지**: lodash, moment 등 deprecated 패키지 사용
+2. **알려진 CVE**: 3개의 Critical CVE가 미해결 상태
+3. **컨테이너 구성**: root 사용자로 실행되는 컨테이너 발견
+
+### 권장 조치
+- 패키지 업데이트 또는 대체 라이브러리로 마이그레이션
+- 컨테이너 보안 모범 사례 적용
+- 정기적인 보안 스캔 자동화`;
+    }
+
+    private generateVulnActionGuideMock(context: Record<string, unknown>): string {
+        return `## 취약점 조치 가이드
+
+### 취약점 개요
+해당 취약점은 원격 코드 실행(RCE)을 허용할 수 있는 심각한 보안 문제입니다.
+
+### 조치 단계
+
+#### 1단계: 영향 범위 파악
+\`\`\`bash
+trivy image --severity CRITICAL your-image:tag
+\`\`\`
+
+#### 2단계: 패키지 업데이트
+\`\`\`bash
+npm update affected-package
+# 또는
+yarn upgrade affected-package
+\`\`\`
+
+#### 3단계: 테스트 및 검증
+- 단위 테스트 실행
+- 통합 테스트로 기능 확인
+- 재스캔으로 취약점 해결 확인
+
+### 임시 완화 조치
+패치가 즉시 어려운 경우:
+- 네트워크 접근 제한
+- WAF 규칙 추가
+- 모니터링 강화
+
+### 참고 자료
+- [NVD 상세 정보](https://nvd.nist.gov)
+- [패키지 보안 권고](https://github.com/advisories)`;
+    }
+
+    private generatePriorityReorderMock(context: Record<string, unknown>): string {
+        return `## AI 기반 취약점 우선순위
+
+### 재정렬 기준
+- EPSS 점수 (익스플로잇 예측)
+- 공개 익스플로잇 존재 여부
+- 자산 노출 정도
+- 비즈니스 영향도
+
+### 우선순위 목록
+
+| 순위 | CVE ID | 기존 순위 | EPSS | 재정렬 사유 |
+|------|--------|-----------|------|-------------|
+| 1 | CVE-2024-0001 | 3 | 0.92 | 공개 익스플로잇 존재 |
+| 2 | CVE-2024-0002 | 1 | 0.78 | 인터넷 노출 서비스 |
+| 3 | CVE-2024-0003 | 2 | 0.45 | 내부망 한정 |
+
+*EPSS 데이터는 실시간으로 업데이트됩니다.*`;
+    }
+
+    private generatePolicyInterpretationMock(context: Record<string, unknown>): string {
+        return `## 정책 차단 사유 설명
+
+### 적용된 정책
+**"Critical 취약점 차단 정책"**
+
+### 차단 이유
+이 배포가 차단된 이유는 컨테이너 이미지에서 **Critical 등급의 취약점**이 발견되었기 때문입니다.
+
+### 상세 설명
+1. 스캔 결과 2개의 Critical 취약점 발견
+2. 조직 정책에 따라 Critical 취약점이 있는 이미지는 프로덕션 배포 불가
+3. 해당 취약점은 원격 코드 실행 위험이 있음
+
+### 해결 방법
+1. 발견된 취약점 패치 후 재스캔
+2. 또는 예외 승인 요청 (비즈니스 사유 필요)
+
+*정책 문의: security@company.com*`;
+    }
+
+    private generateNotificationSummaryMock(context: Record<string, unknown>): string {
+        const notifications = context.notifications as unknown[] | undefined;
+        const count = notifications?.length || 0;
+
+        return `## 알림 요약 (${count}건)
+
+### 긴급 조치 필요
+- 🔴 Critical 취약점 2건 신규 발견
+
+### 검토 필요
+- 🟡 정책 위반 3건
+- 🟡 스캔 완료 5건
+
+### 정보성
+- 🔵 프로젝트 업데이트 2건
+
+### 권장 조치
+1. Critical 취약점 먼저 검토
+2. 정책 위반 항목 확인 후 조치
+3. 나머지는 일일 리뷰 시 처리`;
+    }
+
+    private generateTrivyCommandMock(context: Record<string, unknown>): string {
+        return `## Trivy 명령어
+
+### 컨테이너 이미지 스캔
+\`\`\`bash
+trivy image --format json --output result.json your-image:tag
+\`\`\`
+
+### 파일시스템 스캔
+\`\`\`bash
+trivy fs --format sarif --output result.sarif ./
+\`\`\`
+
+### CI/CD 통합 (GitHub Actions)
+\`\`\`yaml
+- name: Run Trivy vulnerability scanner
+  uses: aquasecurity/trivy-action@master
+  with:
+    image-ref: '\${{ env.IMAGE }}'
+    format: 'json'
+    output: 'trivy-results.json'
+    severity: 'CRITICAL,HIGH'
+\`\`\`
+
+### 옵션 설명
+- \`--format json\`: JASCA 호환 형식
+- \`--severity CRITICAL,HIGH\`: 심각도 필터
+- \`--ignore-unfixed\`: 패치 없는 취약점 제외`;
+    }
+
+    private generateGenericMock(action: AiActionType, context: Record<string, unknown>): string {
+        const metadata = AI_ACTION_METADATA[action];
+        return `## ${metadata?.label || 'AI 분석 결과'}
+
+AI 분석이 완료되었습니다.
+
+### 분석 내용
+요청하신 "${action}" 작업에 대한 분석을 수행했습니다.
+
+### 컨텍스트 요약
+입력된 데이터를 기반으로 분석을 진행했습니다.
+
+*상세 분석 기능은 AI 모델 연동 후 제공됩니다.*`;
+    }
+
 
     /**
      * Generate AI-powered risk summary for a project
