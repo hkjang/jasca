@@ -1,13 +1,48 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
     Shield,
     BarChart3,
     FileSearch,
     Settings,
     AlertTriangle,
+    LogOut,
+    User,
+    Loader2,
 } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
+import { useHasMounted } from '@/hooks/use-has-mounted';
+import { authApi } from '@/lib/auth-api';
 
 export default function HomePage() {
+    const router = useRouter();
+    const hasMounted = useHasMounted();
+    const { user, isAuthenticated, refreshToken, logout } = useAuthStore();
+
+    const handleLogout = async () => {
+        try {
+            if (refreshToken) {
+                await authApi.logout(refreshToken);
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            logout();
+        }
+    };
+
+    // Show loading state before hydration
+    if (!hasMounted) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
             {/* Header */}
@@ -17,19 +52,60 @@ export default function HomePage() {
                         <Shield className="h-8 w-8 text-blue-400" />
                         <span className="text-2xl font-bold text-white">JASCA</span>
                     </div>
-                    <nav className="flex items-center gap-6">
-                        <Link
-                            href="/login"
-                            className="text-slate-300 hover:text-white transition-colors"
-                        >
-                            로그인
-                        </Link>
-                        <Link
-                            href="/register"
-                            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                            시작하기
-                        </Link>
+                    <nav className="flex items-center gap-4">
+                        {isAuthenticated && user ? (
+                            <>
+                                {/* User is logged in - show dashboard link and user info */}
+                                <Link
+                                    href="/dashboard"
+                                    className="text-slate-300 hover:text-white transition-colors"
+                                >
+                                    대시보드
+                                </Link>
+                                {user.roles?.some(role => ['SYSTEM_ADMIN', 'ORG_ADMIN', 'ADMIN'].includes(role)) && (
+                                    <Link
+                                        href="/admin"
+                                        className="text-slate-300 hover:text-white transition-colors"
+                                    >
+                                        관리자
+                                    </Link>
+                                )}
+                                <div className="flex items-center gap-3 ml-4">
+                                    <Link
+                                        href="/dashboard/profile"
+                                        className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors"
+                                    >
+                                        <div className="h-8 w-8 rounded-full bg-blue-600/30 flex items-center justify-center">
+                                            <User className="h-4 w-4 text-blue-400" />
+                                        </div>
+                                        <span className="text-sm">{user.name || user.email}</span>
+                                    </Link>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-red-400 transition-colors rounded-lg hover:bg-slate-800/50"
+                                        title="로그아웃"
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {/* User is not logged in - show login/register links */}
+                                <Link
+                                    href="/login"
+                                    className="text-slate-300 hover:text-white transition-colors"
+                                >
+                                    로그인
+                                </Link>
+                                <Link
+                                    href="/register"
+                                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                    시작하기
+                                </Link>
+                            </>
+                        )}
                     </nav>
                 </div>
             </header>
@@ -50,12 +126,21 @@ export default function HomePage() {
                         체계적인 보안 취약점 관리를 실현하세요.
                     </p>
                     <div className="flex justify-center gap-4">
-                        <Link
-                            href="/register"
-                            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors"
-                        >
-                            무료로 시작하기
-                        </Link>
+                        {isAuthenticated ? (
+                            <Link
+                                href="/dashboard"
+                                className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors"
+                            >
+                                대시보드로 이동
+                            </Link>
+                        ) : (
+                            <Link
+                                href="/register"
+                                className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors"
+                            >
+                                무료로 시작하기
+                            </Link>
+                        )}
                         <Link
                             href="/docs"
                             className="border border-slate-600 hover:border-slate-500 text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors"

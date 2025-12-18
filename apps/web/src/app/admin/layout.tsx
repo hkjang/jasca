@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHasMounted } from '@/hooks/use-has-mounted';
+import { authApi } from '@/lib/auth-api';
 
 const adminNavigation = [
     { name: '대시보드', href: '/admin', icon: LayoutDashboard },
@@ -51,7 +52,7 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
     const hasMounted = useHasMounted();
-    const { user, isAuthenticated, logout } = useAuthStore();
+    const { user, isAuthenticated, refreshToken, logout } = useAuthStore();
     const [collapsed, setCollapsed] = useState(false);
 
     // Check for admin role
@@ -69,8 +70,16 @@ export default function AdminLayout({
     }, [hasMounted, isAuthenticated, isAdmin, router]);
 
     const handleLogout = async () => {
-        await logout();
-        router.push('/login');
+        try {
+            if (refreshToken) {
+                await authApi.logout(refreshToken);
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            logout();
+            router.push('/login');
+        }
     };
 
     if (!hasMounted || !isAuthenticated || !isAdmin) {
@@ -113,8 +122,8 @@ export default function AdminLayout({
                                     key={item.name}
                                     href={item.href}
                                     className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
-                                            ? 'bg-red-600 text-white'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                        ? 'bg-red-600 text-white'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                         }`}
                                     title={collapsed ? item.name : undefined}
                                 >
@@ -136,8 +145,8 @@ export default function AdminLayout({
                                     key={item.name}
                                     href={item.href}
                                     className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
-                                            ? 'bg-red-600 text-white'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                        ? 'bg-red-600 text-white'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                         }`}
                                     title={collapsed ? item.name : undefined}
                                 >
