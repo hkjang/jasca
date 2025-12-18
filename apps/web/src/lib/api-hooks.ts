@@ -64,6 +64,61 @@ export function useScan(id: string) {
     });
 }
 
+// Upload scan DTO interface
+export interface UploadScanDto {
+    sourceType: 'TRIVY_JSON' | 'TRIVY_SARIF' | 'CI_BAMBOO' | 'CI_GITLAB' | 'CI_JENKINS' | 'CI_GITHUB_ACTIONS' | 'MANUAL';
+    imageRef?: string;
+    imageDigest?: string;
+    tag?: string;
+    commitHash?: string;
+    branch?: string;
+    ciPipeline?: string;
+    ciJobUrl?: string;
+}
+
+export function useUploadScan() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({
+            projectId,
+            file,
+            metadata,
+        }: {
+            projectId: string;
+            file: File;
+            metadata: UploadScanDto;
+        }) => {
+            const token = useAuthStore.getState().accessToken;
+            const formData = new FormData();
+            formData.append('file', file);
+            // Append metadata fields
+            Object.entries(metadata).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    formData.append(key, String(value));
+                }
+            });
+
+            const response = await fetch(`${API_BASE}/scans/upload?projectId=${projectId}`, {
+                method: 'POST',
+                headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ message: 'Upload failed' }));
+                throw new Error(error.message || 'Upload failed');
+            }
+
+            return response.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['scans'] });
+        },
+    });
+}
+
 // ============ Vulnerabilities API ============
 
 export interface Vulnerability {
