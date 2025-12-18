@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { ApiTokenController } from './api-token.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ApiKeyStrategy } from './strategies/api-key.strategy';
 import { UsersModule } from '../users/users.module';
@@ -16,6 +17,7 @@ import { PasswordPolicyService } from './services/password-policy.service';
 import { IpControlService } from './services/ip-control.service';
 import { EmailVerificationService } from './services/email-verification.service';
 import { InvitationService } from './services/invitation.service';
+import { ApiTokenService } from './services/api-token.service';
 
 @Module({
     imports: [
@@ -32,7 +34,7 @@ import { InvitationService } from './services/invitation.service';
         }),
         UsersModule,
     ],
-    controllers: [AuthController],
+    controllers: [AuthController, ApiTokenController],
     providers: [
         AuthService,
         JwtStrategy,
@@ -45,6 +47,7 @@ import { InvitationService } from './services/invitation.service';
         IpControlService,
         EmailVerificationService,
         InvitationService,
+        ApiTokenService,
     ],
     exports: [
         AuthService,
@@ -56,6 +59,7 @@ import { InvitationService } from './services/invitation.service';
         IpControlService,
         EmailVerificationService,
         InvitationService,
+        ApiTokenService,
     ],
 })
 export class AuthModule { }

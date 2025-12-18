@@ -8,33 +8,11 @@ import {
     Trash2,
     Eye,
     EyeOff,
-    Calendar,
-    Shield,
     CheckCircle,
     AlertTriangle,
+    Loader2,
 } from 'lucide-react';
-
-// Mock tokens
-const mockTokens = [
-    {
-        id: '1',
-        name: 'CI/CD Pipeline',
-        prefix: 'jasca_****8a2f',
-        scopes: ['scans:read', 'scans:write', 'vulnerabilities:read'],
-        createdAt: '2024-11-01T00:00:00Z',
-        lastUsed: '2024-12-17T09:30:00Z',
-        expiresAt: '2025-11-01T00:00:00Z',
-    },
-    {
-        id: '2',
-        name: 'Monitoring Dashboard',
-        prefix: 'jasca_****3b7e',
-        scopes: ['vulnerabilities:read', 'projects:read'],
-        createdAt: '2024-10-15T00:00:00Z',
-        lastUsed: '2024-12-16T14:22:00Z',
-        expiresAt: '2025-10-15T00:00:00Z',
-    },
-];
+import { useApiTokens, useCreateApiToken, useDeleteApiToken, type ApiToken } from '@/lib/api-hooks';
 
 const availableScopes = [
     { id: 'scans:read', label: '스캔 읽기', desc: '스캔 결과 조회' },
@@ -45,7 +23,8 @@ const availableScopes = [
     { id: 'policies:read', label: '정책 읽기', desc: '정책 정보 조회' },
 ];
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string | null) {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('ko-KR', {
         year: 'numeric',
         month: '2-digit',
@@ -54,32 +33,52 @@ function formatDate(dateString: string) {
 }
 
 export default function ApiTokensPage() {
-    const [tokens, setTokens] = useState(mockTokens);
+    const { data: tokens = [], isLoading, error } = useApiTokens();
+    const createMutation = useCreateApiToken();
+    const deleteMutation = useDeleteApiToken();
+
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newToken, setNewToken] = useState<string | null>(null);
     const [showToken, setShowToken] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     // Create form states
     const [tokenName, setTokenName] = useState('');
     const [selectedScopes, setSelectedScopes] = useState<string[]>([]);
     const [expiresIn, setExpiresIn] = useState<'30' | '90' | '365' | 'never'>('90');
 
-    const handleCreate = () => {
+    const handleCreate = async () => {
         if (!tokenName) return;
-        // Mock token creation
-        const generatedToken = 'jasca_' + Math.random().toString(36).substring(2, 18);
-        setNewToken(generatedToken);
-    };
 
-    const handleCopy = () => {
-        if (newToken) {
-            navigator.clipboard.writeText(newToken);
+        const expiresInDays = expiresIn === 'never' ? undefined : parseInt(expiresIn, 10);
+
+        try {
+            const result = await createMutation.mutateAsync({
+                name: tokenName,
+                permissions: selectedScopes.length > 0 ? selectedScopes : ['scans:read'],
+                expiresIn: expiresInDays,
+            });
+            setNewToken(result.token);
+        } catch (err) {
+            console.error('Failed to create token:', err);
         }
     };
 
-    const handleDelete = (id: string) => {
+    const handleCopy = async () => {
+        if (newToken) {
+            await navigator.clipboard.writeText(newToken);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
         if (confirm('이 토큰을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-            setTokens(prev => prev.filter(t => t.id !== id));
+            try {
+                await deleteMutation.mutateAsync(id);
+            } catch (err) {
+                console.error('Failed to delete token:', err);
+            }
         }
     };
 
@@ -89,7 +88,33 @@ export default function ApiTokensPage() {
         setTokenName('');
         setSelectedScopes([]);
         setExpiresIn('90');
+        setCopied(false);
+        setShowToken(false);
     };
+
+    const toggleScope = (scopeId: string) => {
+        setSelectedScopes(prev =>
+            prev.includes(scopeId) ? prev.filter(s => s !== scopeId) : [...prev, scopeId]
+        );
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+                <AlertTriangle className="h-12 w-12 mx-auto text-red-500 mb-4" />
+                <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">오류 발생</h3>
+                <p className="text-red-600 dark:text-red-300">토큰 목록을 불러오는데 실패했습니다.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -140,7 +165,7 @@ export default function ApiTokensPage() {
             ) : (
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {tokens.map((token) => (
+                        {tokens.map((token: ApiToken) => (
                             <div key={token.id} className="p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
@@ -149,19 +174,24 @@ export default function ApiTokensPage() {
                                         </div>
                                         <div>
                                             <h3 className="font-semibold text-slate-900 dark:text-white">{token.name}</h3>
-                                            <p className="text-sm font-mono text-slate-500">{token.prefix}</p>
+                                            <p className="text-sm font-mono text-slate-500">{token.tokenPrefix}</p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => handleDelete(token.id)}
-                                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                        disabled={deleteMutation.isPending}
+                                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        <Trash2 className="h-5 w-5" />
+                                        {deleteMutation.isPending ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <Trash2 className="h-5 w-5" />
+                                        )}
                                     </button>
                                 </div>
 
                                 <div className="flex flex-wrap gap-2 mb-4">
-                                    {token.scopes.map((scope) => (
+                                    {token.permissions.map((scope) => (
                                         <span
                                             key={scope}
                                             className="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded text-xs"
@@ -178,7 +208,7 @@ export default function ApiTokensPage() {
                                     </div>
                                     <div>
                                         <span className="text-slate-500">마지막 사용</span>
-                                        <p className="text-slate-700 dark:text-slate-300">{formatDate(token.lastUsed)}</p>
+                                        <p className="text-slate-700 dark:text-slate-300">{formatDate(token.lastUsedAt)}</p>
                                     </div>
                                     <div>
                                         <span className="text-slate-500">만료일</span>
@@ -198,11 +228,12 @@ export default function ApiTokensPage() {
                         {!newToken ? (
                             <>
                                 <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                    <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
                                         새 API 토큰 생성
-                                    </h3>
+                                    </h2>
                                 </div>
                                 <div className="p-6 space-y-4">
+                                    {/* Token Name */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                             토큰 이름
@@ -211,35 +242,32 @@ export default function ApiTokensPage() {
                                             type="text"
                                             value={tokenName}
                                             onChange={(e) => setTokenName(e.target.value)}
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             placeholder="예: CI/CD Pipeline"
+                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         />
                                     </div>
 
+                                    {/* Scopes */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                            권한 범위
+                                            권한 선택
                                         </label>
-                                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                                        <div className="space-y-2">
                                             {availableScopes.map((scope) => (
                                                 <label
                                                     key={scope.id}
-                                                    className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
+                                                    className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                 >
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedScopes.includes(scope.id)}
-                                                        onChange={(e) => {
-                                                            if (e.target.checked) {
-                                                                setSelectedScopes(prev => [...prev, scope.id]);
-                                                            } else {
-                                                                setSelectedScopes(prev => prev.filter(s => s !== scope.id));
-                                                            }
-                                                        }}
-                                                        className="w-4 h-4 text-blue-600 rounded"
+                                                        onChange={() => toggleScope(scope.id)}
+                                                        className="mt-0.5"
                                                     />
                                                     <div>
-                                                        <p className="text-sm font-medium text-slate-900 dark:text-white">{scope.label}</p>
+                                                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                                                            {scope.label}
+                                                        </p>
                                                         <p className="text-xs text-slate-500">{scope.desc}</p>
                                                     </div>
                                                 </label>
@@ -247,14 +275,15 @@ export default function ApiTokensPage() {
                                         </div>
                                     </div>
 
+                                    {/* Expiration */}
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                             만료 기간
                                         </label>
                                         <select
                                             value={expiresIn}
-                                            onChange={(e) => setExpiresIn(e.target.value as typeof expiresIn)}
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            onChange={(e) => setExpiresIn(e.target.value as '30' | '90' | '365' | 'never')}
+                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         >
                                             <option value="30">30일</option>
                                             <option value="90">90일</option>
@@ -263,19 +292,26 @@ export default function ApiTokensPage() {
                                         </select>
                                     </div>
                                 </div>
-                                <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
+                                <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
                                     <button
                                         onClick={closeModal}
-                                        className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                                        className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                                     >
                                         취소
                                     </button>
                                     <button
                                         onClick={handleCreate}
-                                        disabled={!tokenName || selectedScopes.length === 0}
-                                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={!tokenName || createMutation.isPending}
+                                        className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        생성
+                                        {createMutation.isPending ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                생성 중...
+                                            </>
+                                        ) : (
+                                            '토큰 생성'
+                                        )}
                                     </button>
                                 </div>
                             </>
@@ -283,48 +319,54 @@ export default function ApiTokensPage() {
                             <>
                                 <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                                            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                                토큰이 생성되었습니다
-                                            </h3>
-                                            <p className="text-sm text-slate-500">
-                                                이 토큰은 다시 표시되지 않으니 안전하게 저장하세요.
-                                            </p>
-                                        </div>
+                                        <CheckCircle className="h-6 w-6 text-green-500" />
+                                        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                                            토큰이 생성되었습니다
+                                        </h2>
                                     </div>
                                 </div>
                                 <div className="p-6">
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        API 토큰
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type={showToken ? 'text' : 'password'}
-                                            value={newToken}
-                                            readOnly
-                                            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 font-mono text-sm text-slate-900 dark:text-white"
-                                        />
-                                        <button
-                                            onClick={() => setShowToken(!showToken)}
-                                            className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
-                                        >
-                                            {showToken ? <EyeOff className="h-5 w-5 text-slate-600" /> : <Eye className="h-5 w-5 text-slate-600" />}
-                                        </button>
-                                        <button
-                                            onClick={handleCopy}
-                                            className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
-                                        >
-                                            <Copy className="h-5 w-5 text-slate-600" />
-                                        </button>
+                                    <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-4 mb-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <button
+                                                onClick={() => setShowToken(!showToken)}
+                                                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                            >
+                                                {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            </button>
+                                            <span className="text-xs text-slate-500">
+                                                {showToken ? '숨기기' : '토큰 보기'}
+                                            </span>
+                                        </div>
+                                        <code className="block text-sm font-mono text-slate-900 dark:text-white break-all">
+                                            {showToken ? newToken : newToken?.replace(/./g, '•')}
+                                        </code>
                                     </div>
+                                    <button
+                                        onClick={handleCopy}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                        {copied ? (
+                                            <>
+                                                <CheckCircle className="h-4 w-4" />
+                                                복사됨!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy className="h-4 w-4" />
+                                                토큰 복사
+                                            </>
+                                        )}
+                                    </button>
+                                    <p className="mt-4 text-sm text-yellow-600 dark:text-yellow-400">
+                                        <AlertTriangle className="inline h-4 w-4 mr-1" />
+                                        이 토큰은 다시 표시되지 않습니다. 안전한 곳에 저장해주세요.
+                                    </p>
                                 </div>
                                 <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
                                     <button
                                         onClick={closeModal}
-                                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                        className="px-4 py-2 text-sm bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
                                     >
                                         완료
                                     </button>

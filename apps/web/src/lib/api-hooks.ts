@@ -519,3 +519,61 @@ export function useRejectException() {
     });
 }
 
+// ============ API Tokens API ============
+
+export interface ApiToken {
+    id: string;
+    name: string;
+    tokenPrefix: string;
+    permissions: string[];
+    expiresAt: string | null;
+    lastUsedAt: string | null;
+    createdAt: string;
+}
+
+export interface CreateApiTokenDto {
+    name: string;
+    permissions: string[];
+    expiresIn?: number; // days
+}
+
+export function useApiTokens() {
+    return useQuery<ApiToken[]>({
+        queryKey: ['api-tokens'],
+        queryFn: () => authFetch(`${API_BASE}/api-tokens`),
+    });
+}
+
+export function useApiToken(id: string) {
+    return useQuery<ApiToken>({
+        queryKey: ['api-token', id],
+        queryFn: () => authFetch(`${API_BASE}/api-tokens/${id}`),
+        enabled: !!id,
+    });
+}
+
+export function useCreateApiToken() {
+    const queryClient = useQueryClient();
+    return useMutation<{ token: string; tokenInfo: ApiToken }, Error, CreateApiTokenDto>({
+        mutationFn: (data: CreateApiTokenDto) =>
+            authFetch(`${API_BASE}/api-tokens`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['api-tokens'] });
+        },
+    });
+}
+
+export function useDeleteApiToken() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) =>
+            authFetch(`${API_BASE}/api-tokens/${id}`, { method: 'DELETE' }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['api-tokens'] });
+        },
+    });
+}
+
