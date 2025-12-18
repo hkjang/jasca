@@ -10,6 +10,9 @@ import {
     Loader2,
 } from 'lucide-react';
 import { useComplianceReport, useViolationHistory } from '@/lib/api-hooks';
+import { AiButton, AiResultPanel } from '@/components/ai';
+import { useAiExecution } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 function getStatusBadge(status: string) {
     const config: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
@@ -30,6 +33,35 @@ function getStatusBadge(status: string) {
 export default function CompliancePage() {
     const { data: report, isLoading, error, refetch } = useComplianceReport('GENERAL');
     const { data: violations } = useViolationHistory(30);
+
+    // AI Execution for compliance mapping
+    const {
+        execute: executeComplianceMapping,
+        isLoading: aiLoading,
+        result: aiResult,
+        previousResults: aiPreviousResults,
+        estimateTokens,
+        cancel: cancelAi,
+        progress: aiProgress,
+    } = useAiExecution('admin.complianceMapping');
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleAiMapping = () => {
+        const context = {
+            screen: 'compliance',
+            report,
+            violations,
+            timestamp: new Date().toISOString(),
+        };
+        executeComplianceMapping(context);
+    };
+
+    const handleAiRegenerate = () => {
+        handleAiMapping();
+    };
+
+    const estimatedTokens = estimateTokens({ report, violations });
 
     if (isLoading) {
         return (
@@ -61,11 +93,22 @@ export default function CompliancePage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">컴플라이언스</h1>
-                <p className="text-slate-600 dark:text-slate-400 mt-1">
-                    규제 프레임워크 준수 현황을 확인합니다
-                </p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">컴플라이언스</h1>
+                    <p className="text-slate-600 dark:text-slate-400 mt-1">
+                        규제 프레임워크 준수 현황을 확인합니다
+                    </p>
+                </div>
+                <AiButton
+                    action="admin.complianceMapping"
+                    variant="primary"
+                    size="md"
+                    estimatedTokens={estimatedTokens}
+                    loading={aiLoading}
+                    onExecute={handleAiMapping}
+                    onCancel={cancelAi}
+                />
             </div>
 
             {/* Overall Score */}
@@ -182,6 +225,18 @@ export default function CompliancePage() {
                     컴플라이언스 리포트 다운로드
                 </button>
             </div>
+
+            {/* AI Result Panel */}
+            <AiResultPanel
+                isOpen={activePanel?.key === 'admin.complianceMapping'}
+                onClose={closePanel}
+                result={aiResult}
+                previousResults={aiPreviousResults}
+                loading={aiLoading}
+                loadingProgress={aiProgress}
+                onRegenerate={handleAiRegenerate}
+                action="admin.complianceMapping"
+            />
         </div>
     );
 }

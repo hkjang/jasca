@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { useScans, Scan } from '@/lib/api-hooks';
 import { UploadScanModal } from '@/components/upload-scan-modal';
+import { AiButton, AiResultPanel } from '@/components/ai';
+import { useAiExecution } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 function getStatusIcon(status: string) {
     switch (status) {
@@ -62,6 +65,37 @@ export default function ScansPage() {
     const [selectedProject, setSelectedProject] = useState<string>('');
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
+    // AI Execution for scan diff analysis
+    const {
+        execute: executeScanDiff,
+        isLoading: aiLoading,
+        result: aiResult,
+        previousResults: aiPreviousResults,
+        estimateTokens,
+        cancel: cancelAi,
+        progress: aiProgress,
+    } = useAiExecution('scan.changeAnalysis');
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleAiScanDiff = () => {
+        const context = {
+            screen: 'scans',
+            scans: data?.results?.slice(0, 10) || [],
+            total: data?.total || 0,
+            timestamp: new Date().toISOString(),
+        };
+        executeScanDiff(context);
+    };
+
+    const handleAiRegenerate = () => {
+        handleAiScanDiff();
+    };
+
+    const estimatedTokens = estimateTokens({
+        scans: data?.results?.slice(0, 5) || [],
+    });
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -99,6 +133,15 @@ export default function ScansPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <AiButton
+                        action="scan.changeAnalysis"
+                        variant="primary"
+                        size="md"
+                        estimatedTokens={estimatedTokens}
+                        loading={aiLoading}
+                        onExecute={handleAiScanDiff}
+                        onCancel={cancelAi}
+                    />
                     <button
                         onClick={() => setIsUploadModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -197,10 +240,10 @@ export default function ScansPage() {
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1">
                                             <span className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium ${(scan as any).sourceType === 'MANUAL'
-                                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                                                    : (scan as any).sourceType?.startsWith('CI_')
-                                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                                                : (scan as any).sourceType?.startsWith('CI_')
+                                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                                 }`}>
                                                 {(scan as any).sourceType || 'UNKNOWN'}
                                             </span>
@@ -237,6 +280,18 @@ export default function ScansPage() {
             <UploadScanModal
                 isOpen={isUploadModalOpen}
                 onClose={() => setIsUploadModalOpen(false)}
+            />
+
+            {/* AI Result Panel */}
+            <AiResultPanel
+                isOpen={activePanel?.key === 'scan.changeAnalysis'}
+                onClose={closePanel}
+                result={aiResult}
+                previousResults={aiPreviousResults}
+                loading={aiLoading}
+                loadingProgress={aiProgress}
+                onRegenerate={handleAiRegenerate}
+                action="scan.changeAnalysis"
             />
         </div>
     );

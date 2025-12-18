@@ -87,7 +87,7 @@ export default function ReportsPage() {
         estimateTokens,
         cancel: cancelAi,
         progress: aiProgress,
-    } = useAiExecution('report.generate');
+    } = useAiExecution('report.generation');
 
     const { activePanel, closePanel } = useAiStore();
 
@@ -170,7 +170,7 @@ export default function ReportsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <AiButton
-                        action="report.generate"
+                        action="report.generation"
                         variant="primary"
                         size="md"
                         estimatedTokens={estimatedTokens}
@@ -368,14 +368,14 @@ export default function ReportsPage() {
 
             {/* AI Result Panel */}
             <AiResultPanel
-                isOpen={activePanel?.key === 'report.generate'}
+                isOpen={activePanel?.key === 'report.generation'}
                 onClose={closePanel}
                 result={aiResult}
                 previousResults={aiPreviousResults}
                 loading={aiLoading}
                 loadingProgress={aiProgress}
                 onRegenerate={handleAiRegenerate}
-                action="report.generate"
+                action="report.generation"
             />
         </div>
     );

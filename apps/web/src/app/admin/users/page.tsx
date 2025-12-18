@@ -21,6 +21,9 @@ import {
     useOrganizations,
     User,
 } from '@/lib/api-hooks';
+import { AiButton, AiResultPanel } from '@/components/ai';
+import { useAiExecution } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 const roleLabels: Record<string, string> = {
     SYSTEM_ADMIN: 'System Admin',
@@ -48,13 +51,43 @@ export default function AdminUsersPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
 
-    // Form state
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         role: 'DEVELOPER',
         organizationId: '',
+    });
+
+    // AI Execution for permission recommendation
+    const {
+        execute: executePermissionRecommend,
+        isLoading: aiLoading,
+        result: aiResult,
+        previousResults: aiPreviousResults,
+        estimateTokens,
+        cancel: cancelAi,
+        progress: aiProgress,
+    } = useAiExecution('admin.permissionRecommendation');
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleAiRecommend = () => {
+        const context = {
+            screen: 'admin-users',
+            users: users?.slice(0, 10) || [],
+            organizations: organizations || [],
+            timestamp: new Date().toISOString(),
+        };
+        executePermissionRecommend(context);
+    };
+
+    const handleAiRegenerate = () => {
+        handleAiRecommend();
+    };
+
+    const estimatedTokens = estimateTokens({
+        users: users?.slice(0, 5) || [],
     });
 
     const filteredUsers = (users || []).filter((user) => {
@@ -140,13 +173,24 @@ export default function AdminUsersPage() {
                         {users?.length || 0}명의 사용자
                     </p>
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    사용자 추가
-                </button>
+                <div className="flex items-center gap-2">
+                    <AiButton
+                        action="admin.permissionRecommendation"
+                        variant="primary"
+                        size="md"
+                        estimatedTokens={estimatedTokens}
+                        loading={aiLoading}
+                        onExecute={handleAiRecommend}
+                        onCancel={cancelAi}
+                    />
+                    <button
+                        onClick={openCreateModal}
+                        className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        사용자 추가
+                    </button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -356,6 +400,18 @@ export default function AdminUsersPage() {
                     </div>
                 </div>
             )}
+
+            {/* AI Result Panel */}
+            <AiResultPanel
+                isOpen={activePanel?.key === 'admin.permissionRecommendation'}
+                onClose={closePanel}
+                result={aiResult}
+                previousResults={aiPreviousResults}
+                loading={aiLoading}
+                loadingProgress={aiProgress}
+                onRegenerate={handleAiRegenerate}
+                action="admin.permissionRecommendation"
+            />
         </div>
     );
 }
