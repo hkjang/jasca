@@ -57,7 +57,12 @@ export class ScansService {
         return scan;
     }
 
-    async uploadScan(projectId: string | undefined, dto: UploadScanDto, rawResult: any) {
+    async uploadScan(
+        projectId: string | undefined,
+        dto: UploadScanDto,
+        rawResult: any,
+        sourceInfo?: { uploaderIp?: string; userAgent?: string; uploadedById?: string }
+    ) {
         // Parse the scan result first to get artifact info
         const parsed = this.trivyParser.parse(rawResult, dto.sourceType);
 
@@ -81,6 +86,10 @@ export class ScansService {
                 rawResult: rawResult,
                 artifactName: parsed.artifactName,
                 artifactType: parsed.artifactType,
+                // Source tracking
+                uploaderIp: sourceInfo?.uploaderIp,
+                userAgent: sourceInfo?.userAgent,
+                uploadedById: sourceInfo?.uploadedById,
             },
         });
 

@@ -160,7 +160,7 @@ export default function ScanDetailPage() {
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                     스캔 정보
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                     <div>
                         <span className="text-sm text-slate-500 dark:text-slate-400">프로젝트</span>
                         <p className="font-medium text-slate-900 dark:text-white">
@@ -182,8 +182,49 @@ export default function ScanDetailPage() {
                     <div>
                         <span className="text-sm text-slate-500 dark:text-slate-400">스캔 일시</span>
                         <p className="font-medium text-slate-900 dark:text-white">
-                            {(scan as any).createdAt ? formatDate((scan as any).createdAt) : '-'}
+                            {formatDate((scan as any).createdAt)}
                         </p>
+                    </div>
+                </div>
+                {/* Source Information */}
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">업로드 출처</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">소스 타입</span>
+                            <p className="font-medium text-slate-900 dark:text-white">
+                                <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${(scan as any).sourceType === 'MANUAL'
+                                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                                        : (scan as any).sourceType?.startsWith('CI_')
+                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                    }`}>
+                                    {(scan as any).sourceType || 'UNKNOWN'}
+                                </span>
+                            </p>
+                        </div>
+                        <div>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">업로더 IP</span>
+                            <p className="font-mono text-sm text-slate-900 dark:text-white">
+                                {(scan as any).uploaderIp || '-'}
+                            </p>
+                        </div>
+                        <div>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">User-Agent</span>
+                            <p className="font-medium text-slate-900 dark:text-white text-sm truncate" title={(scan as any).userAgent}>
+                                {(scan as any).userAgent
+                                    ? ((scan as any).userAgent.length > 40
+                                        ? (scan as any).userAgent.substring(0, 40) + '...'
+                                        : (scan as any).userAgent)
+                                    : '-'}
+                            </p>
+                        </div>
+                        <div>
+                            <span className="text-sm text-slate-500 dark:text-slate-400">CI 파이프라인</span>
+                            <p className="font-medium text-slate-900 dark:text-white">
+                                {(scan as any).ciPipeline || '-'}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

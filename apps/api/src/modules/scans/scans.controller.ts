@@ -10,7 +10,9 @@ import {
     UseInterceptors,
     UploadedFile,
     BadRequestException,
+    Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
     ApiTags,
@@ -70,6 +72,7 @@ export class ScansController {
         @Query('projectId') projectId: string | undefined,
         @Body() body: any,
         @UploadedFile() file: Express.Multer.File,
+        @Req() req: Request,
     ) {
         if (!file) {
             throw new BadRequestException('No file uploaded');
@@ -89,8 +92,17 @@ export class ScansController {
             ciJobUrl: body.ciJobUrl,
         };
 
+        // Capture upload source info
+        const uploaderIp = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        const uploadedById = (req as any).user?.id;
+
         const rawResult = JSON.parse(file.buffer.toString('utf-8'));
-        return this.scansService.uploadScan(projectId, dto, rawResult);
+        return this.scansService.uploadScan(projectId, dto, rawResult, {
+            uploaderIp,
+            userAgent,
+            uploadedById,
+        });
     }
 
     @Post('upload/json')
@@ -103,8 +115,18 @@ export class ScansController {
     async uploadJson(
         @Query('projectId') projectId: string | undefined,
         @Body() body: { metadata: UploadScanDto; result: any },
+        @Req() req: Request,
     ) {
-        return this.scansService.uploadScan(projectId, body.metadata, body.result);
+        // Capture upload source info
+        const uploaderIp = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        const uploadedById = (req as any).user?.id;
+
+        return this.scansService.uploadScan(projectId, body.metadata, body.result, {
+            uploaderIp,
+            userAgent,
+            uploadedById,
+        });
     }
 
     @Delete(':id')

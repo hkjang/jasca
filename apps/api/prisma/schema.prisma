@@ -208,6 +208,11 @@ model ScanResult {
   artifactName    String?
   artifactType    String?   // container_image, filesystem, etc.
   
+  // Upload source tracking
+  uploaderIp      String?   // IP address of uploader
+  uploadedById    String?   // User who uploaded (if authenticated)
+  userAgent       String?   // User agent of uploader
+  
   summary         ScanSummary?
   vulnerabilities ScanVulnerability[]
   

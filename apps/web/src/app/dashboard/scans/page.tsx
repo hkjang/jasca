@@ -145,6 +145,9 @@ export default function ScansPage() {
                                     취약점
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    출처
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                     스캔 일시
                                 </th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -190,6 +193,23 @@ export default function ScansPage() {
                                         ) : (
                                             <span className="text-sm text-slate-400">-</span>
                                         )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <span className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium ${(scan as any).sourceType === 'MANUAL'
+                                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                                                    : (scan as any).sourceType?.startsWith('CI_')
+                                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                }`}>
+                                                {(scan as any).sourceType || 'UNKNOWN'}
+                                            </span>
+                                            {(scan as any).uploaderIp && (
+                                                <span className="text-xs text-slate-500 font-mono">
+                                                    {(scan as any).uploaderIp}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
