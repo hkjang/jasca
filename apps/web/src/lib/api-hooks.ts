@@ -946,3 +946,80 @@ export function useViolationHistory(days = 30) {
         queryFn: () => authFetch(`${API_BASE}/compliance/violations?days=${days}`),
     });
 }
+
+// ============ Settings API ============
+
+export function useSettings<T = unknown>(key: string) {
+    return useQuery<T>({
+        queryKey: ['settings', key],
+        queryFn: () => authFetch(`${API_BASE}/settings/${key}`),
+    });
+}
+
+export function useAllSettings() {
+    return useQuery<Record<string, unknown>>({
+        queryKey: ['settings'],
+        queryFn: () => authFetch(`${API_BASE}/settings`),
+    });
+}
+
+export function useUpdateSettings() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ key, value }: { key: string; value: unknown }) =>
+            authFetch(`${API_BASE}/settings/${key}`, {
+                method: 'PUT',
+                body: JSON.stringify({ value }),
+            }),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['settings', variables.key] });
+            queryClient.invalidateQueries({ queryKey: ['settings'] });
+        },
+    });
+}
+
+// Typed hooks for specific settings
+export interface WorkflowSettings {
+    states: Array<{
+        id: string;
+        name: string;
+        color: string;
+        description: string;
+    }>;
+    transitions: Array<{
+        from: string;
+        to: string;
+        requiredRole: string;
+    }>;
+}
+
+export interface TrivySettings {
+    outputFormat: 'json' | 'table' | 'sarif';
+    schemaVersion: number;
+    severities: string[];
+    ignoreUnfixed: boolean;
+    timeout: string;
+    cacheDir: string;
+    scanners: string[];
+}
+
+export interface AiSettings {
+    summaryModel: string;
+    remediationModel: string;
+    maxTokens: number;
+    temperature: number;
+    enableAutoSummary: boolean;
+    enableRemediationGuide: boolean;
+}
+
+export function useWorkflowSettings() {
+    return useSettings<WorkflowSettings>('workflows');
+}
+
+export function useTrivySettings() {
+    return useSettings<TrivySettings>('trivy');
+}
+
+export function useAiSettings() {
+    return useSettings<AiSettings>('ai');
+}

@@ -158,10 +158,12 @@ enum Role {
 }
 
 enum RoleScope {
+  GLOBAL
   SYSTEM
   ORGANIZATION
   PROJECT
 }
+
 
 model ApiToken {
   id             String    @id @default(uuid())
@@ -1064,4 +1066,18 @@ model PasswordHistory {
   createdAt    DateTime @default(now())
   
   @@index([userId])
+}
+
+// ============================================
+// System Settings Model
+// ============================================
+
+model SystemSettings {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  
+  @@index([key])
 }

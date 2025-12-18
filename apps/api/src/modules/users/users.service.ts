@@ -40,6 +40,42 @@ export class UsersService {
         });
     }
 
+    async updateUser(id: string, data: { name?: string; role?: string; status?: string }) {
+        // First update the user basic info
+        const updateData: { name?: string; isActive?: boolean } = {};
+        if (data.name) updateData.name = data.name;
+        if (data.status) updateData.isActive = data.status === 'ACTIVE';
+
+        const user = await this.prisma.user.update({
+            where: { id },
+            data: updateData,
+            include: { roles: true, organization: true },
+        });
+
+        // If role is being updated, update the user's primary role
+        if (data.role) {
+            // Delete existing roles and create new one
+            await this.prisma.userRole.deleteMany({ where: { userId: id } });
+            await this.prisma.userRole.create({
+                data: {
+                    userId: id,
+                    role: data.role as any,
+                    scope: 'GLOBAL',
+                },
+            });
+        }
+
+        return this.findById(id);
+    }
+
+    async deleteUser(id: string) {
+        // First delete related records
+        await this.prisma.userRole.deleteMany({ where: { userId: id } });
+        return this.prisma.user.delete({
+            where: { id },
+        });
+    }
+
     async assignRole(userId: string, role: string, scope: string, scopeId?: string) {
         return this.prisma.userRole.create({
             data: {

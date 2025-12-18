@@ -22,6 +22,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { OperationsModule } from './modules/operations/operations.module';
 import { InfrastructureModule } from './modules/infrastructure/infrastructure.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
     imports: [
@@ -51,7 +52,9 @@ import { InfrastructureModule } from './modules/infrastructure/infrastructure.mo
         AiModule,
         ComplianceModule,
         OperationsModule,
+        SettingsModule,
     ],
 })
 export class AppModule { }
+
 

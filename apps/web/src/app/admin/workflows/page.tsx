@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     GitBranch,
     Plus,
@@ -11,22 +11,11 @@ import {
     CheckCircle,
     Circle,
     AlertTriangle,
+    Loader2,
 } from 'lucide-react';
+import { useWorkflowSettings, useUpdateSettings, type WorkflowSettings } from '@/lib/api-hooks';
 
-interface WorkflowState {
-    id: string;
-    name: string;
-    color: string;
-    description: string;
-}
-
-interface WorkflowTransition {
-    from: string;
-    to: string;
-    requiredRole: string;
-}
-
-const defaultStates: WorkflowState[] = [
+const defaultStates = [
     { id: 'OPEN', name: '미해결', color: 'bg-red-500', description: '새로 발견된 취약점' },
     { id: 'IN_PROGRESS', name: '진행 중', color: 'bg-yellow-500', description: '조치 진행 중' },
     { id: 'RESOLVED', name: '해결됨', color: 'bg-green-500', description: '수정 완료' },
@@ -34,7 +23,7 @@ const defaultStates: WorkflowState[] = [
     { id: 'ACCEPTED', name: '예외 승인', color: 'bg-purple-500', description: '위험 수용' },
 ];
 
-const defaultTransitions: WorkflowTransition[] = [
+const defaultTransitions = [
     { from: 'OPEN', to: 'IN_PROGRESS', requiredRole: 'DEVELOPER' },
     { from: 'OPEN', to: 'FALSE_POSITIVE', requiredRole: 'SECURITY_ENGINEER' },
     { from: 'OPEN', to: 'ACCEPTED', requiredRole: 'ORG_ADMIN' },
@@ -44,14 +33,32 @@ const defaultTransitions: WorkflowTransition[] = [
 ];
 
 export default function WorkflowsPage() {
-    const [states] = useState<WorkflowState[]>(defaultStates);
-    const [transitions, setTransitions] = useState<WorkflowTransition[]>(defaultTransitions);
+    const { data: settings, isLoading, error } = useWorkflowSettings();
+    const updateMutation = useUpdateSettings();
+
+    const [states, setStates] = useState(defaultStates);
+    const [transitions, setTransitions] = useState(defaultTransitions);
     const [saved, setSaved] = useState(false);
 
+    // Load settings from API
+    useEffect(() => {
+        if (settings) {
+            if (settings.states?.length) setStates(settings.states);
+            if (settings.transitions?.length) setTransitions(settings.transitions);
+        }
+    }, [settings]);
+
     const handleSave = async () => {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        try {
+            await updateMutation.mutateAsync({
+                key: 'workflows',
+                value: { states, transitions },
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err) {
+            console.error('Failed to save workflow settings:', err);
+        }
     };
 
     const getStateName = (id: string) => {
@@ -61,6 +68,23 @@ export default function WorkflowsPage() {
     const getStateColor = (id: string) => {
         return states.find(s => s.id === id)?.color || 'bg-slate-500';
     };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg p-4 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                워크플로우 설정을 불러오는데 실패했습니다.
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -81,9 +105,14 @@ export default function WorkflowsPage() {
                     )}
                     <button
                         onClick={handleSave}
-                        className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        disabled={updateMutation.isPending}
+                        className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
                     >
-                        <Save className="h-4 w-4" />
+                        {updateMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Save className="h-4 w-4" />
+                        )}
                         저장
                     </button>
                 </div>
@@ -178,3 +207,4 @@ export default function WorkflowsPage() {
         </div>
     );
 }
+

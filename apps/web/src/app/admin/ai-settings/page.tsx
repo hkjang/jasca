@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Bot,
     Sparkles,
@@ -10,18 +10,11 @@ import {
     Settings,
     Zap,
     FileText,
+    Loader2,
 } from 'lucide-react';
+import { useAiSettings, useUpdateSettings, type AiSettings } from '@/lib/api-hooks';
 
-interface AiConfig {
-    summaryModel: string;
-    remediationModel: string;
-    maxTokens: number;
-    temperature: number;
-    enableAutoSummary: boolean;
-    enableRemediationGuide: boolean;
-}
-
-const defaultConfig: AiConfig = {
+const defaultConfig: AiSettings = {
     summaryModel: 'gpt-4',
     remediationModel: 'gpt-4-turbo',
     maxTokens: 1024,
@@ -39,15 +32,32 @@ const availableModels = [
 ];
 
 export default function AiSettingsPage() {
-    const [config, setConfig] = useState<AiConfig>(defaultConfig);
+    const { data: settings, isLoading, error, refetch } = useAiSettings();
+    const updateMutation = useUpdateSettings();
+
+    const [config, setConfig] = useState<AiSettings>(defaultConfig);
     const [saved, setSaved] = useState(false);
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState<string | null>(null);
 
+    // Load settings from API
+    useEffect(() => {
+        if (settings) {
+            setConfig({ ...defaultConfig, ...settings });
+        }
+    }, [settings]);
+
     const handleSave = async () => {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        try {
+            await updateMutation.mutateAsync({
+                key: 'ai',
+                value: config,
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err) {
+            console.error('Failed to save AI settings:', err);
+        }
     };
 
     const handleTest = async () => {
@@ -57,6 +67,7 @@ export default function AiSettingsPage() {
         setTesting(false);
         setTestResult('success');
     };
+
 
     return (
         <div className="space-y-6 max-w-3xl">
@@ -192,8 +203,8 @@ export default function AiSettingsPage() {
             {/* Test */}
             {testResult && (
                 <div className={`rounded-lg p-4 flex items-center gap-3 ${testResult === 'success'
-                        ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                        : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
                     }`}>
                     {testResult === 'success' ? (
                         <>

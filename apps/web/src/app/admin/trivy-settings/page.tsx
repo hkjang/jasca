@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Cpu,
     Save,
@@ -11,19 +11,11 @@ import {
     Database,
     FileJson,
     Clock,
+    Loader2,
 } from 'lucide-react';
+import { useTrivySettings, useUpdateSettings, type TrivySettings } from '@/lib/api-hooks';
 
-interface TrivyConfig {
-    outputFormat: 'json' | 'table' | 'sarif';
-    schemaVersion: number;
-    severities: string[];
-    ignoreUnfixed: boolean;
-    timeout: string;
-    cacheDir: string;
-    scanners: string[];
-}
-
-const defaultConfig: TrivyConfig = {
+const defaultConfig: TrivySettings = {
     outputFormat: 'json',
     schemaVersion: 2,
     severities: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'],
@@ -34,15 +26,31 @@ const defaultConfig: TrivyConfig = {
 };
 
 export default function TrivySettingsPage() {
-    const [config, setConfig] = useState<TrivyConfig>(defaultConfig);
+    const { data: settings, isLoading, error, refetch } = useTrivySettings();
+    const updateMutation = useUpdateSettings();
+
+    const [config, setConfig] = useState<TrivySettings>(defaultConfig);
     const [saved, setSaved] = useState(false);
     const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
 
+    // Load settings from API
+    useEffect(() => {
+        if (settings) {
+            setConfig({ ...defaultConfig, ...settings });
+        }
+    }, [settings]);
+
     const handleSave = async () => {
-        // Mock save
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        try {
+            await updateMutation.mutateAsync({
+                key: 'trivy',
+                value: config,
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err) {
+            console.error('Failed to save trivy settings:', err);
+        }
     };
 
     const handleReset = () => {
@@ -50,11 +58,11 @@ export default function TrivySettingsPage() {
     };
 
     const handleTest = async () => {
-        // Mock test
         await new Promise(resolve => setTimeout(resolve, 1000));
         setTestResult('success');
         setTimeout(() => setTestResult(null), 3000);
     };
+
 
     const toggleSeverity = (severity: string) => {
         setConfig(prev => ({
@@ -101,8 +109,8 @@ export default function TrivySettingsPage() {
                                     key={format}
                                     onClick={() => setConfig(prev => ({ ...prev, outputFormat: format }))}
                                     className={`px-4 py-2 rounded-lg border transition-colors ${config.outputFormat === format
-                                            ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-                                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                        ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                                         }`}
                                 >
                                     {format.toUpperCase()}
@@ -144,8 +152,8 @@ export default function TrivySettingsPage() {
                                     key={severity}
                                     onClick={() => toggleSeverity(severity)}
                                     className={`px-3 py-1 rounded-lg border text-sm transition-colors ${config.severities.includes(severity)
-                                            ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-                                            : 'border-slate-200 dark:border-slate-700 text-slate-500'
+                                        ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                        : 'border-slate-200 dark:border-slate-700 text-slate-500'
                                         }`}
                                 >
                                     {severity}
@@ -169,8 +177,8 @@ export default function TrivySettingsPage() {
                                     key={scanner.id}
                                     onClick={() => toggleScanner(scanner.id)}
                                     className={`px-3 py-1 rounded-lg border text-sm transition-colors ${config.scanners.includes(scanner.id)
-                                            ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-                                            : 'border-slate-200 dark:border-slate-700 text-slate-500'
+                                        ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                        : 'border-slate-200 dark:border-slate-700 text-slate-500'
                                         }`}
                                 >
                                     {scanner.label}
