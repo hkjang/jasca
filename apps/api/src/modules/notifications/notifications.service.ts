@@ -12,12 +12,90 @@ interface NotificationPayload {
     link?: string;
 }
 
+// In-memory storage for user notifications (in production, you'd use a database table)
+export interface UserNotification {
+    id: string;
+    userId: string;
+    type: 'critical_vuln' | 'policy_violation' | 'exception' | 'scan_complete' | 'system';
+    title: string;
+    message: string;
+    isRead: boolean;
+    createdAt: Date;
+    link?: string;
+}
+
+const userNotifications: Map<string, UserNotification[]> = new Map();
+
 @Injectable()
 export class NotificationsService {
     private readonly logger = new Logger(NotificationsService.name);
 
     constructor(private readonly prisma: PrismaService) { }
 
+    // User notification methods
+    async getUserNotifications(userId: string): Promise<UserNotification[]> {
+        // In production, this would query from a database table
+        // For now, we return mock notifications or empty array
+        const notifications = userNotifications.get(userId) || [];
+
+        // If no notifications exist for user, generate some mock ones for testing
+        if (notifications.length === 0) {
+            return [];
+        }
+
+        return notifications.sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        );
+    }
+
+    async markAsRead(notificationId: string, userId: string): Promise<{ success: boolean }> {
+        const notifications = userNotifications.get(userId) || [];
+        const notification = notifications.find(n => n.id === notificationId);
+
+        if (notification) {
+            notification.isRead = true;
+        }
+
+        return { success: true };
+    }
+
+    async markAllAsRead(userId: string): Promise<{ success: boolean }> {
+        const notifications = userNotifications.get(userId) || [];
+
+        notifications.forEach(n => {
+            n.isRead = true;
+        });
+
+        return { success: true };
+    }
+
+    // Creates a user notification (called internally when events happen)
+    async createUserNotification(
+        userId: string,
+        type: UserNotification['type'],
+        title: string,
+        message: string,
+        link?: string,
+    ) {
+        const notification: UserNotification = {
+            id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            userId,
+            type,
+            title,
+            message,
+            isRead: false,
+            createdAt: new Date(),
+            link,
+        };
+
+        const existing = userNotifications.get(userId) || [];
+        existing.push(notification);
+        userNotifications.set(userId, existing);
+
+        return notification;
+    }
+
+    // External channel notification methods
     async notify(payload: NotificationPayload) {
         // Find applicable notification rules
         const rules = await this.prisma.notificationRule.findMany({
@@ -156,3 +234,4 @@ export class NotificationsService {
         }
     }
 }
+

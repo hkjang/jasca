@@ -1,9 +1,122 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ReportsService {
     constructor(private readonly prisma: PrismaService) { }
+
+    async findAll() {
+        const reports = await this.prisma.report.findMany({
+            include: {
+                template: {
+                    select: {
+                        name: true,
+                        type: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        return reports.map(report => ({
+            id: report.id,
+            name: report.name,
+            type: report.template.type.toLowerCase().replace('_', '_'),
+            status: report.status.toLowerCase(),
+            format: report.fileType || 'pdf',
+            createdAt: report.createdAt.toISOString(),
+            completedAt: report.completedAt?.toISOString(),
+            downloadUrl: report.filePath ? `/api/reports/${report.id}/download` : undefined,
+        }));
+    }
+
+    async findOne(id: string) {
+        const report = await this.prisma.report.findUnique({
+            where: { id },
+            include: {
+                template: true,
+            },
+        });
+
+        if (!report) {
+            throw new NotFoundException(`Report with ID ${id} not found`);
+        }
+
+        return {
+            id: report.id,
+            name: report.name,
+            type: report.template.type.toLowerCase(),
+            status: report.status.toLowerCase(),
+            format: report.fileType || 'pdf',
+            createdAt: report.createdAt.toISOString(),
+            completedAt: report.completedAt?.toISOString(),
+            downloadUrl: report.filePath ? `/api/reports/${report.id}/download` : undefined,
+            parameters: report.parameters,
+        };
+    }
+
+    async create(data: {
+        name: string;
+        type: string;
+        format: string;
+        parameters?: Record<string, unknown>;
+    }) {
+        // Find or create a template for the report type
+        const templateType = data.type.toUpperCase().replace('-', '_') as any;
+        let template = await this.prisma.reportTemplate.findFirst({
+            where: { type: templateType },
+        });
+
+        if (!template) {
+            template = await this.prisma.reportTemplate.create({
+                data: {
+                    name: `${data.type} Template`,
+                    type: templateType,
+                    config: {},
+                    isSystem: true,
+                },
+            });
+        }
+
+        const report = await this.prisma.report.create({
+            data: {
+                name: data.name,
+                templateId: template.id,
+                parameters: (data.parameters || {}) as Prisma.InputJsonValue,
+                status: 'PENDING',
+                fileType: data.format,
+            },
+            include: {
+                template: true,
+            },
+        });
+
+        return {
+            id: report.id,
+            name: report.name,
+            type: report.template.type.toLowerCase(),
+            status: report.status.toLowerCase(),
+            format: report.fileType || 'pdf',
+            createdAt: report.createdAt.toISOString(),
+        };
+    }
+
+    async remove(id: string) {
+        const report = await this.prisma.report.findUnique({
+            where: { id },
+        });
+
+        if (!report) {
+            throw new NotFoundException(`Report with ID ${id} not found`);
+        }
+
+        await this.prisma.report.delete({
+            where: { id },
+        });
+
+        return { success: true };
+    }
 
     async generateVulnerabilityReport(projectId: string) {
         const vulnerabilities = await this.prisma.scanVulnerability.findMany({
@@ -79,3 +192,4 @@ export class ReportsService {
         return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     }
 }
+
