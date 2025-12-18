@@ -9,6 +9,7 @@ import {
     UseGuards,
     UseInterceptors,
     UploadedFile,
+    BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -67,9 +68,27 @@ export class ScansController {
     @UseInterceptors(FileInterceptor('file'))
     async uploadFile(
         @Query('projectId') projectId: string | undefined,
-        @Body() dto: UploadScanDto,
+        @Body() body: any,
         @UploadedFile() file: Express.Multer.File,
     ) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+
+        // Build DTO from form fields (multipart form sends fields individually)
+        const dto: UploadScanDto = {
+            sourceType: body.sourceType || 'TRIVY_JSON',
+            projectName: body.projectName,
+            organizationId: body.organizationId,
+            imageRef: body.imageRef,
+            imageDigest: body.imageDigest,
+            tag: body.tag,
+            commitHash: body.commitHash,
+            branch: body.branch,
+            ciPipeline: body.ciPipeline,
+            ciJobUrl: body.ciJobUrl,
+        };
+
         const rawResult = JSON.parse(file.buffer.toString('utf-8'));
         return this.scansService.uploadScan(projectId, dto, rawResult);
     }

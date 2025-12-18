@@ -46,7 +46,11 @@ export class TrivyParserService {
         }
 
         const result: ParsedScanResult = {
-            trivyVersion: rawResult.Metadata?.ReportVersion || rawResult.SchemaVersion,
+            trivyVersion: rawResult.Metadata?.ReportVersion
+                ? String(rawResult.Metadata.ReportVersion)
+                : rawResult.SchemaVersion
+                    ? String(rawResult.SchemaVersion)
+                    : undefined,
             schemaVersion: String(rawResult.SchemaVersion || '2'),
             artifactName: rawResult.ArtifactName,
             artifactType: rawResult.ArtifactType,
