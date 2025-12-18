@@ -6,13 +6,13 @@ import {
     Delete,
     Param,
     Body,
-    Query,
     UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Prisma } from '@prisma/client';
 
 @ApiTags('Notification Channels')
 @ApiBearerAuth()
@@ -23,9 +23,8 @@ export class NotificationChannelsController {
 
     @Get()
     @ApiOperation({ summary: 'Get all notification channels' })
-    async findAll(@CurrentUser() user: { organizationId: string }) {
+    async findAll() {
         return this.prisma.notificationChannel.findMany({
-            where: { organizationId: user.organizationId },
             include: {
                 rules: true,
             },
@@ -45,12 +44,11 @@ export class NotificationChannelsController {
     @Post()
     @ApiOperation({ summary: 'Create notification channel' })
     async create(
-        @CurrentUser() user: { organizationId: string },
         @Body()
         data: {
             name: string;
             type: 'SLACK' | 'MATTERMOST' | 'EMAIL' | 'WEBHOOK';
-            config: Record<string, unknown>;
+            config: Prisma.InputJsonValue;
             isActive?: boolean;
         },
     ) {
@@ -60,7 +58,6 @@ export class NotificationChannelsController {
                 type: data.type,
                 config: data.config,
                 isActive: data.isActive ?? true,
-                organizationId: user.organizationId,
             },
         });
     }
@@ -72,7 +69,7 @@ export class NotificationChannelsController {
         @Body()
         data: {
             name?: string;
-            config?: Record<string, unknown>;
+            config?: Prisma.InputJsonValue;
             isActive?: boolean;
         },
     ) {
@@ -97,13 +94,13 @@ export class NotificationChannelsController {
         @Body()
         data: {
             eventType: string;
-            conditions?: Record<string, unknown>;
+            conditions?: Prisma.InputJsonValue;
             isActive?: boolean;
         },
     ) {
         return this.prisma.notificationRule.create({
             data: {
-                channelId,
+                channel: { connect: { id: channelId } },
                 eventType: data.eventType as any,
                 conditions: data.conditions,
                 isActive: data.isActive ?? true,

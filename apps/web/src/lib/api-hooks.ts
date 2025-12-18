@@ -741,3 +741,135 @@ export function useDeleteReport() {
         },
     });
 }
+
+// ============ Notification Channels API ============
+
+export interface NotificationChannel {
+    id: string;
+    name: string;
+    type: 'SLACK' | 'MATTERMOST' | 'EMAIL' | 'WEBHOOK';
+    config: Record<string, unknown>;
+    isActive: boolean;
+    createdAt: string;
+    rules?: NotificationRule[];
+}
+
+export interface NotificationRule {
+    id: string;
+    channelId: string;
+    eventType: string;
+    conditions?: Record<string, unknown>;
+    isActive: boolean;
+}
+
+export function useNotificationChannels() {
+    return useQuery<NotificationChannel[]>({
+        queryKey: ['notification-channels'],
+        queryFn: () => authFetch(`${API_BASE}/notification-channels`),
+    });
+}
+
+export function useCreateNotificationChannel() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: {
+            name: string;
+            type: 'SLACK' | 'MATTERMOST' | 'EMAIL' | 'WEBHOOK';
+            config: Record<string, unknown>;
+            isActive?: boolean;
+        }) =>
+            authFetch(`${API_BASE}/notification-channels`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+export function useUpdateNotificationChannel() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, ...data }: { id: string; name?: string; config?: Record<string, unknown>; isActive?: boolean }) =>
+            authFetch(`${API_BASE}/notification-channels/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+export function useDeleteNotificationChannel() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) =>
+            authFetch(`${API_BASE}/notification-channels/${id}`, { method: 'DELETE' }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+export function useAddNotificationRule() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ channelId, ...data }: { channelId: string; eventType: string; conditions?: Record<string, unknown>; isActive?: boolean }) =>
+            authFetch(`${API_BASE}/notification-channels/${channelId}/rules`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+// ============ Compliance API ============
+
+export interface ComplianceReport {
+    id: string;
+    organizationId: string;
+    reportType: 'PCI-DSS' | 'SOC2' | 'HIPAA' | 'ISO27001' | 'GENERAL';
+    generatedAt: string;
+    summary: {
+        totalVulnerabilities: number;
+        criticalUnresolved: number;
+        highUnresolved: number;
+        meanTimeToResolve: number;
+        complianceScore: number;
+    };
+    sections: {
+        title: string;
+        status: 'PASS' | 'FAIL' | 'WARNING' | 'NOT_APPLICABLE';
+        findings: string[];
+        recommendations: string[];
+    }[];
+}
+
+export interface ViolationHistory {
+    total: number;
+    byPolicy: { policyName: string; count: number }[];
+    bySeverity: Record<string, number>;
+    trend: { date: string; count: number }[];
+}
+
+export function useComplianceReport(reportType?: string) {
+    return useQuery<ComplianceReport>({
+        queryKey: ['compliance-report', reportType],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (reportType) params.set('reportType', reportType);
+            return authFetch(`${API_BASE}/compliance/report?${params.toString()}`);
+        },
+    });
+}
+
+export function useViolationHistory(days = 30) {
+    return useQuery<ViolationHistory>({
+        queryKey: ['violation-history', days],
+        queryFn: () => authFetch(`${API_BASE}/compliance/violations?days=${days}`),
+    });
+}

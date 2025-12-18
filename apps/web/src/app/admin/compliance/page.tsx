@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
     Scale,
     CheckCircle,
@@ -8,59 +7,18 @@ import {
     XCircle,
     ExternalLink,
     FileText,
+    Loader2,
 } from 'lucide-react';
-
-interface ComplianceFramework {
-    id: string;
-    name: string;
-    description: string;
-    status: 'compliant' | 'partial' | 'non-compliant';
-    coverage: number;
-    controls: { total: number; passed: number; failed: number };
-}
-
-const mockFrameworks: ComplianceFramework[] = [
-    {
-        id: 'pci-dss',
-        name: 'PCI DSS 4.0',
-        description: 'Payment Card Industry Data Security Standard',
-        status: 'partial',
-        coverage: 85,
-        controls: { total: 12, passed: 10, failed: 2 },
-    },
-    {
-        id: 'iso-27001',
-        name: 'ISO 27001',
-        description: 'Information Security Management',
-        status: 'compliant',
-        coverage: 95,
-        controls: { total: 14, passed: 14, failed: 0 },
-    },
-    {
-        id: 'hipaa',
-        name: 'HIPAA',
-        description: 'Health Insurance Portability and Accountability Act',
-        status: 'partial',
-        coverage: 72,
-        controls: { total: 8, passed: 6, failed: 2 },
-    },
-    {
-        id: 'soc2',
-        name: 'SOC 2 Type II',
-        description: 'Service Organization Control 2',
-        status: 'non-compliant',
-        coverage: 45,
-        controls: { total: 10, passed: 4, failed: 6 },
-    },
-];
+import { useComplianceReport, useViolationHistory } from '@/lib/api-hooks';
 
 function getStatusBadge(status: string) {
     const config: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-        compliant: { icon: <CheckCircle className="h-4 w-4" />, color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', label: '준수' },
-        partial: { icon: <AlertTriangle className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', label: '부분 준수' },
-        'non-compliant': { icon: <XCircle className="h-4 w-4" />, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', label: '미준수' },
+        PASS: { icon: <CheckCircle className="h-4 w-4" />, color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', label: '통과' },
+        WARNING: { icon: <AlertTriangle className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', label: '주의' },
+        FAIL: { icon: <XCircle className="h-4 w-4" />, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', label: '실패' },
+        NOT_APPLICABLE: { icon: <Scale className="h-4 w-4" />, color: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400', label: '해당 없음' },
     };
-    const { icon, color, label } = config[status] || config.partial;
+    const { icon, color, label } = config[status] || config.WARNING;
     return (
         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${color}`}>
             {icon}
@@ -70,11 +28,35 @@ function getStatusBadge(status: string) {
 }
 
 export default function CompliancePage() {
-    const [frameworks] = useState<ComplianceFramework[]>(mockFrameworks);
+    const { data: report, isLoading, error, refetch } = useComplianceReport('GENERAL');
+    const { data: violations } = useViolationHistory(30);
 
-    const overallCompliance = Math.round(
-        frameworks.reduce((sum, f) => sum + f.coverage, 0) / frameworks.length
-    );
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+                <AlertTriangle className="h-12 w-12 mx-auto text-red-500 mb-4" />
+                <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">오류 발생</h3>
+                <p className="text-red-600 dark:text-red-300">컴플라이언스 데이터를 불러오는데 실패했습니다.</p>
+                <button
+                    onClick={() => refetch()}
+                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                    다시 시도
+                </button>
+            </div>
+        );
+    }
+
+    const complianceScore = report?.summary?.complianceScore || 0;
+    const sections = report?.sections || [];
 
     return (
         <div className="space-y-6">
@@ -91,8 +73,12 @@ export default function CompliancePage() {
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-blue-100 text-sm">전체 컴플라이언스 점수</p>
-                        <p className="text-5xl font-bold mt-2">{overallCompliance}%</p>
-                        <p className="text-blue-100 mt-2">{frameworks.length}개 프레임워크 평가</p>
+                        <p className="text-5xl font-bold mt-2">{complianceScore}%</p>
+                        <div className="flex gap-4 mt-3 text-sm text-blue-100">
+                            <span>취약점: {report?.summary?.totalVulnerabilities || 0}개</span>
+                            <span>Critical 미해결: {report?.summary?.criticalUnresolved || 0}개</span>
+                            <span>High 미해결: {report?.summary?.highUnresolved || 0}개</span>
+                        </div>
                     </div>
                     <div className="w-32 h-32 relative">
                         <svg className="w-full h-full transform -rotate-90">
@@ -111,7 +97,7 @@ export default function CompliancePage() {
                                 fill="none"
                                 stroke="white"
                                 strokeWidth="12"
-                                strokeDasharray={`${overallCompliance * 3.52} 352`}
+                                strokeDasharray={`${complianceScore * 3.52} 352`}
                                 strokeLinecap="round"
                             />
                         </svg>
@@ -120,53 +106,74 @@ export default function CompliancePage() {
                 </div>
             </div>
 
-            {/* Frameworks */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {frameworks.map((framework) => (
-                    <div
-                        key={framework.id}
-                        className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6"
-                    >
-                        <div className="flex items-start justify-between mb-4">
-                            <div>
-                                <h3 className="font-semibold text-slate-900 dark:text-white">{framework.name}</h3>
-                                <p className="text-sm text-slate-500">{framework.description}</p>
-                            </div>
-                            {getStatusBadge(framework.status)}
+            {/* Violation Summary */}
+            {violations && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">정책 위반 현황 (30일)</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                            <p className="text-3xl font-bold text-slate-900 dark:text-white">{violations.total}</p>
+                            <p className="text-sm text-slate-500">총 위반</p>
                         </div>
-
-                        <div className="mb-4">
-                            <div className="flex items-center justify-between text-sm mb-1">
-                                <span className="text-slate-500">커버리지</span>
-                                <span className="font-medium text-slate-900 dark:text-white">{framework.coverage}%</span>
+                        {Object.entries(violations.bySeverity || {}).map(([severity, count]) => (
+                            <div key={severity} className="text-center p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                <p className={`text-3xl font-bold ${severity === 'CRITICAL' ? 'text-red-600' :
+                                    severity === 'HIGH' ? 'text-orange-500' :
+                                        severity === 'MEDIUM' ? 'text-yellow-500' : 'text-blue-500'
+                                    }`}>
+                                    {count}
+                                </p>
+                                <p className="text-sm text-slate-500">{severity}</p>
                             </div>
-                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                                <div
-                                    className={`h-2 rounded-full ${framework.coverage >= 90 ? 'bg-green-500' :
-                                            framework.coverage >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                                        }`}
-                                    style={{ width: `${framework.coverage}%` }}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-4">
-                                <span className="text-green-600 dark:text-green-400">
-                                    ✓ {framework.controls.passed} 통과
-                                </span>
-                                <span className="text-red-600 dark:text-red-400">
-                                    ✗ {framework.controls.failed} 실패
-                                </span>
-                            </div>
-                            <button className="flex items-center gap-1 text-blue-600 hover:text-blue-700">
-                                상세 보기
-                                <ExternalLink className="h-3 w-3" />
-                            </button>
-                        </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </div>
+            )}
+
+            {/* Compliance Sections */}
+            {sections.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {sections.map((section, index) => (
+                        <div
+                            key={index}
+                            className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6"
+                        >
+                            <div className="flex items-start justify-between mb-4">
+                                <h3 className="font-semibold text-slate-900 dark:text-white">{section.title}</h3>
+                                {getStatusBadge(section.status)}
+                            </div>
+
+                            {section.findings.length > 0 && (
+                                <div className="mb-4">
+                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">발견 사항</p>
+                                    <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                                        {section.findings.map((finding, i) => (
+                                            <li key={i} className="flex items-start gap-2">
+                                                <span className="text-red-500">•</span>
+                                                {finding}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {section.recommendations.length > 0 && (
+                                <div>
+                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">권장 사항</p>
+                                    <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                                        {section.recommendations.map((rec, i) => (
+                                            <li key={i} className="flex items-start gap-2">
+                                                <span className="text-blue-500">→</span>
+                                                {rec}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Export */}
             <div className="flex justify-end">
