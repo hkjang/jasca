@@ -16,6 +16,9 @@ import {
     ChevronRight,
 } from 'lucide-react';
 import { usePolicies, useCreatePolicy, useUpdatePolicy, useDeletePolicy, useOrganizations, Policy } from '@/lib/api-hooks';
+import { AiButton, AiResultPanel } from '@/components/ai';
+import { useAiExecution, usePolicyAiContext } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 export default function PoliciesPage() {
     const { data: policies, isLoading, error, refetch } = usePolicies();
@@ -34,6 +37,31 @@ export default function PoliciesPage() {
         projectId: '',
         isActive: true,
     });
+
+    // AI Execution for policy recommendation
+    const collectPolicyContext = usePolicyAiContext();
+    const {
+        execute: executePolicyRecommend,
+        isLoading: aiLoading,
+        result: aiResult,
+        previousResults: aiPreviousResults,
+        estimateTokens,
+        cancel: cancelAi,
+        progress: aiProgress,
+    } = useAiExecution('policy.recommendation');
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleAiRecommend = () => {
+        const context = collectPolicyContext(policies || [], undefined);
+        executePolicyRecommend(context);
+    };
+
+    const handleAiRegenerate = () => {
+        handleAiRecommend();
+    };
+
+    const estimatedTokens = estimateTokens(collectPolicyContext(policies?.slice(0, 5) || [], undefined));
 
     const handleCreate = async () => {
         try {
@@ -143,6 +171,15 @@ export default function PoliciesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <AiButton
+                        action="policy.recommendation"
+                        variant="primary"
+                        size="md"
+                        estimatedTokens={estimatedTokens}
+                        loading={aiLoading}
+                        onExecute={handleAiRecommend}
+                        onCancel={cancelAi}
+                    />
                     <button
                         onClick={() => refetch()}
                         className="flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
@@ -359,6 +396,18 @@ export default function PoliciesPage() {
                     ))}
                 </div>
             )}
+
+            {/* AI Result Panel */}
+            <AiResultPanel
+                isOpen={activePanel?.key === 'policy.recommendation'}
+                onClose={closePanel}
+                result={aiResult}
+                previousResults={aiPreviousResults}
+                loading={aiLoading}
+                loadingProgress={aiProgress}
+                onRegenerate={handleAiRegenerate}
+                action="policy.recommendation"
+            />
         </div>
     );
 }

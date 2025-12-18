@@ -13,6 +13,9 @@ import {
     Trash2,
 } from 'lucide-react';
 import { useReports, useCreateReport, useDeleteReport, type Report } from '@/lib/api-hooks';
+import { AiButton, AiResultPanel } from '@/components/ai';
+import { useAiExecution } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 const reportTypes = [
     { id: 'vulnerability_summary', name: '취약점 요약', description: '프로젝트별 취약점 현황 요약' },
@@ -75,6 +78,36 @@ export default function ReportsPage() {
     const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv'>('pdf');
     const [reportName, setReportName] = useState('');
 
+    // AI Execution for report generation
+    const {
+        execute: executeReportGenerate,
+        isLoading: aiLoading,
+        result: aiResult,
+        previousResults: aiPreviousResults,
+        estimateTokens,
+        cancel: cancelAi,
+        progress: aiProgress,
+    } = useAiExecution('report.generate');
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleAiReportGenerate = () => {
+        const context = {
+            screen: 'reports',
+            existingReports: reports?.slice(0, 5) || [],
+            timestamp: new Date().toISOString(),
+        };
+        executeReportGenerate(context);
+    };
+
+    const handleAiRegenerate = () => {
+        handleAiReportGenerate();
+    };
+
+    const estimatedTokens = estimateTokens({
+        reports: reports?.slice(0, 5) || [],
+    });
+
     const handleDownload = (report: Report) => {
         if (report.downloadUrl) {
             window.open(report.downloadUrl, '_blank');
@@ -135,13 +168,24 @@ export default function ReportsPage() {
                         보안 리포트를 생성하고 다운로드합니다
                     </p>
                 </div>
-                <button
-                    onClick={() => setShowCreateForm(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    리포트 생성
-                </button>
+                <div className="flex items-center gap-2">
+                    <AiButton
+                        action="report.generate"
+                        variant="primary"
+                        size="md"
+                        estimatedTokens={estimatedTokens}
+                        loading={aiLoading}
+                        onExecute={handleAiReportGenerate}
+                        onCancel={cancelAi}
+                    />
+                    <button
+                        onClick={() => setShowCreateForm(true)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        리포트 생성
+                    </button>
+                </div>
             </div>
 
             {/* Create Form */}
@@ -321,6 +365,18 @@ export default function ReportsPage() {
                     </table>
                 </div>
             )}
+
+            {/* AI Result Panel */}
+            <AiResultPanel
+                isOpen={activePanel?.key === 'report.generate'}
+                onClose={closePanel}
+                result={aiResult}
+                previousResults={aiPreviousResults}
+                loading={aiLoading}
+                loadingProgress={aiProgress}
+                onRegenerate={handleAiRegenerate}
+                action="report.generate"
+            />
         </div>
     );
 }

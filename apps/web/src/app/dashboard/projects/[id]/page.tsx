@@ -30,6 +30,9 @@ import {
     Tag,
 } from 'lucide-react';
 import { useProject, useProjectScans, useProjectVulnerabilityTrend, Scan } from '@/lib/api-hooks';
+import { AiButton, AiResultPanel } from '@/components/ai';
+import { useAiExecution, useProjectAiContext } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 function getRiskBadge(riskLevel?: string) {
     const colors: Record<string, string> = {
@@ -93,6 +96,32 @@ export default function ProjectDetailPage() {
 
     const [selectedTimeRange, setSelectedTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
 
+    // AI Execution
+    const collectProjectContext = useProjectAiContext();
+    const {
+        execute: executeProjectAnalysis,
+        isLoading: aiLoading,
+        result: aiResult,
+        previousResults: aiPreviousResults,
+        estimateTokens,
+        cancel: cancelAi,
+        progress: aiProgress,
+    } = useAiExecution('project.analysis', { entityId: projectId });
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleAiAnalysis = () => {
+        const context = collectProjectContext(project, scansData?.data || []);
+        executeProjectAnalysis(context);
+    };
+
+    const handleRegenerate = () => {
+        const context = collectProjectContext(project, scansData?.data || []);
+        executeProjectAnalysis(context);
+    };
+
+    const estimatedTokens = project ? estimateTokens(collectProjectContext(project, scansData?.data || [])) : 0;
+
     if (projectLoading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -142,6 +171,15 @@ export default function ProjectDetailPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <AiButton
+                        action="project.analysis"
+                        variant="primary"
+                        size="md"
+                        estimatedTokens={estimatedTokens}
+                        loading={aiLoading}
+                        onExecute={handleAiAnalysis}
+                        onCancel={cancelAi}
+                    />
                     {getRiskBadge(project.riskLevel)}
                     {project.policyViolations && project.policyViolations > 0 && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-medium">
@@ -324,6 +362,18 @@ export default function ProjectDetailPage() {
                     </table>
                 )}
             </div>
+
+            {/* AI Result Panel */}
+            <AiResultPanel
+                isOpen={activePanel?.key === `project.analysis:${projectId}`}
+                onClose={closePanel}
+                result={aiResult}
+                previousResults={aiPreviousResults}
+                loading={aiLoading}
+                loadingProgress={aiProgress}
+                onRegenerate={handleRegenerate}
+                action="project.analysis"
+            />
         </div>
     );
 }

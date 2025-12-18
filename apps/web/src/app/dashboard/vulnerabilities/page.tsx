@@ -14,6 +14,9 @@ import {
     Package,
 } from 'lucide-react';
 import { useVulnerabilities, useUpdateVulnerabilityStatus, Vulnerability } from '@/lib/api-hooks';
+import { AiButton, AiResultPanel } from '@/components/ai';
+import { useAiExecution } from '@/hooks/use-ai-execution';
+import { useAiStore } from '@/stores/ai-store';
 
 const SEVERITY_OPTIONS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'WONT_FIX', 'FALSE_POSITIVE'];
@@ -60,6 +63,39 @@ export default function VulnerabilitiesPage() {
 
     const { data, isLoading, error, refetch } = useVulnerabilities(filters);
     const updateStatus = useUpdateVulnerabilityStatus();
+
+    // AI Execution for priority reorder
+    const {
+        execute: executePriorityReorder,
+        isLoading: aiLoading,
+        result: aiResult,
+        previousResults: aiPreviousResults,
+        estimateTokens,
+        cancel: cancelAi,
+        progress: aiProgress,
+    } = useAiExecution('vuln.priorityReorder');
+
+    const { activePanel, closePanel } = useAiStore();
+
+    const handleAiPriorityReorder = () => {
+        const context = {
+            screen: 'vulnerabilities',
+            vulnerabilities: data?.data || [],
+            total: data?.total || 0,
+            filters,
+            timestamp: new Date().toISOString(),
+        };
+        executePriorityReorder(context);
+    };
+
+    const handleRegenerate = () => {
+        handleAiPriorityReorder();
+    };
+
+    const estimatedTokens = estimateTokens({
+        vulnerabilities: data?.data?.slice(0, 10) || [],
+        total: data?.total || 0,
+    });
 
     const handleStatusChange = async (id: string, status: string) => {
         try {
@@ -117,11 +153,20 @@ export default function VulnerabilitiesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <AiButton
+                        action="vuln.priorityReorder"
+                        variant="primary"
+                        size="md"
+                        estimatedTokens={estimatedTokens}
+                        loading={aiLoading}
+                        onExecute={handleAiPriorityReorder}
+                        onCancel={cancelAi}
+                    />
                     <button
                         onClick={() => setShowFilters(!showFilters)}
                         className={`flex items-center gap-2 px-4 py-2 text-sm border rounded-lg transition-colors ${showFilters
-                                ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
-                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+                            ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
                             }`}
                     >
                         <Filter className="h-4 w-4" />
@@ -150,8 +195,8 @@ export default function VulnerabilitiesPage() {
                                     key={severity}
                                     onClick={() => toggleFilter('severity', severity)}
                                     className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${filters.severity?.includes(severity)
-                                            ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
-                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300'
+                                        ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300'
                                         }`}
                                 >
                                     {severity}
@@ -169,8 +214,8 @@ export default function VulnerabilitiesPage() {
                                     key={status}
                                     onClick={() => toggleFilter('status', status)}
                                     className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${filters.status?.includes(status)
-                                            ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
-                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300'
+                                        ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300'
                                         }`}
                                 >
                                     {status.replace('_', ' ')}
@@ -292,6 +337,18 @@ export default function VulnerabilitiesPage() {
                     </table>
                 </div>
             )}
+
+            {/* AI Result Panel */}
+            <AiResultPanel
+                isOpen={activePanel?.key === 'vuln.priorityReorder'}
+                onClose={closePanel}
+                result={aiResult}
+                previousResults={aiPreviousResults}
+                loading={aiLoading}
+                loadingProgress={aiProgress}
+                onRegenerate={handleRegenerate}
+                action="vuln.priorityReorder"
+            />
         </div>
     );
 }
