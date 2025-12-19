@@ -21,7 +21,7 @@ import {
     ChevronDown,
     ChevronUp,
 } from 'lucide-react';
-import { useVulnerability } from '@/lib/api-hooks';
+import { useVulnerability, useVulnerabilityHistory } from '@/lib/api-hooks';
 import { AiButton, AiButtonGroup, AiResultPanel } from '@/components/ai';
 import { useAiExecution, useVulnerabilityAiContext } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
@@ -71,18 +71,23 @@ const mockAiGuide = {
     model: "GPT-4",
 };
 
-// Mock history data
-const mockHistory = [
-    { id: '1', action: '상태 변경', from: 'OPEN', to: 'IN_PROGRESS', user: '김보안', date: '2024-12-16 14:30' },
-    { id: '2', action: '담당자 할당', user: '관리자', assignee: '김보안', date: '2024-12-16 10:00' },
-    { id: '3', action: '취약점 발견', user: '시스템', date: '2024-12-15 09:22' },
-];
+function formatHistoryDate(dateString: string) {
+    const date = new Date(dateString);
+    return date.toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
 
 export default function VulnerabilityDetailPage() {
     const params = useParams();
     const vulnId = params.id as string;
 
     const { data: vuln, isLoading, error, refetch } = useVulnerability(vulnId);
+    const { data: historyData, isLoading: historyLoading } = useVulnerabilityHistory(vulnId);
     const [showAiGuide, setShowAiGuide] = useState(true);
     const [showHistory, setShowHistory] = useState(false);
 
@@ -290,30 +295,47 @@ export default function VulnerabilityDetailPage() {
                         </button>
                         {showHistory && (
                             <div className="px-6 pb-6">
-                                <div className="relative">
-                                    <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700" />
-                                    <div className="space-y-4">
-                                        {mockHistory.map((item) => (
-                                            <div key={item.id} className="relative flex gap-4 pl-10">
-                                                <div className="absolute left-2 w-4 h-4 bg-white dark:bg-slate-800 border-2 border-blue-500 rounded-full" />
-                                                <div className="flex-1 pb-4">
-                                                    <p className="text-sm font-medium text-slate-900 dark:text-white">
-                                                        {item.action}
-                                                        {item.from && item.to && (
-                                                            <span className="font-normal text-slate-500"> ({item.from} → {item.to})</span>
-                                                        )}
-                                                        {item.assignee && (
-                                                            <span className="font-normal text-slate-500"> → {item.assignee}</span>
-                                                        )}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500 mt-1">
-                                                        {item.user} • {item.date}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                {historyLoading ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                                     </div>
-                                </div>
+                                ) : historyData && historyData.length > 0 ? (
+                                    <div className="relative">
+                                        <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700" />
+                                        <div className="space-y-4">
+                                            {historyData.map((item) => (
+                                                <div key={item.id} className="relative flex gap-4 pl-10">
+                                                    <div className={`absolute left-2 w-4 h-4 bg-white dark:bg-slate-800 border-2 rounded-full ${item.type === 'status_change' ? 'border-blue-500' :
+                                                            item.type === 'comment' ? 'border-green-500' : 'border-slate-400'
+                                                        }`} />
+                                                    <div className="flex-1 pb-4">
+                                                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                                                            {item.action}
+                                                            {item.from && item.to && (
+                                                                <span className="font-normal text-slate-500"> ({item.from} → {item.to})</span>
+                                                            )}
+                                                        </p>
+                                                        {item.content && (
+                                                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                                                {item.content}
+                                                            </p>
+                                                        )}
+                                                        {item.comment && (
+                                                            <p className="text-sm text-slate-500 italic mt-1">
+                                                                "{item.comment}"
+                                                            </p>
+                                                        )}
+                                                        <p className="text-xs text-slate-500 mt-1">
+                                                            {item.user} • {formatHistoryDate(item.date)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-slate-500 text-center py-4">이력이 없습니다.</p>
+                                )}
                             </div>
                         )}
                     </div>

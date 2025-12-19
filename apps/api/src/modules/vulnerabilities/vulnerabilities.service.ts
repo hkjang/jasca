@@ -165,4 +165,63 @@ export class VulnerabilitiesService {
             distinct: ['scanResultId'],
         });
     }
+
+    // Get vulnerability history (workflow changes)
+    async getHistory(id: string) {
+        const vuln = await this.findById(id);
+
+        // Get workflow history
+        const workflowHistory = await this.prisma.vulnerabilityWorkflow.findMany({
+            where: { scanVulnerabilityId: id },
+            include: {
+                changedBy: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        // Get comments as part of history
+        const comments = await this.prisma.vulnerabilityComment.findMany({
+            where: { scanVulnerabilityId: id },
+            include: {
+                author: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        // Combine and sort by date
+        const history = [
+            ...workflowHistory.map(w => ({
+                id: w.id,
+                type: 'status_change' as const,
+                action: `상태 변경`,
+                from: w.fromStatus,
+                to: w.toStatus,
+                user: w.changedBy.name,
+                userId: w.changedBy.id,
+                comment: w.comment,
+                date: w.createdAt,
+            })),
+            ...comments.map(c => ({
+                id: c.id,
+                type: 'comment' as const,
+                action: '코멘트 추가',
+                content: c.content,
+                user: c.author.name,
+                userId: c.author.id,
+                date: c.createdAt,
+            })),
+        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        // Add initial discovery entry
+        history.push({
+            id: 'discovery',
+            type: 'discovery' as const,
+            action: '취약점 발견',
+            user: '시스템',
+            userId: '',
+            date: vuln.createdAt,
+        } as any);
+
+        return history;
+    }
 }

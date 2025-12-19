@@ -12,34 +12,10 @@ import {
     CheckCircle,
     Calendar,
     ChevronDown,
+    Loader2,
+    RefreshCw,
 } from 'lucide-react';
-
-// Mock diff data
-const mockDiff = {
-    baseScan: {
-        id: 'scan-001',
-        targetName: 'backend-api:v2.3.0',
-        date: '2024-12-15T10:00:00Z',
-        totalVulnerabilities: 45,
-    },
-    compareScan: {
-        id: 'scan-002',
-        targetName: 'backend-api:v2.4.0',
-        date: '2024-12-17T10:00:00Z',
-        totalVulnerabilities: 38,
-    },
-    added: [
-        { cveId: 'CVE-2024-1234', pkgName: 'lodash', severity: 'CRITICAL', title: 'Prototype Pollution' },
-        { cveId: 'CVE-2024-5678', pkgName: 'axios', severity: 'HIGH', title: 'SSRF Vulnerability' },
-    ],
-    removed: [
-        { cveId: 'CVE-2023-1111', pkgName: 'express', severity: 'HIGH', title: 'Path Traversal' },
-        { cveId: 'CVE-2023-2222', pkgName: 'moment', severity: 'MEDIUM', title: 'ReDoS' },
-        { cveId: 'CVE-2023-3333', pkgName: 'jquery', severity: 'MEDIUM', title: 'XSS' },
-        { cveId: 'CVE-2023-4444', pkgName: 'underscore', severity: 'LOW', title: 'Arbitrary Code Execution' },
-    ],
-    unchanged: 36,
-};
+import { useScanDiff, useScans } from '@/lib/api-hooks';
 
 function getSeverityColor(severity: string) {
     const colors: Record<string, string> = {
@@ -63,11 +39,97 @@ function formatDate(dateString: string) {
 
 export default function ScanDiffPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const scanId = params.id as string;
-    const [showUnchanged, setShowUnchanged] = useState(false);
+    const compareId = searchParams.get('compareWith') || '';
 
-    const diff = mockDiff;
-    const netChange = diff.added.length - diff.removed.length;
+    const [showUnchanged, setShowUnchanged] = useState(false);
+    const [selectedCompareId, setSelectedCompareId] = useState(compareId);
+
+    // Fetch available scans for comparison selection
+    const { data: scansData } = useScans();
+    const availableScans = (scansData?.results || []).filter(s => s.id !== scanId);
+
+    // Fetch diff data
+    const { data: diff, isLoading, error, refetch } = useScanDiff(scanId, selectedCompareId);
+
+    const netChange = diff ? diff.added.length - diff.removed.length : 0;
+
+    if (!selectedCompareId) {
+        return (
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center gap-4">
+                    <Link
+                        href={`/dashboard/scans/${scanId}`}
+                        className="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Link>
+                    <div className="flex-1">
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">스캔 비교</h1>
+                        <p className="text-slate-600 dark:text-slate-400 mt-1">
+                            비교할 스캔을 선택하세요
+                        </p>
+                    </div>
+                </div>
+
+                {/* Scan Selection */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+                        비교할 스캔 선택
+                    </h3>
+                    {availableScans.length === 0 ? (
+                        <p className="text-slate-500">비교 가능한 다른 스캔이 없습니다.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {availableScans.map(scan => (
+                                <button
+                                    key={scan.id}
+                                    onClick={() => setSelectedCompareId(scan.id)}
+                                    className="w-full flex items-center justify-between p-4 text-left bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                >
+                                    <div>
+                                        <p className="font-medium text-slate-900 dark:text-white">
+                                            {scan.targetName}
+                                        </p>
+                                        <p className="text-sm text-slate-500">
+                                            {scan.project?.name} • {formatDate(scan.startedAt)}
+                                        </p>
+                                    </div>
+                                    <ArrowLeftRight className="h-5 w-5 text-slate-400" />
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (error || !diff) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+                <AlertTriangle className="h-12 w-12 text-red-500" />
+                <p className="text-slate-600 dark:text-slate-400">스캔 비교에 실패했습니다.</p>
+                <button
+                    onClick={() => refetch()}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    <RefreshCw className="h-4 w-4" />
+                    다시 시도
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -85,6 +147,12 @@ export default function ScanDiffPage() {
                         이전 스캔 대비 취약점 변화 분석
                     </p>
                 </div>
+                <button
+                    onClick={() => setSelectedCompareId('')}
+                    className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                >
+                    다른 스캔 선택
+                </button>
             </div>
 
             {/* Scan Comparison Header */}
@@ -171,63 +239,67 @@ export default function ScanDiffPage() {
             </div>
 
             {/* Added Vulnerabilities */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                        <Plus className="h-5 w-5 text-red-600 dark:text-red-400" />
-                    </div>
-                    <h3 className="font-semibold text-slate-900 dark:text-white">
-                        새로 추가된 취약점 ({diff.added.length})
-                    </h3>
-                </div>
-                <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                    {diff.added.map((vuln) => (
-                        <div key={vuln.cveId} className="p-4 flex items-center gap-4 bg-red-50/50 dark:bg-red-900/10">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${getSeverityColor(vuln.severity)}`}>
-                                {vuln.severity}
-                            </span>
-                            <div className="flex-1">
-                                <Link
-                                    href={`/dashboard/vulnerabilities/${vuln.cveId}`}
-                                    className="font-medium text-slate-900 dark:text-white hover:text-blue-600"
-                                >
-                                    {vuln.cveId}
-                                </Link>
-                                <p className="text-sm text-slate-500">{vuln.title}</p>
-                            </div>
-                            <span className="text-sm text-slate-500 font-mono">{vuln.pkgName}</span>
+            {diff.added.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                        <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                            <Plus className="h-5 w-5 text-red-600 dark:text-red-400" />
                         </div>
-                    ))}
+                        <h3 className="font-semibold text-slate-900 dark:text-white">
+                            새로 추가된 취약점 ({diff.added.length})
+                        </h3>
+                    </div>
+                    <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {diff.added.map((vuln) => (
+                            <div key={vuln.cveId} className="p-4 flex items-center gap-4 bg-red-50/50 dark:bg-red-900/10">
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${getSeverityColor(vuln.severity)}`}>
+                                    {vuln.severity}
+                                </span>
+                                <div className="flex-1">
+                                    <Link
+                                        href={`/dashboard/vulnerabilities/${vuln.cveId}`}
+                                        className="font-medium text-slate-900 dark:text-white hover:text-blue-600"
+                                    >
+                                        {vuln.cveId}
+                                    </Link>
+                                    <p className="text-sm text-slate-500">{vuln.title}</p>
+                                </div>
+                                <span className="text-sm text-slate-500 font-mono">{vuln.pkgName}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Removed Vulnerabilities */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                        <Minus className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <h3 className="font-semibold text-slate-900 dark:text-white">
-                        해결된 취약점 ({diff.removed.length})
-                    </h3>
-                </div>
-                <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                    {diff.removed.map((vuln) => (
-                        <div key={vuln.cveId} className="p-4 flex items-center gap-4 bg-green-50/50 dark:bg-green-900/10">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${getSeverityColor(vuln.severity)}`}>
-                                {vuln.severity}
-                            </span>
-                            <div className="flex-1">
-                                <span className="font-medium text-slate-900 dark:text-white line-through opacity-60">
-                                    {vuln.cveId}
-                                </span>
-                                <p className="text-sm text-slate-500">{vuln.title}</p>
-                            </div>
-                            <span className="text-sm text-slate-500 font-mono">{vuln.pkgName}</span>
+            {diff.removed.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                            <Minus className="h-5 w-5 text-green-600 dark:text-green-400" />
                         </div>
-                    ))}
+                        <h3 className="font-semibold text-slate-900 dark:text-white">
+                            해결된 취약점 ({diff.removed.length})
+                        </h3>
+                    </div>
+                    <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {diff.removed.map((vuln) => (
+                            <div key={vuln.cveId} className="p-4 flex items-center gap-4 bg-green-50/50 dark:bg-green-900/10">
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${getSeverityColor(vuln.severity)}`}>
+                                    {vuln.severity}
+                                </span>
+                                <div className="flex-1">
+                                    <span className="font-medium text-slate-900 dark:text-white line-through opacity-60">
+                                        {vuln.cveId}
+                                    </span>
+                                    <p className="text-sm text-slate-500">{vuln.title}</p>
+                                </div>
+                                <span className="text-sm text-slate-500 font-mono">{vuln.pkgName}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Unchanged Toggle */}
             <button

@@ -343,4 +343,90 @@ export class ScansService {
         await this.findById(id);
         return this.prisma.scanResult.delete({ where: { id } });
     }
+
+    /**
+     * Compare two scans and return added/removed vulnerabilities
+     */
+    async compareScan(baseScanId: string, compareScanId: string) {
+        // Get both scans with their vulnerabilities
+        const [baseScan, compareScan] = await Promise.all([
+            this.prisma.scanResult.findUnique({
+                where: { id: baseScanId },
+                include: {
+                    summary: true,
+                    vulnerabilities: {
+                        include: {
+                            vulnerability: true,
+                        },
+                    },
+                },
+            }),
+            this.prisma.scanResult.findUnique({
+                where: { id: compareScanId },
+                include: {
+                    summary: true,
+                    vulnerabilities: {
+                        include: {
+                            vulnerability: true,
+                        },
+                    },
+                },
+            }),
+        ]);
+
+        if (!baseScan) {
+            throw new NotFoundException(`Base scan ${baseScanId} not found`);
+        }
+        if (!compareScan) {
+            throw new NotFoundException(`Compare scan ${compareScanId} not found`);
+        }
+
+        // Create sets of vulnerability hashes for comparison
+        const baseVulnHashes = new Set(baseScan.vulnerabilities.map(v => v.vulnHash));
+        const compareVulnHashes = new Set(compareScan.vulnerabilities.map(v => v.vulnHash));
+
+        // Find added vulnerabilities (in compare but not in base)
+        const added = compareScan.vulnerabilities
+            .filter(v => !baseVulnHashes.has(v.vulnHash))
+            .map(v => ({
+                cveId: v.vulnerability.cveId,
+                pkgName: v.pkgName,
+                severity: v.vulnerability.severity,
+                title: v.vulnerability.title || '',
+                fixedVersion: v.fixedVersion,
+            }));
+
+        // Find removed vulnerabilities (in base but not in compare)
+        const removed = baseScan.vulnerabilities
+            .filter(v => !compareVulnHashes.has(v.vulnHash))
+            .map(v => ({
+                cveId: v.vulnerability.cveId,
+                pkgName: v.pkgName,
+                severity: v.vulnerability.severity,
+                title: v.vulnerability.title || '',
+                fixedVersion: v.fixedVersion,
+            }));
+
+        // Count unchanged
+        const unchanged = baseScan.vulnerabilities.filter(v => compareVulnHashes.has(v.vulnHash)).length;
+
+        return {
+            baseScan: {
+                id: baseScan.id,
+                targetName: baseScan.imageRef || baseScan.artifactName || 'Unknown',
+                date: baseScan.createdAt,
+                totalVulnerabilities: baseScan.summary?.totalVulns || baseScan.vulnerabilities.length,
+            },
+            compareScan: {
+                id: compareScan.id,
+                targetName: compareScan.imageRef || compareScan.artifactName || 'Unknown',
+                date: compareScan.createdAt,
+                totalVulnerabilities: compareScan.summary?.totalVulns || compareScan.vulnerabilities.length,
+            },
+            added,
+            removed,
+            unchanged,
+        };
+    }
 }
+

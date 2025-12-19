@@ -205,6 +205,67 @@ export function useUpdateVulnerabilityStatus() {
     });
 }
 
+export interface VulnerabilityHistoryItem {
+    id: string;
+    type: 'status_change' | 'comment' | 'discovery';
+    action: string;
+    from?: string;
+    to?: string;
+    content?: string;
+    user: string;
+    userId: string;
+    comment?: string;
+    date: string;
+}
+
+export function useVulnerabilityHistory(id: string) {
+    return useQuery<VulnerabilityHistoryItem[]>({
+        queryKey: ['vulnerability-history', id],
+        queryFn: () => authFetch(`${API_BASE}/vulnerabilities/${id}/history`),
+        enabled: !!id,
+    });
+}
+
+// ============ Scan Diff API ============
+
+export interface ScanDiff {
+    baseScan: {
+        id: string;
+        targetName: string;
+        date: string;
+        totalVulnerabilities: number;
+    };
+    compareScan: {
+        id: string;
+        targetName: string;
+        date: string;
+        totalVulnerabilities: number;
+    };
+    added: Array<{
+        cveId: string;
+        pkgName: string;
+        severity: string;
+        title: string;
+        fixedVersion?: string;
+    }>;
+    removed: Array<{
+        cveId: string;
+        pkgName: string;
+        severity: string;
+        title: string;
+        fixedVersion?: string;
+    }>;
+    unchanged: number;
+}
+
+export function useScanDiff(baseScanId: string, compareScanId: string) {
+    return useQuery<ScanDiff>({
+        queryKey: ['scan-diff', baseScanId, compareScanId],
+        queryFn: () => authFetch(`${API_BASE}/scans/${baseScanId}/compare/${compareScanId}`),
+        enabled: !!baseScanId && !!compareScanId,
+    });
+}
+
 // ============ Policies API ============
 
 export interface Policy {

@@ -105,4 +105,11 @@ export class VulnerabilitiesController {
     ) {
         return this.vulnService.addComment(id, user.id, body.content);
     }
+
+    @Get(':id/history')
+    @ApiOperation({ summary: 'Get vulnerability history (status changes (& comments)' })
+    async getHistory(@Param('id') id: string) {
+        return this.vulnService.getHistory(id);
+    }
 }
+

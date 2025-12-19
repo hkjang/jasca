@@ -137,4 +137,16 @@ export class ScansController {
     async delete(@Param('id') id: string) {
         return this.scansService.delete(id);
     }
+
+    @Get(':id/compare/:compareId')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Compare two scans and get diff' })
+    async compareScan(
+        @Param('id') baseScanId: string,
+        @Param('compareId') compareScanId: string,
+    ) {
+        return this.scansService.compareScan(baseScanId, compareScanId);
+    }
 }
+
