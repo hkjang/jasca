@@ -18,6 +18,7 @@ import {
     FolderKanban,
     Bell,
     BarChart3,
+    Map,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/auth-api';
@@ -46,6 +47,7 @@ const allNavigation: NavItem[] = [
     { name: '리포트', href: '/dashboard/reports', icon: BarChart3, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
     { name: '알림', href: '/dashboard/notifications', icon: Bell, roles: 'all' },
     { name: '설정', href: '/dashboard/settings', icon: Settings, roles: 'all' },
+    { name: '사이트맵', href: '/dashboard/sitemap', icon: Map, roles: 'all' },
 ];
 
 function getNavigationForRole(userRoles: string[]) {

@@ -22,6 +22,7 @@ import {
     Link as LinkIcon,
     Sparkles,
     MessageSquare,
+    Map,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHasMounted } from '@/hooks/use-has-mounted';
@@ -44,6 +45,7 @@ const systemNavigation = [
     { name: '감사 로그', href: '/admin/audit-logs', icon: History },
     { name: 'AI 설정', href: '/admin/ai-settings', icon: Sparkles },
     { name: 'AI 프롬프트', href: '/admin/ai-prompts', icon: MessageSquare },
+    { name: '사이트맵', href: '/admin/sitemap', icon: Map },
 ];
 
 export default function AdminLayout({
