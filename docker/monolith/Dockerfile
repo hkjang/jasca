@@ -32,11 +32,19 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # Setup directories
 WORKDIR /app
 
+# PROD DEPS STAGE
+FROM base AS prod-deps
+WORKDIR /app
+COPY . .
+# Force hoisting to ensure simple node_modules structure for copying
+RUN echo "shamefully-hoist=true" > .npmrc
+RUN pnpm install --prod --frozen-lockfile
+
 # BUILDER STAGE
 FROM base AS builder
 WORKDIR /app
 COPY . .
-# Install all deps
+# Standard install for build
 RUN pnpm install --frozen-lockfile
 # Generate prisma
 RUN pnpm -r run prisma:generate
@@ -49,10 +57,8 @@ RUN pnpm --filter web build
 FROM base AS runner
 WORKDIR /app
 
-
-
-# Copy all node_modules from builder (Ensures Prisma Client and all deps are present)
-COPY --from=builder /app/node_modules ./node_modules
+# Copy production node_modules from prod-deps
+COPY --from=prod-deps /app/node_modules ./node_modules
 
 # Copy API artifacts
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
