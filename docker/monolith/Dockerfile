@@ -38,7 +38,11 @@ WORKDIR /app
 COPY . .
 # Force hoisting to ensure simple node_modules structure for copying
 RUN echo "shamefully-hoist=true" > .npmrc
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --frozen-lockfile
+# Generate prisma client (requires dev deps)
+RUN pnpm -r run prisma:generate
+# Prune to production deps only (removes prisma CLI but keeps generated client)
+RUN pnpm prune --prod
 
 # BUILDER STAGE
 FROM base AS builder
