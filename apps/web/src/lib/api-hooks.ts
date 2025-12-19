@@ -781,6 +781,26 @@ export function useMarkAllNotificationsRead() {
     });
 }
 
+// ============ Login History / Audit Logs API ============
+
+export interface LoginHistoryEntry {
+    id: string;
+    userId: string;
+    user?: { name: string; email: string };
+    ipAddress: string;
+    userAgent: string;
+    success: boolean;
+    failureReason?: string;
+    createdAt: string;
+}
+
+export function useLoginHistory(limit = 50) {
+    return useQuery<LoginHistoryEntry[]>({
+        queryKey: ['login-history', limit],
+        queryFn: () => authFetch(`${API_BASE}/auth/login-history?limit=${limit}`),
+    });
+}
+
 // ============ Reports API ============
 
 export interface Report {

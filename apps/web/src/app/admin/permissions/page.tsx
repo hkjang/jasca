@@ -1,13 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Shield,
     Save,
     CheckCircle,
     X,
     Info,
+    Loader2,
+    AlertTriangle,
+    RefreshCw,
 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth-store';
+
+const API_BASE = '/api';
 
 const roles = [
     { id: 'SYSTEM_ADMIN', name: 'System Admin', description: '전체 시스템 관리자' },
@@ -103,9 +110,53 @@ const defaultMatrix: Record<string, string[]> = {
     ],
 };
 
+async function authFetch(url: string, options: RequestInit = {}) {
+    const token = useAuthStore.getState().accessToken;
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+    };
+    if (token) {
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(url, { ...options, headers });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Request failed' }));
+        throw new Error(error.message || 'Request failed');
+    }
+    return response.json();
+}
+
 export default function PermissionsPage() {
+    const queryClient = useQueryClient();
     const [matrix, setMatrix] = useState<Record<string, string[]>>(defaultMatrix);
     const [saved, setSaved] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    // Fetch permissions from settings API
+    const { data: settings, isLoading, error, refetch } = useQuery({
+        queryKey: ['settings', 'permissions'],
+        queryFn: () => authFetch(`${API_BASE}/settings/permissions`),
+    });
+
+    // Update mutation
+    const updateMutation = useMutation({
+        mutationFn: (value: Record<string, string[]>) =>
+            authFetch(`${API_BASE}/settings/permissions`, {
+                method: 'PUT',
+                body: JSON.stringify({ value }),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['settings', 'permissions'] });
+        },
+    });
+
+    // Load settings from API
+    useEffect(() => {
+        if (settings?.value) {
+            setMatrix(settings.value);
+        }
+    }, [settings]);
 
     const hasPermission = (roleId: string, permId: string) => {
         return matrix[roleId]?.includes(permId) || false;
@@ -120,13 +171,43 @@ export default function PermissionsPage() {
                 return { ...prev, [roleId]: [...current, permId] };
             }
         });
+        setHasChanges(true);
     };
 
     const handleSave = async () => {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        try {
+            await updateMutation.mutateAsync(matrix);
+            setSaved(true);
+            setHasChanges(false);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err) {
+            console.error('Failed to save permissions:', err);
+        }
     };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+                <AlertTriangle className="h-12 w-12 mx-auto text-red-500 mb-4" />
+                <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">오류 발생</h3>
+                <p className="text-red-600 dark:text-red-300 mb-4">권한 설정을 불러오는데 실패했습니다.</p>
+                <button
+                    onClick={() => refetch()}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                    다시 시도
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -145,11 +226,26 @@ export default function PermissionsPage() {
                             저장됨
                         </span>
                     )}
+                    {hasChanges && (
+                        <span className="text-sm text-orange-600">변경사항 있음</span>
+                    )}
+                    <button
+                        onClick={() => refetch()}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    </button>
                     <button
                         onClick={handleSave}
-                        className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        disabled={updateMutation.isPending || !hasChanges}
+                        className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                     >
-                        <Save className="h-4 w-4" />
+                        {updateMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Save className="h-4 w-4" />
+                        )}
                         저장
                     </button>
                 </div>
@@ -204,8 +300,8 @@ export default function PermissionsPage() {
                                                     onClick={() => role.id !== 'SYSTEM_ADMIN' && togglePermission(role.id, perm.id)}
                                                     disabled={role.id === 'SYSTEM_ADMIN'}
                                                     className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${hasPermission(role.id, perm.id)
-                                                            ? 'bg-green-500 text-white'
-                                                            : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
+                                                        ? 'bg-green-500 text-white'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
                                                         } ${role.id === 'SYSTEM_ADMIN' ? 'cursor-not-allowed' : 'hover:opacity-80'}`}
                                                 >
                                                     {hasPermission(role.id, perm.id) ? (

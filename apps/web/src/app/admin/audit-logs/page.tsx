@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     History,
     Search,
@@ -11,78 +11,22 @@ import {
     Key,
     Calendar,
     ChevronDown,
+    Loader2,
+    AlertTriangle,
+    CheckCircle,
+    XCircle,
+    RefreshCw,
 } from 'lucide-react';
+import { useLoginHistory, LoginHistoryEntry } from '@/lib/api-hooks';
 
-// Mock audit logs
-const mockLogs = [
-    {
-        id: '1',
-        action: 'POLICY_CREATED',
-        actor: '최관리자',
-        target: 'Critical 취약점 차단 정책',
-        details: '새 정책이 생성되었습니다',
-        ip: '192.168.1.100',
-        timestamp: '2024-12-17T10:30:00Z',
-    },
-    {
-        id: '2',
-        action: 'USER_ROLE_CHANGED',
-        actor: '최관리자',
-        target: '김개발',
-        details: 'DEVELOPER → SECURITY_ENGINEER',
-        ip: '192.168.1.100',
-        timestamp: '2024-12-17T09:15:00Z',
-    },
-    {
-        id: '3',
-        action: 'EXCEPTION_APPROVED',
-        actor: '최관리자',
-        target: 'CVE-2024-9999',
-        details: '예외 요청 승인됨',
-        ip: '192.168.1.100',
-        timestamp: '2024-12-16T18:45:00Z',
-    },
-    {
-        id: '4',
-        action: 'MFA_DISABLED',
-        actor: '박매니저',
-        target: '본인',
-        details: 'MFA가 비활성화됨',
-        ip: '192.168.1.55',
-        timestamp: '2024-12-16T14:20:00Z',
-    },
-    {
-        id: '5',
-        action: 'API_TOKEN_CREATED',
-        actor: '이개발',
-        target: 'CI/CD Pipeline',
-        details: '새 API 토큰 생성됨',
-        ip: '192.168.1.42',
-        timestamp: '2024-12-16T11:00:00Z',
-    },
-    {
-        id: '6',
-        action: 'LOGIN_FAILED',
-        actor: 'unknown@example.com',
-        target: '-',
-        details: '잘못된 비밀번호 (3회 시도)',
-        ip: '203.0.113.42',
-        timestamp: '2024-12-16T08:30:00Z',
-    },
-];
-
-function getActionIcon(action: string) {
-    if (action.includes('POLICY')) return <Shield className="h-4 w-4" />;
-    if (action.includes('USER') || action.includes('LOGIN')) return <User className="h-4 w-4" />;
-    if (action.includes('TOKEN') || action.includes('MFA')) return <Key className="h-4 w-4" />;
-    return <Settings className="h-4 w-4" />;
+function getActionIcon(success: boolean) {
+    if (success) return <CheckCircle className="h-4 w-4" />;
+    return <XCircle className="h-4 w-4" />;
 }
 
-function getActionColor(action: string) {
-    if (action.includes('FAILED') || action.includes('DISABLED')) return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
-    if (action.includes('CREATED') || action.includes('APPROVED')) return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-    if (action.includes('CHANGED') || action.includes('UPDATED')) return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
-    return 'text-slate-600 bg-slate-100 dark:bg-slate-700 dark:text-slate-400';
+function getActionColor(success: boolean) {
+    if (success) return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+    return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
 }
 
 function formatDate(dateString: string) {
@@ -96,26 +40,89 @@ function formatDate(dateString: string) {
     });
 }
 
-export default function AuditLogsPage() {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedAction, setSelectedAction] = useState<string>('');
+function parseUserAgent(userAgent: string): string {
+    if (!userAgent) return 'Unknown';
+    if (userAgent.includes('Chrome')) return 'Chrome';
+    if (userAgent.includes('Firefox')) return 'Firefox';
+    if (userAgent.includes('Safari')) return 'Safari';
+    if (userAgent.includes('Edge')) return 'Edge';
+    if (userAgent.includes('curl')) return 'curl/API';
+    return userAgent.substring(0, 30) + '...';
+}
 
-    const filteredLogs = mockLogs.filter(log => {
-        const matchesSearch = log.actor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            log.target.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            log.details.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesAction = !selectedAction || log.action.includes(selectedAction);
-        return matchesSearch && matchesAction;
-    });
+export default function AuditLogsPage() {
+    const { data: loginHistory, isLoading, error, refetch } = useLoginHistory(100);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedFilter, setSelectedFilter] = useState<'all' | 'success' | 'failed'>('all');
+
+    const filteredLogs = useMemo(() => {
+        if (!loginHistory) return [];
+        return loginHistory.filter(log => {
+            const matchesSearch =
+                log.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                log.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                log.ipAddress?.toLowerCase().includes(searchQuery.toLowerCase());
+
+            const matchesFilter =
+                selectedFilter === 'all' ||
+                (selectedFilter === 'success' && log.success) ||
+                (selectedFilter === 'failed' && !log.success);
+
+            return matchesSearch && matchesFilter;
+        });
+    }, [loginHistory, searchQuery, selectedFilter]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg p-4 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                감사 로그를 불러오는데 실패했습니다.
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">감사 로그</h1>
-                <p className="text-slate-600 dark:text-slate-400 mt-1">
-                    시스템 내 모든 중요 활동을 추적합니다
-                </p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">감사 로그</h1>
+                    <p className="text-slate-600 dark:text-slate-400 mt-1">
+                        시스템 내 로그인 활동을 추적합니다
+                    </p>
+                </div>
+                <button
+                    onClick={() => refetch()}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    새로고침
+                </button>
+            </div>
+
+            {/* Stats Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">총 로그</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{loginHistory?.length || 0}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">성공</p>
+                    <p className="text-2xl font-bold text-green-600">{loginHistory?.filter(l => l.success).length || 0}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">실패</p>
+                    <p className="text-2xl font-bold text-red-600">{loginHistory?.filter(l => !l.success).length || 0}</p>
+                </div>
             </div>
 
             {/* Filters */}
@@ -124,24 +131,20 @@ export default function AuditLogsPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="사용자, 대상, 설명 검색..."
+                        placeholder="사용자, 이메일, IP 검색..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
                 <select
-                    value={selectedAction}
-                    onChange={(e) => setSelectedAction(e.target.value)}
-                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                    value={selectedFilter}
+                    onChange={(e) => setSelectedFilter(e.target.value as 'all' | 'success' | 'failed')}
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                    <option value="">모든 활동</option>
-                    <option value="POLICY">정책 변경</option>
-                    <option value="USER">사용자 관리</option>
-                    <option value="TOKEN">토큰 관리</option>
-                    <option value="MFA">MFA 설정</option>
-                    <option value="LOGIN">로그인</option>
-                    <option value="EXCEPTION">예외 처리</option>
+                    <option value="all">모든 활동</option>
+                    <option value="success">성공</option>
+                    <option value="failed">실패</option>
                 </select>
             </div>
 
@@ -151,19 +154,19 @@ export default function AuditLogsPage() {
                     <thead className="bg-slate-50 dark:bg-slate-700/50">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                활동
+                                상태
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                 사용자
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                대상
+                                IP 주소
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                브라우저
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                 세부 정보
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                IP
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                 시간
@@ -171,31 +174,46 @@ export default function AuditLogsPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {filteredLogs.map((log) => (
-                            <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${getActionColor(log.action)}`}>
-                                        {getActionIcon(log.action)}
-                                        {log.action.replace(/_/g, ' ')}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-sm text-slate-900 dark:text-white">
-                                    {log.actor}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                    {log.target}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-slate-500">
-                                    {log.details}
-                                </td>
-                                <td className="px-6 py-4 text-sm font-mono text-slate-500">
-                                    {log.ip}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-slate-500">
-                                    {formatDate(log.timestamp)}
+                        {filteredLogs.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                                    로그 기록이 없습니다
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            filteredLogs.map((log) => (
+                                <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${getActionColor(log.success)}`}>
+                                            {getActionIcon(log.success)}
+                                            {log.success ? '성공' : '실패'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div>
+                                            <p className="text-sm font-medium text-slate-900 dark:text-white">
+                                                {log.user?.name || 'Unknown'}
+                                            </p>
+                                            <p className="text-xs text-slate-500">
+                                                {log.user?.email || '-'}
+                                            </p>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm font-mono text-slate-600 dark:text-slate-400">
+                                        {log.ipAddress || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                        {parseUserAgent(log.userAgent)}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-500">
+                                        {log.failureReason || (log.success ? '로그인 성공' : '-')}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-500">
+                                        {formatDate(log.createdAt)}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
