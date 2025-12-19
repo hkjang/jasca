@@ -680,13 +680,22 @@ export interface StatsOverview {
 }
 
 export interface ProjectStats {
-    projectId: string;
-    projectName: string;
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-    total: number;
+    id: string;
+    name: string;
+    slug: string;
+    organization?: string;
+    totalScans: number;
+    lastScan?: {
+        id: string;
+        scannedAt: string;
+        summary?: {
+            critical: number;
+            high: number;
+            medium: number;
+            low: number;
+            totalVulns: number;
+        };
+    };
 }
 
 export interface TrendData {

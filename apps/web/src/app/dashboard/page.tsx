@@ -59,10 +59,11 @@ export default function DashboardPage() {
 
     // Prepare project data for bar chart
     const projectData = projectStats?.map(p => ({
-        name: p.projectName,
-        critical: p.critical,
-        high: p.high,
-        medium: p.medium,
+        name: p.name,
+        id: p.id,
+        critical: p.lastScan?.summary?.critical || 0,
+        high: p.lastScan?.summary?.high || 0,
+        medium: p.lastScan?.summary?.medium || 0,
     })) || [];
 
     // Prepare trend data for line chart
@@ -83,9 +84,9 @@ export default function DashboardPage() {
     };
 
     const handleProjectClick = (projectName: string) => {
-        const project = projectStats?.find(p => p.projectName === projectName);
+        const project = projectData.find(p => p.name === projectName);
         if (project) {
-            router.push(`/dashboard/projects/${project.projectId}`);
+            router.push(`/dashboard/projects/${project.id}`);
         }
     };
 
