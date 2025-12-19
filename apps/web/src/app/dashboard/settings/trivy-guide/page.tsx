@@ -149,12 +149,94 @@ export default function TrivyGuidePage() {
         setTimeout(() => setEndpointCopied(false), 2000);
     }, [getEndpointUrl]);
 
-    // Test transmission handler
+    // Test transmission handler - actually send sample data to API
     const handleTestTransmission = useCallback(async () => {
         setTestStatus('loading');
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setTestStatus(Math.random() > 0.3 ? 'success' : 'error');
+
+        // Sample Trivy scan result
+        const sampleTrivyResult = {
+            SchemaVersion: 2,
+            ArtifactName: 'nginx:latest',
+            ArtifactType: 'container_image',
+            Metadata: {
+                OS: { Family: 'debian', Name: '12' },
+                ImageID: 'sha256:sample123',
+                RepoTags: ['nginx:latest'],
+            },
+            Results: [
+                {
+                    Target: 'nginx:latest (debian 12)',
+                    Class: 'os-pkgs',
+                    Type: 'debian',
+                    Vulnerabilities: [
+                        {
+                            VulnerabilityID: 'CVE-2024-0001',
+                            PkgName: 'libssl3',
+                            InstalledVersion: '3.0.11-1',
+                            FixedVersion: '3.0.12-1',
+                            Severity: 'HIGH',
+                            Title: 'Sample vulnerability for testing',
+                            Description: 'This is a sample vulnerability for testing JASCA integration.',
+                        },
+                        {
+                            VulnerabilityID: 'CVE-2024-0002',
+                            PkgName: 'zlib',
+                            InstalledVersion: '1.2.13-1',
+                            Severity: 'MEDIUM',
+                            Title: 'Another sample vulnerability',
+                            Description: 'Another sample vulnerability for testing.',
+                        },
+                    ],
+                },
+            ],
+        };
+
+        try {
+            const token = (await import('@/stores/auth-store')).useAuthStore.getState().accessToken;
+
+            // First, get organizations to find an organizationId
+            const orgsResponse = await fetch('/api/organizations', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const organizations = await orgsResponse.json();
+            const orgId = organizations?.[0]?.id;
+
+            if (!orgId) {
+                console.error('No organization found. Please create an organization first.');
+                setTestStatus('error');
+                setTimeout(() => setTestStatus('idle'), 5000);
+                return;
+            }
+
+            const response = await fetch('/api/scans/upload/json', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    metadata: {
+                        sourceType: 'TRIVY_JSON',
+                        projectName: 'trivy-test-project',
+                        organizationId: orgId,
+                        imageRef: 'nginx:latest',
+                    },
+                    result: sampleTrivyResult,
+                }),
+            });
+
+            if (response.ok) {
+                setTestStatus('success');
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Upload failed:', errorData);
+                setTestStatus('error');
+            }
+        } catch (err) {
+            console.error('Test transmission error:', err);
+            setTestStatus('error');
+        }
+
         setTimeout(() => setTestStatus('idle'), 5000);
     }, []);
 

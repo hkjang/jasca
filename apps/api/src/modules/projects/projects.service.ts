@@ -25,6 +25,11 @@ export class ProjectsService {
             include: {
                 organization: true,
                 registries: true,
+                scanResults: {
+                    include: { summary: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
                 _count: {
                     select: { scanResults: true },
                 },
@@ -35,7 +40,34 @@ export class ProjectsService {
             throw new NotFoundException('Project not found');
         }
 
-        return project;
+        // Calculate stats from the latest scan result
+        const latestScan = project.scanResults[0];
+        const summary = latestScan?.summary;
+        const stats = {
+            totalScans: project._count.scanResults,
+            lastScanAt: latestScan?.createdAt?.toISOString(),
+            vulnerabilities: {
+                critical: summary?.critical || 0,
+                high: summary?.high || 0,
+                medium: summary?.medium || 0,
+                low: summary?.low || 0,
+                total: summary?.totalVulns || 0,
+            },
+        };
+
+        // Calculate risk level based on vulnerabilities
+        let riskLevel = 'NONE';
+        if (stats.vulnerabilities.critical > 0) riskLevel = 'CRITICAL';
+        else if (stats.vulnerabilities.high > 0) riskLevel = 'HIGH';
+        else if (stats.vulnerabilities.medium > 0) riskLevel = 'MEDIUM';
+        else if (stats.vulnerabilities.low > 0) riskLevel = 'LOW';
+
+        return {
+            ...project,
+            scanResults: undefined, // Don't include full scan results
+            stats,
+            riskLevel,
+        };
     }
 
     async create(organizationId: string, dto: CreateProjectDto) {
@@ -120,8 +152,8 @@ export class ProjectsService {
                 ...(trendMap.get(dateKey) || { critical: 0, high: 0, medium: 0, low: 0, total: 0 }),
             });
         }
-
-        return { projectId, days, trend };
+        // Return just the trend array (frontend expects array directly)
+        return trend;
     }
 }
 
