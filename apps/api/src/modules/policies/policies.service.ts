@@ -85,6 +85,8 @@ export class PoliciesService {
                 name: data.name,
                 description: data.description,
                 isActive: data.isActive,
+                organizationId: data.organizationId,
+                projectId: data.projectId,
             },
         });
     }

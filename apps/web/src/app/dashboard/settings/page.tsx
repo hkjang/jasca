@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
     User,
@@ -71,14 +71,47 @@ export default function SettingsPage() {
         }
     };
 
-    const handleSaveNotifications = () => {
+    const handleSaveProfile = async () => {
+        if (!profileForm.name.trim()) {
+            setMessage({ type: 'error', text: '이름을 입력해주세요.' });
+            return;
+        }
+
         setIsSaving(true);
-        // Simulate saving
-        setTimeout(() => {
+        try {
+            await authApi.updateProfile({ name: profileForm.name });
+            setMessage({ type: 'success', text: '프로필이 저장되었습니다.' });
+        } catch (error: any) {
+            setMessage({ type: 'error', text: error.message || '프로필 저장에 실패했습니다.' });
+        } finally {
             setIsSaving(false);
-            setMessage({ type: 'success', text: '알림 설정이 저장되었습니다.' });
-        }, 500);
+        }
     };
+
+    const handleSaveNotifications = async () => {
+        setIsSaving(true);
+        try {
+            await authApi.updateNotificationSettings(notifications);
+            setMessage({ type: 'success', text: '알림 설정이 저장되었습니다.' });
+        } catch (error: any) {
+            setMessage({ type: 'error', text: error.message || '알림 설정 저장에 실패했습니다.' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Load notification settings on mount
+    useEffect(() => {
+        const loadNotificationSettings = async () => {
+            try {
+                const settings = await authApi.getNotificationSettings();
+                setNotifications(settings);
+            } catch (error) {
+                console.error('Failed to load notification settings:', error);
+            }
+        };
+        loadNotificationSettings();
+    }, []);
 
     const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
         setTheme(newTheme);
@@ -208,6 +241,14 @@ export default function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
+                            <button
+                                onClick={handleSaveProfile}
+                                disabled={isSaving}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                프로필 저장
+                            </button>
                         </div>
                     )}
 

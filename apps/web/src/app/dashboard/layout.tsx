@@ -200,6 +200,16 @@ export default function DashboardLayout({
                                     <span className="text-sm font-medium">{user.name || user.email}</span>
                                 </Link>
                             )}
+                            {/* Admin link - only for admin users */}
+                            {(userRoles.includes('SYSTEM_ADMIN') || userRoles.includes('ORG_ADMIN')) && (
+                                <Link
+                                    href="/admin"
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 transition-colors rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-purple-200 dark:border-purple-800"
+                                >
+                                    <Settings className="h-4 w-4" />
+                                    <span>관리자</span>
+                                </Link>
+                            )}
                             {/* Logout button */}
                             <button
                                 onClick={handleLogout}

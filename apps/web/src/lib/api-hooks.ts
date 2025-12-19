@@ -371,7 +371,7 @@ export function useCreateProject() {
 export function useUpdateProject() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, ...data }: { id: string; name?: string; description?: string }) =>
+        mutationFn: ({ id, ...data }: { id: string; name?: string; description?: string; organizationId?: string }) =>
             authFetch(`${API_BASE}/projects/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(data),
@@ -789,6 +789,8 @@ export function useReports() {
     return useQuery<Report[]>({
         queryKey: ['reports'],
         queryFn: () => authFetch(`${API_BASE}/reports`),
+        // Auto-refresh every 3 seconds to catch status updates
+        refetchInterval: 3000,
     });
 }
 
@@ -811,6 +813,20 @@ export function useDeleteReport() {
     return useMutation({
         mutationFn: (id: string) =>
             authFetch(`${API_BASE}/reports/${id}`, { method: 'DELETE' }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reports'] });
+        },
+    });
+}
+
+export function useUpdateReport() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, ...data }: { id: string; name?: string; format?: string }) =>
+            authFetch(`${API_BASE}/reports/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reports'] });
         },

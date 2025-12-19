@@ -6,7 +6,7 @@ import {
     BarChart3,
     Shield,
     FileSearch,
-    Bug,
+    AlertTriangle,
     Settings,
     User,
     Bell,
@@ -14,6 +14,7 @@ import {
     FileText,
     FolderKanban,
     ChevronRight,
+    ChevronDown,
     ExternalLink,
     Map,
 } from 'lucide-react';
@@ -71,7 +72,7 @@ const userSitemap: SitemapItem[] = [
     {
         title: '취약점',
         path: '/dashboard/vulnerabilities',
-        icon: <Bug className="w-5 h-5" />,
+        icon: <AlertTriangle className="w-5 h-5" />,
         description: '발견된 취약점 목록 및 상태 관리',
         children: [
             {
@@ -134,19 +135,23 @@ function SitemapNode({ item, level = 0 }: { item: SitemapItem; level?: number })
     const isParameterPath = item.path.includes('[');
 
     return (
-        <div className={`${level > 0 ? 'ml-8 border-l-2 border-slate-700 pl-4' : ''}`}>
+        <div className={`${level > 0 ? 'ml-6 border-l-2 border-slate-200 dark:border-slate-700 pl-4' : ''}`}>
             <div
                 className={`
-          group flex items-start gap-4 p-4 rounded-xl
-          ${level === 0 ? 'bg-slate-800/50 hover:bg-slate-800' : 'hover:bg-slate-800/30'}
-          transition-all duration-200
-        `}
+                    group flex items-start gap-4 p-4 rounded-xl
+                    ${level === 0
+                        ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md'
+                        : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50'}
+                    transition-all duration-200
+                `}
             >
                 <div
                     className={`
-            flex items-center justify-center w-10 h-10 rounded-lg
-            ${level === 0 ? 'bg-gradient-to-br from-blue-500 to-purple-600' : 'bg-slate-700'}
-          `}
+                        flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0
+                        ${level === 0
+                            ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}
+                    `}
                 >
                     {item.icon}
                 </div>
@@ -155,25 +160,29 @@ function SitemapNode({ item, level = 0 }: { item: SitemapItem; level?: number })
                         {hasChildren && (
                             <button
                                 onClick={() => setIsExpanded(!isExpanded)}
-                                className="text-slate-400 hover:text-white transition-colors"
+                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                             >
-                                <ChevronRight
-                                    className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                                />
+                                {isExpanded ? (
+                                    <ChevronDown className="w-4 h-4" />
+                                ) : (
+                                    <ChevronRight className="w-4 h-4" />
+                                )}
                             </button>
                         )}
-                        <h3 className="font-semibold text-white">{item.title}</h3>
+                        <h3 className="font-semibold text-slate-900 dark:text-white">{item.title}</h3>
                         {!isParameterPath && (
                             <Link
                                 href={item.path}
-                                className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 transition-all"
+                                className="opacity-0 group-hover:opacity-100 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-all"
                             >
                                 <ExternalLink className="w-4 h-4" />
                             </Link>
                         )}
                     </div>
-                    <p className="text-sm text-slate-400 mt-1">{item.description}</p>
-                    <code className="text-xs text-slate-500 mt-2 block font-mono">{item.path}</code>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{item.description}</p>
+                    <code className="text-xs text-slate-500 dark:text-slate-500 mt-2 block font-mono bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded w-fit">
+                        {item.path}
+                    </code>
                 </div>
             </div>
             {hasChildren && isExpanded && (
@@ -188,80 +197,99 @@ function SitemapNode({ item, level = 0 }: { item: SitemapItem; level?: number })
 }
 
 export default function UserSitemapPage() {
+    const mainMenuCount = userSitemap.length;
+    const subMenuCount = userSitemap.reduce((acc, item) => acc + (item.children?.length || 0), 0);
+    const totalPages = mainMenuCount + subMenuCount;
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
-                            <Map className="w-8 h-8 text-white" />
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">사이트맵</h2>
+                    <p className="text-slate-600 dark:text-slate-400 mt-1">
+                        JASCA 사용자 대시보드의 전체 메뉴 구조
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <Map className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">사용자 메뉴</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                            <FolderKanban className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">사용자 사이트맵</h1>
-                            <p className="text-slate-400">JASCA 사용자 대시보드의 전체 메뉴 구조</p>
+                            <div className="text-2xl font-bold text-slate-900 dark:text-white">{mainMenuCount}</div>
+                            <div className="text-sm text-slate-600 dark:text-slate-400">메인 메뉴</div>
                         </div>
-                    </div>
-
-                    <div className="flex gap-4 mt-6">
-                        <Link
-                            href="/dashboard/sitemap"
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium"
-                        >
-                            사용자 사이트맵
-                        </Link>
-                        <Link
-                            href="/admin/sitemap"
-                            className="px-4 py-2 bg-slate-700 text-slate-300 hover:bg-slate-600 rounded-lg font-medium transition-colors"
-                        >
-                            관리자 사이트맵
-                        </Link>
                     </div>
                 </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-8">
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                        <div className="text-2xl font-bold text-white">{userSitemap.length}</div>
-                        <div className="text-sm text-slate-400">메인 메뉴</div>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                        <div className="text-2xl font-bold text-white">
-                            {userSitemap.reduce((acc, item) => acc + (item.children?.length || 0), 0)}
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                            <ChevronRight className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                         </div>
-                        <div className="text-sm text-slate-400">서브 메뉴</div>
-                    </div>
-                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                        <div className="text-2xl font-bold text-white">
-                            {userSitemap.length + userSitemap.reduce((acc, item) => acc + (item.children?.length || 0), 0)}
+                        <div>
+                            <div className="text-2xl font-bold text-slate-900 dark:text-white">{subMenuCount}</div>
+                            <div className="text-sm text-slate-600 dark:text-slate-400">서브 메뉴</div>
                         </div>
-                        <div className="text-sm text-slate-400">총 페이지</div>
                     </div>
                 </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                            <BarChart3 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-bold text-slate-900 dark:text-white">{totalPages}</div>
+                            <div className="text-sm text-slate-600 dark:text-slate-400">총 페이지</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                {/* Sitemap Tree */}
-                <div className="space-y-4">
+            {/* Sitemap Tree */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+                    <h3 className="font-semibold text-slate-900 dark:text-white">메뉴 구조</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                        각 메뉴 항목을 클릭하여 해당 페이지로 이동할 수 있습니다
+                    </p>
+                </div>
+                <div className="p-4 space-y-3">
                     {userSitemap.map((item, index) => (
                         <SitemapNode key={index} item={item} />
                     ))}
                 </div>
+            </div>
 
-                {/* Legend */}
-                <div className="mt-8 p-4 bg-slate-800/30 rounded-xl border border-slate-700">
-                    <h3 className="font-semibold text-white mb-3">범례</h3>
-                    <div className="flex flex-wrap gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded"></div>
-                            <span className="text-slate-400">메인 메뉴</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 bg-slate-700 rounded"></div>
-                            <span className="text-slate-400">서브 메뉴</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <code className="text-xs text-slate-500 font-mono">[id]</code>
-                            <span className="text-slate-400">동적 파라미터</span>
-                        </div>
+            {/* Legend */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm">
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-4">범례</h3>
+                <div className="flex flex-wrap gap-6 text-sm">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md"></div>
+                        <span className="text-slate-600 dark:text-slate-400">메인 메뉴</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-slate-200 dark:bg-slate-700 rounded-md"></div>
+                        <span className="text-slate-600 dark:text-slate-400">서브 메뉴</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <code className="text-xs text-slate-500 font-mono bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded">[id]</code>
+                        <span className="text-slate-600 dark:text-slate-400">동적 파라미터</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <ExternalLink className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-slate-600 dark:text-slate-400">링크 이동</span>
                     </div>
                 </div>
             </div>

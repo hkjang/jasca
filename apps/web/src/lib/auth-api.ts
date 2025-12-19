@@ -169,6 +169,63 @@ class AuthApi {
 
         return response.json();
     }
+
+    async updateProfile(data: { name?: string }): Promise<any> {
+        const response = await fetch(`${API_BASE}/users/me`, {
+            method: 'PUT',
+            headers: this.getHeaders(),
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to update profile');
+        }
+
+        return response.json();
+    }
+
+    async updateNotificationSettings(settings: {
+        emailAlerts: boolean;
+        criticalOnly: boolean;
+        weeklyDigest: boolean;
+    }): Promise<any> {
+        const response = await fetch(`${API_BASE}/users/me/notification-settings`, {
+            method: 'PUT',
+            headers: this.getHeaders(),
+            body: JSON.stringify(settings),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to update notification settings');
+        }
+
+        return response.json();
+    }
+
+    async getNotificationSettings(): Promise<{
+        emailAlerts: boolean;
+        criticalOnly: boolean;
+        weeklyDigest: boolean;
+    }> {
+        const response = await fetch(`${API_BASE}/users/me/notification-settings`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+            // Return default settings if not found
+            return {
+                emailAlerts: true,
+                criticalOnly: false,
+                weeklyDigest: true,
+            };
+        }
+
+        return response.json();
+    }
 }
 
 export const authApi = new AuthApi();
+

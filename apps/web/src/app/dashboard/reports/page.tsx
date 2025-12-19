@@ -11,11 +11,13 @@ import {
     Loader2,
     File,
     Trash2,
+    Edit,
 } from 'lucide-react';
-import { useReports, useCreateReport, useDeleteReport, type Report } from '@/lib/api-hooks';
+import { useReports, useCreateReport, useDeleteReport, useUpdateReport, type Report } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
+import { useAuthStore } from '@/stores/auth-store';
 
 const reportTypes = [
     { id: 'vulnerability_summary', name: '취약점 요약', description: '프로젝트별 취약점 현황 요약' },
@@ -78,6 +80,12 @@ export default function ReportsPage() {
     const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv'>('pdf');
     const [reportName, setReportName] = useState('');
 
+    // Edit state
+    const [editingReport, setEditingReport] = useState<Report | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editFormat, setEditFormat] = useState<'pdf' | 'csv'>('pdf');
+    const updateMutation = useUpdateReport();
+
     // AI Execution for report generation
     const {
         execute: executeReportGenerate,
@@ -108,9 +116,33 @@ export default function ReportsPage() {
         reports: reports?.slice(0, 5) || [],
     });
 
-    const handleDownload = (report: Report) => {
+    const handleDownload = async (report: Report) => {
         if (report.downloadUrl) {
-            window.open(report.downloadUrl, '_blank');
+            try {
+                const token = useAuthStore.getState().accessToken;
+                const response = await fetch(report.downloadUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Download failed');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${report.name.replace(/\s+/g, '_')}.${report.format}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (err) {
+                console.error('Failed to download report:', err);
+                alert('다운로드에 실패했습니다.');
+            }
         }
     };
 
@@ -137,6 +169,26 @@ export default function ReportsPage() {
             } catch (err) {
                 console.error('Failed to delete report:', err);
             }
+        }
+    };
+
+    const handleEdit = (report: Report) => {
+        setEditingReport(report);
+        setEditName(report.name);
+        setEditFormat(report.format as 'pdf' | 'csv');
+    };
+
+    const handleUpdate = async () => {
+        if (!editingReport || !editName) return;
+        try {
+            await updateMutation.mutateAsync({
+                id: editingReport.id,
+                name: editName,
+                format: editFormat,
+            });
+            setEditingReport(null);
+        } catch (err) {
+            console.error('Failed to update report:', err);
         }
     };
 
@@ -276,6 +328,75 @@ export default function ReportsPage() {
                 </div>
             )}
 
+            {/* Edit Modal */}
+            {editingReport && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-md">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">리포트 수정</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    리포트 이름
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    출력 형식
+                                </label>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setEditFormat('pdf')}
+                                        className={`px-4 py-2 rounded-lg border transition-colors ${editFormat === 'pdf'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                            }`}
+                                    >
+                                        PDF
+                                    </button>
+                                    <button
+                                        onClick={() => setEditFormat('csv')}
+                                        className={`px-4 py-2 rounded-lg border transition-colors ${editFormat === 'csv'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                            }`}
+                                    >
+                                        CSV
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                <button
+                                    onClick={() => setEditingReport(null)}
+                                    className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={handleUpdate}
+                                    disabled={!editName || updateMutation.isPending}
+                                    className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {updateMutation.isPending ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            저장 중...
+                                        </>
+                                    ) : (
+                                        '저장'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Reports List */}
             {reports.length === 0 ? (
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center">
@@ -352,8 +473,16 @@ export default function ReportsPage() {
                                                 </button>
                                             )}
                                             <button
+                                                onClick={() => handleEdit(report)}
+                                                className="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                title="수정"
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </button>
+                                            <button
                                                 onClick={() => handleDelete(report.id)}
                                                 className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                title="삭제"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>

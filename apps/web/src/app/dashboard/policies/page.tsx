@@ -86,6 +86,7 @@ export default function PoliciesPage() {
                 id: editingPolicy.id,
                 name: formData.name,
                 description: formData.description || undefined,
+                organizationId: formData.organizationId || undefined,
                 isActive: formData.isActive,
             });
             setEditingPolicy(null);
@@ -232,7 +233,7 @@ export default function PoliciesPage() {
                                 placeholder="정책에 대한 설명을 입력하세요."
                             />
                         </div>
-                        {!editingPolicy && organizations && organizations.length > 0 && (
+                        {organizations && organizations.length > 0 && (
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                     조직 (선택사항)

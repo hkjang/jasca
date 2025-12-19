@@ -79,7 +79,12 @@ export default function AdminProjectsPage() {
     const handleUpdate = async () => {
         if (!editingProject) return;
         try {
-            await updateMutation.mutateAsync({ id: editingProject.id, name: formData.name, description: formData.description });
+            await updateMutation.mutateAsync({
+                id: editingProject.id,
+                name: formData.name,
+                description: formData.description,
+                organizationId: formData.organizationId,
+            });
             closeModals();
         } catch (err) {
             console.error('Failed to update project:', err);
@@ -205,9 +210,9 @@ export default function AdminProjectsPage() {
                                 <td className="px-6 py-4">
                                     {project.riskLevel && (
                                         <span className={`px-2 py-1 rounded text-xs font-medium ${project.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                                project.riskLevel === 'HIGH' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                                                    project.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                                                        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                            project.riskLevel === 'HIGH' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                                                project.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                                                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                             }`}>
                                             {project.riskLevel}
                                         </span>
@@ -263,36 +268,37 @@ export default function AdminProjectsPage() {
                                 />
                             </div>
                             {!editingProject && (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                            슬러그 *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={formData.slug}
-                                            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                            placeholder="backend-api"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                            조직 *
-                                        </label>
-                                        <select
-                                            value={formData.organizationId}
-                                            onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                        >
-                                            <option value="">조직 선택...</option>
-                                            {organizations?.map((org) => (
-                                                <option key={org.id} value={org.id}>{org.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                        슬러그 *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.slug}
+                                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                        placeholder="backend-api"
+                                    />
+                                </div>
                             )}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    조직 {!editingProject && '*'}
+                                </label>
+                                <select
+                                    value={formData.organizationId}
+                                    onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                >
+                                    <option value="">조직 선택...</option>
+                                    {organizations?.map((org) => (
+                                        <option key={org.id} value={org.id}>{org.name}</option>
+                                    ))}
+                                </select>
+                                {editingProject && (
+                                    <p className="text-xs text-slate-500 mt-1">프로젝트를 다른 조직으로 이동합니다</p>
+                                )}
+                            </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                     설명
