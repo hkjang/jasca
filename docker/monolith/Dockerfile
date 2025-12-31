@@ -56,8 +56,8 @@ RUN pnpm -r run prisma:generate
 RUN pnpm --filter api build
 # Build Web
 RUN pnpm --filter web build
-# Compile seed.ts to JavaScript for offline execution
-RUN npx tsc apps/api/prisma/seed.ts --outDir apps/api/prisma --target ES2020 --lib ES2020 --module commonjs --esModuleInterop --resolveJsonModule --skipLibCheck --types node
+# Compile seed.ts to JavaScript for offline execution (using project tsconfig)
+RUN cd apps/api && npx tsc prisma/seed.ts --outDir prisma --skipLibCheck
 
 # RUNNER STAGE
 FROM base AS runner
