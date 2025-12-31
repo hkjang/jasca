@@ -55,6 +55,9 @@ if [ -z "$(ls -A "$PG_DATA")" ]; then
     # Use direct binary execution with explicit schema path (absolute paths to be safe)
     /app/node_modules/.bin/prisma migrate deploy --schema=/app/apps/api/prisma/schema.prisma
  
+    echo "Running database seed..."
+    node /app/apps/api/prisma/seed.js
+ 
     echo "Stopping temporary Postgres..."
     su - postgres -c "/usr/lib/postgresql/14/bin/pg_ctl -D $PG_DATA -m fast -w stop"
     
