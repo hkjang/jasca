@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
     FolderKanban,
@@ -23,7 +23,7 @@ import {
     Trash2,
     ChevronDown,
 } from 'lucide-react';
-import { useProjects, useOrganizations, useCreateProject, useDeleteProject, Project } from '@/lib/api-hooks';
+import { useProjects, useOrganizations, useCreateProject, useDeleteProject, useUpdateProject, Project } from '@/lib/api-hooks';
 
 function getRiskBadge(riskLevel?: string) {
     const colors: Record<string, string> = {
@@ -288,6 +288,209 @@ function DeleteConfirmModal({
     );
 }
 
+// Edit Project Modal
+function EditProjectModal({
+    project,
+    onClose,
+}: {
+    project: Project | null;
+    onClose: () => void;
+}) {
+    const [name, setName] = useState(project?.name || '');
+    const [description, setDescription] = useState(project?.description || '');
+    const updateProject = useUpdateProject();
+
+    // Update form when project changes
+    useEffect(() => {
+        if (project) {
+            setName(project.name);
+            setDescription(project.description || '');
+        }
+    }, [project]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!project) return;
+        try {
+            await updateProject.mutateAsync({
+                id: project.id,
+                name,
+                description,
+            });
+            onClose();
+        } catch (error) {
+            console.error('Failed to update project:', error);
+        }
+    };
+
+    if (!project) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md p-6 m-4">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold text-slate-900 dark:text-white">프로젝트 편집</h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            프로젝트 이름
+                        </label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            설명
+                        </label>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            rows={3}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        />
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                        >
+                            취소
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={updateProject.isPending || !name}
+                            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                            {updateProject.isPending ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    저장 중...
+                                </>
+                            ) : (
+                                '저장'
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// Stats Overview Cards
+function StatsOverviewCards({ projects }: { projects: Project[] }) {
+    const stats = useMemo(() => {
+        let totalCritical = 0;
+        let totalHigh = 0;
+        let totalMedium = 0;
+        let totalLow = 0;
+        let atRiskCount = 0;
+        let safeCount = 0;
+        let noScansCount = 0;
+
+        projects.forEach((p) => {
+            if (p.stats) {
+                totalCritical += p.stats.vulnerabilities.critical || 0;
+                totalHigh += p.stats.vulnerabilities.high || 0;
+                totalMedium += p.stats.vulnerabilities.medium || 0;
+                totalLow += p.stats.vulnerabilities.low || 0;
+            } else {
+                noScansCount++;
+            }
+
+            if (p.riskLevel === 'CRITICAL' || p.riskLevel === 'HIGH') {
+                atRiskCount++;
+            } else if (!p.riskLevel || p.riskLevel === 'NONE' || p.riskLevel === 'LOW') {
+                safeCount++;
+            }
+        });
+
+        return {
+            totalProjects: projects.length,
+            totalVulnerabilities: totalCritical + totalHigh + totalMedium + totalLow,
+            totalCritical,
+            totalHigh,
+            atRiskCount,
+            safeCount,
+            noScansCount,
+        };
+    }, [projects]);
+
+    return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">전체 프로젝트</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalProjects}</p>
+                    </div>
+                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                        <FolderKanban className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">전체 취약점</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.totalVulnerabilities}</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            C:{stats.totalCritical} H:{stats.totalHigh}
+                        </p>
+                    </div>
+                    <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">위험 프로젝트</p>
+                        <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.atRiskCount}</p>
+                        <p className="text-xs text-slate-400 mt-1">Critical/High</p>
+                    </div>
+                    <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                        <Shield className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">안전 프로젝트</p>
+                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.safeCount}</p>
+                        <p className="text-xs text-slate-400 mt-1">스캔 미완료: {stats.noScansCount}</p>
+                    </div>
+                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                        <Shield className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Project Card Dropdown Menu
 function ProjectCardMenu({
     project,
@@ -367,6 +570,7 @@ export default function ProjectsPage() {
     const [riskFilter, setRiskFilter] = useState<RiskFilter>('ALL');
     const [organizationFilter, setOrganizationFilter] = useState<string>('ALL');
     const [deleteModalProject, setDeleteModalProject] = useState<Project | null>(null);
+    const [editModalProject, setEditModalProject] = useState<Project | null>(null);
 
     // Filter and sort projects
     const filteredAndSortedProjects = useMemo(() => {
@@ -493,6 +697,9 @@ export default function ProjectsPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Stats Overview Cards */}
+            <StatsOverviewCards projects={data?.data || []} />
 
             {/* Search, Filter, Sort, View Toggle */}
             <div className="flex flex-wrap items-center gap-4">
@@ -684,7 +891,7 @@ export default function ProjectsPage() {
                                     {getRiskBadge(project.riskLevel)}
                                     <ProjectCardMenu
                                         project={project}
-                                        onEdit={() => {}}
+                                        onEdit={() => setEditModalProject(project)}
                                         onDelete={() => setDeleteModalProject(project)}
                                     />
                                 </div>
@@ -789,7 +996,7 @@ export default function ProjectsPage() {
                                             </Link>
                                             <ProjectCardMenu
                                                 project={project}
-                                                onEdit={() => {}}
+                                            onEdit={() => setEditModalProject(project)}
                                                 onDelete={() => setDeleteModalProject(project)}
                                             />
                                         </div>
@@ -815,6 +1022,12 @@ export default function ProjectsPage() {
                 onConfirm={handleDelete}
                 projectName={deleteModalProject?.name || ''}
                 isDeleting={deleteProject.isPending}
+            />
+
+            {/* Edit Project Modal */}
+            <EditProjectModal
+                project={editModalProject}
+                onClose={() => setEditModalProject(null)}
             />
         </div>
     );
