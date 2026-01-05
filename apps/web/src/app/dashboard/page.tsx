@@ -16,7 +16,7 @@ import {
     Line,
     Legend,
 } from 'recharts';
-import { AlertTriangle, Shield, CheckCircle, Clock, ExternalLink, Loader2 } from 'lucide-react';
+import { AlertTriangle, Shield, CheckCircle, Clock, ExternalLink, Loader2, Bell } from 'lucide-react';
 import { StatCard, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatCardSkeleton, ChartSkeleton } from '@/components/ui/skeleton';
 import { SeverityBadge } from '@/components/ui/badge';
@@ -24,6 +24,8 @@ import { useStatsOverview, useStatsByProject, useStatsTrend } from '@/lib/api-ho
 import { AiButton, AiButtonGroup, AiResultPanel } from '@/components/ai';
 import { useAiExecution, useDashboardAiContext } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { QuickActions, QuickActionsFAB } from '@/components/quick-actions';
 
 const SEVERITY_COLORS = {
     Critical: '#dc2626',
@@ -149,22 +151,41 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header with AI Button */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">대시보드</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">전체 취약점 현황을 확인하세요</p>
+            {/* Header with Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">대시보드</h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">전체 취약점 현황을 확인하세요</p>
+                    </div>
+                    {/* Critical Alert Badge */}
+                    {overview && overview.bySeverity.critical > 0 && (
+                        <div className="relative animate-pulse">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm font-medium">
+                                <Bell className="h-4 w-4" />
+                                <span>{overview.bySeverity.critical} Critical</span>
+                            </div>
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                        </div>
+                    )}
                 </div>
-                <AiButton
-                    action="dashboard.summary"
-                    variant="primary"
-                    size="md"
-                    context={collectDashboardContext(overview, projectStats)}
-                    estimatedTokens={estimatedTokens}
-                    loading={aiLoading}
-                    onExecute={handleAiSummary}
-                    onCancel={cancelAi}
-                />
+                <div className="flex items-center gap-3">
+                    <QuickActions className="hidden md:flex" />
+                    <ThemeToggle />
+                    <AiButton
+                        action="dashboard.summary"
+                        variant="primary"
+                        size="md"
+                        context={collectDashboardContext(overview, projectStats)}
+                        estimatedTokens={estimatedTokens}
+                        loading={aiLoading}
+                        onExecute={handleAiSummary}
+                        onCancel={cancelAi}
+                    />
+                </div>
             </div>
 
             {/* Stats Cards - Critical/High first for priority */}

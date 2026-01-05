@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     AlertTriangle,
     Shield,
@@ -10,13 +11,20 @@ import {
     Filter,
     Loader2,
     RefreshCw,
-    ChevronDown,
     Package,
+    CheckSquare,
+    Square,
+    Trash2,
+    Edit,
+    Download,
+    MoreHorizontal,
+    X,
 } from 'lucide-react';
 import { useVulnerabilities, useUpdateVulnerabilityStatus, Vulnerability } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const SEVERITY_OPTIONS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'WONT_FIX', 'FALSE_POSITIVE'];
@@ -54,12 +62,18 @@ function getStatusBadge(status: string) {
 }
 
 export default function VulnerabilitiesPage() {
+    const router = useRouter();
     const [filters, setFilters] = useState<{
         severity?: string[];
         status?: string[];
     }>({});
     const [showFilters, setShowFilters] = useState(false);
     const [editingStatus, setEditingStatus] = useState<string | null>(null);
+    
+    // Bulk selection state
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [showBulkActions, setShowBulkActions] = useState(false);
+    const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
     const { data, isLoading, error, refetch } = useVulnerabilities(filters);
     const updateStatus = useUpdateVulnerabilityStatus();
@@ -76,6 +90,75 @@ export default function VulnerabilitiesPage() {
     } = useAiExecution('vuln.priorityReorder');
 
     const { activePanel, closePanel } = useAiStore();
+
+    const vulnerabilities = data?.data || [];
+
+    // Selection handlers
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === vulnerabilities.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(vulnerabilities.map((v: Vulnerability) => v.id)));
+        }
+    };
+
+    const clearSelection = () => {
+        setSelectedIds(new Set());
+    };
+
+    // Bulk action handlers
+    const handleBulkStatusChange = async (status: string) => {
+        if (selectedIds.size === 0) return;
+        
+        setBulkActionLoading(true);
+        try {
+            const promises = Array.from(selectedIds).map(id =>
+                updateStatus.mutateAsync({ id, status })
+            );
+            await Promise.all(promises);
+            clearSelection();
+            refetch();
+        } catch (error) {
+            console.error('Bulk update failed:', error);
+        } finally {
+            setBulkActionLoading(false);
+        }
+    };
+
+    const handleExportSelected = () => {
+        const selected = vulnerabilities.filter((v: Vulnerability) => selectedIds.has(v.id));
+        const csv = [
+            ['CVE ID', 'Package', 'Severity', 'Status', 'Version', 'Project'].join(','),
+            ...selected.map((v: Vulnerability) => [
+                v.cveId,
+                v.pkgName,
+                v.severity,
+                v.status,
+                v.installedVersion,
+                v.scanResult?.project?.name || '-'
+            ].join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vulnerabilities-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     const handleAiPriorityReorder = () => {
         const context = {
@@ -140,7 +223,8 @@ export default function VulnerabilitiesPage() {
         );
     }
 
-    const vulnerabilities = data?.data || [];
+    const isAllSelected = vulnerabilities.length > 0 && selectedIds.size === vulnerabilities.length;
+    const isSomeSelected = selectedIds.size > 0;
 
     return (
         <div className="space-y-6">
@@ -153,6 +237,7 @@ export default function VulnerabilitiesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <ThemeToggle />
                     <AiButton
                         action="vuln.priorityReorder"
                         variant="primary"
@@ -181,6 +266,66 @@ export default function VulnerabilitiesPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Bulk Actions Bar */}
+            {isSomeSelected && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top duration-200">
+                    <div className="flex items-center gap-4">
+                        <span className="text-blue-700 dark:text-blue-300 font-medium">
+                            {selectedIds.size}개 선택됨
+                        </span>
+                        <button
+                            onClick={clearSelection}
+                            className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                        >
+                            선택 해제
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {/* Status Change Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowBulkActions(!showBulkActions)}
+                                disabled={bulkActionLoading}
+                                className="flex items-center gap-2 px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            >
+                                {bulkActionLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Edit className="h-4 w-4" />
+                                )}
+                                상태 변경
+                            </button>
+                            {showBulkActions && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setShowBulkActions(false)} />
+                                    <div className="absolute right-0 top-full mt-2 z-20 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1">
+                                        {STATUS_OPTIONS.map(status => (
+                                            <button
+                                                key={status}
+                                                onClick={() => {
+                                                    handleBulkStatusChange(status);
+                                                    setShowBulkActions(false);
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                                            >
+                                                {status.replace('_', ' ')}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <button
+                            onClick={handleExportSelected}
+                            className="flex items-center gap-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        >
+                            <Download className="h-4 w-4" />
+                            CSV 내보내기
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Filters */}
             {showFilters && (
@@ -242,6 +387,18 @@ export default function VulnerabilitiesPage() {
                     <table className="w-full">
                         <thead className="bg-slate-50 dark:bg-slate-700/50">
                             <tr>
+                                <th className="px-4 py-3 text-left">
+                                    <button
+                                        onClick={toggleSelectAll}
+                                        className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+                                    >
+                                        {isAllSelected ? (
+                                            <CheckSquare className="h-5 w-5 text-blue-600" />
+                                        ) : (
+                                            <Square className="h-5 w-5 text-slate-400" />
+                                        )}
+                                    </button>
+                                </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                     CVE ID
                                 </th>
@@ -264,7 +421,24 @@ export default function VulnerabilitiesPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {vulnerabilities.map((vuln: Vulnerability) => (
-                                <tr key={vuln.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                <tr 
+                                    key={vuln.id} 
+                                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${
+                                        selectedIds.has(vuln.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
+                                    }`}
+                                >
+                                    <td className="px-4 py-4">
+                                        <button
+                                            onClick={() => toggleSelect(vuln.id)}
+                                            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+                                        >
+                                            {selectedIds.has(vuln.id) ? (
+                                                <CheckSquare className="h-5 w-5 text-blue-600" />
+                                            ) : (
+                                                <Square className="h-5 w-5 text-slate-400" />
+                                            )}
+                                        </button>
+                                    </td>
                                     <td className="px-6 py-4">
                                         <a
                                             href={`https://nvd.nist.gov/vuln/detail/${vuln.cveId}`}

@@ -23,10 +23,12 @@ import {
     TrendingDown,
     Loader2,
     RefreshCw,
+    Bell,
 } from 'lucide-react';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
     useStatsOverview,
     useStatsByProject,
@@ -188,12 +190,27 @@ export default function AdminDashboardPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">관리자 대시보드</h1>
-                    <p className="text-slate-600 dark:text-slate-400 mt-1">
-                        시스템 전체 보안 현황을 모니터링합니다
-                    </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">관리자 대시보드</h1>
+                        <p className="text-slate-600 dark:text-slate-400 mt-1">
+                            시스템 전체 보안 현황을 모니터링합니다
+                        </p>
+                    </div>
+                    {/* Critical Vulnerabilities Alert */}
+                    {statsOverview && statsOverview.bySeverity?.critical > 0 && (
+                        <div className="relative">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm font-medium animate-pulse">
+                                <Bell className="h-4 w-4" />
+                                <span>{statsOverview.bySeverity.critical} Critical 알림</span>
+                            </div>
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -204,6 +221,7 @@ export default function AdminDashboardPage() {
                         <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                         새로고침
                     </button>
+                    <ThemeToggle />
                     <AiButton
                         action="dashboard.riskAnalysis"
                         variant="primary"
