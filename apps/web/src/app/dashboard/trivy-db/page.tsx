@@ -14,7 +14,12 @@ import {
   AlertTriangle,
   FileText,
   Clock,
-  Server
+  Server,
+  HardDrive,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  FolderOpen
 } from 'lucide-react';
 
 // Trivy DB Schema ERD definition
@@ -126,14 +131,16 @@ interface DbMetadata {
 export default function TrivyDbPage() {
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'erd' | 'types' | 'sources'>('erd');
+  const [activeTab, setActiveTab] = useState<'erd' | 'types' | 'sources' | 'files'>('erd');
   const [svgContent, setSvgContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Live DB info state
   const [dbInfo, setDbInfo] = useState<{
     exists: boolean;
     metadata: DbMetadata | null;
+    javaMetadata: DbMetadata | null;
     files: { name: string; size: number; lastModified: string }[];
     totalSize: number;
     location: string;
@@ -141,21 +148,23 @@ export default function TrivyDbPage() {
   const [isDbLoading, setIsDbLoading] = useState(true);
 
   // Fetch live DB info from API
-  useEffect(() => {
-    const fetchDbInfo = async () => {
-      try {
-        const res = await fetch('/api/trivy-db/info');
-        if (res.ok) {
-          const data = await res.json();
-          setDbInfo(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch DB info:', error);
-      } finally {
-        setIsDbLoading(false);
+  const fetchDbInfo = async (showRefresh = false) => {
+    if (showRefresh) setIsRefreshing(true);
+    try {
+      const res = await fetch('/api/trivy-db/info');
+      if (res.ok) {
+        const data = await res.json();
+        setDbInfo(data);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch DB info:', error);
+    } finally {
+      setIsDbLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
+  useEffect(() => {
     fetchDbInfo();
   }, []);
 
@@ -211,6 +220,21 @@ export default function TrivyDbPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Format date
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.2, 3));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.2, 0.3));
@@ -242,6 +266,14 @@ export default function TrivyDbPage() {
           </div>
           
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => fetchDbInfo(true)}
+              disabled={isRefreshing}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              새로고침
+            </button>
             <a
               href="https://github.com/aquasecurity/trivy-db"
               target="_blank"
@@ -326,7 +358,7 @@ export default function TrivyDbPage() {
 
       {/* Tab Navigation */}
       <div className="flex gap-2 mb-4">
-        {(['erd', 'types', 'sources'] as const).map((tab) => (
+        {(['erd', 'files', 'types', 'sources'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -337,6 +369,7 @@ export default function TrivyDbPage() {
             }`}
           >
             {tab === 'erd' && 'ERD 다이어그램'}
+            {tab === 'files' && 'DB 파일'}
             {tab === 'types' && '타입 정의'}
             {tab === 'sources' && '데이터 소스'}
           </button>
@@ -400,6 +433,148 @@ export default function TrivyDbPage() {
                 dangerouslySetInnerHTML={{ __html: svgContent }}
               />
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'files' && (
+        <div className="space-y-6">
+          {/* DB Files Table */}
+          <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl overflow-hidden">
+            <div className="p-4 border-b border-slate-700">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-indigo-400" />
+                데이터베이스 파일
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-700/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">파일명</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">크기</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">마지막 수정</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">상태</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700">
+                  {dbInfo?.files?.map((file) => (
+                    <tr key={file.name} className="hover:bg-slate-700/30">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <HardDrive className="w-4 h-4 text-slate-400" />
+                          <span className="text-white font-medium">{file.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-slate-300">
+                        {formatSize(file.size)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-slate-300">
+                        {formatDate(file.lastModified)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
+                          <CheckCircle2 className="w-3 h-3" />
+                          존재함
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {(!dbInfo?.files || dbInfo.files.length === 0) && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
+                        <XCircle className="w-8 h-8 mx-auto mb-2 text-red-400" />
+                        DB 파일이 없습니다. 동기화를 실행하세요.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Metadata Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Main DB Metadata */}
+            <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Database className="w-5 h-5 text-indigo-400" />
+                취약점 DB 정보
+              </h3>
+              {dbInfo?.metadata ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="text-slate-400">버전</span>
+                    <span className="text-white font-semibold">{dbInfo.metadata.Version}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="text-slate-400">다운로드 일시</span>
+                    <span className="text-white">{formatDate(dbInfo.metadata.DownloadedAt)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="text-slate-400">업데이트 일시</span>
+                    <span className="text-white">{formatDate(dbInfo.metadata.UpdatedAt)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="text-slate-400">다음 업데이트</span>
+                    <span className="text-white">{formatDate(dbInfo.metadata.NextUpdate)}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-slate-400 text-center py-4">메타데이터를 찾을 수 없습니다</p>
+              )}
+            </div>
+
+            {/* Java DB Metadata */}
+            <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Database className="w-5 h-5 text-orange-400" />
+                Java DB 정보
+              </h3>
+              {dbInfo?.javaMetadata ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="text-slate-400">버전</span>
+                    <span className="text-white font-semibold">{dbInfo.javaMetadata.Version}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="text-slate-400">다운로드 일시</span>
+                    <span className="text-white">{formatDate(dbInfo.javaMetadata.DownloadedAt)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="text-slate-400">업데이트 일시</span>
+                    <span className="text-white">{formatDate(dbInfo.javaMetadata.UpdatedAt)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-slate-700/50 rounded-lg">
+                    <span className="text-slate-400">다음 업데이트</span>
+                    <span className="text-white">{formatDate(dbInfo.javaMetadata.NextUpdate)}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-slate-400 text-center py-4">메타데이터를 찾을 수 없습니다</p>
+              )}
+            </div>
+          </div>
+
+          {/* Location Info */}
+          <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-green-400" />
+              저장 위치
+            </h3>
+            <div className="flex items-center gap-3 p-4 bg-slate-700/30 rounded-lg">
+              <code className="text-indigo-400 flex-1 font-mono text-sm break-all">
+                {dbInfo?.location || 'N/A'}
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(dbInfo?.location || '');
+                }}
+                className="px-3 py-1 bg-slate-600 hover:bg-slate-500 text-white rounded text-sm transition-colors"
+              >
+                복사
+              </button>
+            </div>
           </div>
         </div>
       )}
