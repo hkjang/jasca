@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Shield, Mail, Lock, Loader2 } from 'lucide-react';
@@ -16,11 +16,33 @@ const SsoProviders = [
 
 export default function LoginPage() {
     const router = useRouter();
-    const { setUser, setTokens, setMfaRequired, setError, setLoading, isLoading, error, requiresMfa, mfaToken } = useAuthStore();
+    const { setUser, setTokens, setMfaRequired, setError, setLoading, isLoading, error, requiresMfa, mfaToken, accessToken, isAuthenticated } = useAuthStore();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [mfaCode, setMfaCode] = useState('');
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+    // 이미 로그인된 상태라면 대시보드로 리다이렉트
+    useEffect(() => {
+        if (isAuthenticated && accessToken) {
+            router.replace('/dashboard');
+        } else {
+            setIsCheckingAuth(false);
+        }
+    }, [isAuthenticated, accessToken, router]);
+
+    // 인증 상태 확인 중에는 로딩 표시
+    if (isCheckingAuth && isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto mb-4" />
+                    <p className="text-slate-400">대시보드로 이동 중...</p>
+                </div>
+            </div>
+        );
+    }
 
     const handleSsoLogin = (providerId: string) => {
         // Redirect to SSO endpoint
