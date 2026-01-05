@@ -7,15 +7,51 @@ export class ProjectsService {
     constructor(private readonly prisma: PrismaService) { }
 
     async findAll(organizationId?: string) {
-        return this.prisma.project.findMany({
+        const projects = await this.prisma.project.findMany({
             where: organizationId ? { organizationId } : undefined,
             include: {
                 organization: true,
+                scanResults: {
+                    include: { summary: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
                 _count: {
                     select: { scanResults: true },
                 },
             },
             orderBy: { createdAt: 'desc' },
+        });
+
+        // Transform projects to include stats like findById does
+        return projects.map(project => {
+            const latestScan = project.scanResults[0];
+            const summary = latestScan?.summary;
+            const stats = {
+                totalScans: project._count.scanResults,
+                lastScanAt: latestScan?.createdAt?.toISOString(),
+                vulnerabilities: {
+                    critical: summary?.critical || 0,
+                    high: summary?.high || 0,
+                    medium: summary?.medium || 0,
+                    low: summary?.low || 0,
+                    total: summary?.totalVulns || 0,
+                },
+            };
+
+            // Calculate risk level based on vulnerabilities
+            let riskLevel = 'NONE';
+            if (stats.vulnerabilities.critical > 0) riskLevel = 'CRITICAL';
+            else if (stats.vulnerabilities.high > 0) riskLevel = 'HIGH';
+            else if (stats.vulnerabilities.medium > 0) riskLevel = 'MEDIUM';
+            else if (stats.vulnerabilities.low > 0) riskLevel = 'LOW';
+
+            return {
+                ...project,
+                scanResults: undefined, // Don't include full scan results
+                stats,
+                riskLevel,
+            };
         });
     }
 
