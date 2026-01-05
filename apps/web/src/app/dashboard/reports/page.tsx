@@ -12,12 +12,19 @@ import {
     File,
     Trash2,
     Edit,
+    Clock,
+    Bell,
+    FileSpreadsheet,
+    FileType,
+    Repeat,
+    Settings,
 } from 'lucide-react';
 import { useReports, useCreateReport, useDeleteReport, useUpdateReport, type Report } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
 import { useAuthStore } from '@/stores/auth-store';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const reportTypes = [
     { id: 'vulnerability_summary', name: '취약점 요약', description: '프로젝트별 취약점 현황 요약' },
@@ -77,13 +84,17 @@ export default function ReportsPage() {
 
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [selectedType, setSelectedType] = useState('');
-    const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv'>('pdf');
+    const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv' | 'xlsx'>('pdf');
     const [reportName, setReportName] = useState('');
+    const [enableSchedule, setEnableSchedule] = useState(false);
+    const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+    const [scheduleTime, setScheduleTime] = useState('09:00');
+    const [notifyOnComplete, setNotifyOnComplete] = useState(true);
 
     // Edit state
     const [editingReport, setEditingReport] = useState<Report | null>(null);
     const [editName, setEditName] = useState('');
-    const [editFormat, setEditFormat] = useState<'pdf' | 'csv'>('pdf');
+    const [editFormat, setEditFormat] = useState<'pdf' | 'csv' | 'xlsx'>('pdf');
     const updateMutation = useUpdateReport();
 
     // AI Execution for report generation
@@ -157,6 +168,7 @@ export default function ReportsPage() {
             setShowCreateForm(false);
             setSelectedType('');
             setReportName('');
+            setEnableSchedule(false);
         } catch (err) {
             console.error('Failed to create report:', err);
         }

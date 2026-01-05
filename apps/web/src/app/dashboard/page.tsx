@@ -26,6 +26,7 @@ import { useAiExecution, useDashboardAiContext } from '@/hooks/use-ai-execution'
 import { useAiStore } from '@/stores/ai-store';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { QuickActions, QuickActionsFAB } from '@/components/quick-actions';
+import { NotificationCenter } from '@/components/notification-center';
 
 const SEVERITY_COLORS = {
     Critical: '#dc2626',
@@ -174,6 +175,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <QuickActions className="hidden md:flex" />
+                    <NotificationCenter />
                     <ThemeToggle />
                     <AiButton
                         action="dashboard.summary"
