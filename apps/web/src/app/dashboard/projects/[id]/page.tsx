@@ -28,8 +28,13 @@ import {
     ChevronRight,
     FileSearch,
     Tag,
+    Edit,
+    Play,
+    Building2,
+    Info,
+    ExternalLink,
 } from 'lucide-react';
-import { useProject, useProjectScans, useProjectVulnerabilityTrend, Scan } from '@/lib/api-hooks';
+import { useProject, useProjectScans, useProjectVulnerabilityTrend, Scan, useUpdateProject } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution, useProjectAiContext } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
@@ -111,16 +116,16 @@ export default function ProjectDetailPage() {
     const { activePanel, closePanel } = useAiStore();
 
     const handleAiAnalysis = () => {
-        const context = collectProjectContext(project, scansData?.data || []);
+        const context = collectProjectContext(project, scansData?.results || []);
         executeProjectAnalysis(context);
     };
 
     const handleRegenerate = () => {
-        const context = collectProjectContext(project, scansData?.data || []);
+        const context = collectProjectContext(project, scansData?.results || []);
         executeProjectAnalysis(context);
     };
 
-    const estimatedTokens = project ? estimateTokens(collectProjectContext(project, scansData?.data || [])) : 0;
+    const estimatedTokens = project ? estimateTokens(collectProjectContext(project, scansData?.results || [])) : 0;
 
     if (projectLoading) {
         return (
@@ -146,52 +151,112 @@ export default function ProjectDetailPage() {
         );
     }
 
-    const scans = scansData?.data || [];
+    const scans = scansData?.results || [];
     const chartData = trendData || mockTrendData;
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/dashboard/projects"
-                    className="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                    <ArrowLeft className="h-5 w-5" />
-                </Link>
-                <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                            <FolderKanban className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{project.name}</h1>
-                            <p className="text-slate-500">{project.slug}</p>
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                    <Link
+                        href="/dashboard/projects"
+                        className="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Link>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                                <FolderKanban className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{project.name}</h1>
+                                    {getRiskBadge(project.riskLevel)}
+                                    {project.policyViolations && project.policyViolations > 0 && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-medium">
+                                            <Shield className="h-3 w-3" />
+                                            {project.policyViolations} 정책 위반
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-slate-500">{project.slug}</p>
+                            </div>
                         </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => refetch()}
+                            className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            새로고침
+                        </button>
+                        <Link
+                            href="/dashboard/scans/new"
+                            className="flex items-center gap-2 px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                        >
+                            <Play className="h-4 w-4" />
+                            새 스캔
+                        </Link>
+                        <AiButton
+                            action="project.analysis"
+                            variant="primary"
+                            size="md"
+                            estimatedTokens={estimatedTokens}
+                            loading={aiLoading}
+                            onExecute={handleAiAnalysis}
+                            onCancel={cancelAi}
+                        />
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <AiButton
-                        action="project.analysis"
-                        variant="primary"
-                        size="md"
-                        estimatedTokens={estimatedTokens}
-                        loading={aiLoading}
-                        onExecute={handleAiAnalysis}
-                        onCancel={cancelAi}
-                    />
-                    {getRiskBadge(project.riskLevel)}
-                    {project.policyViolations && project.policyViolations > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-medium">
-                            <Shield className="h-3 w-3" />
-                            {project.policyViolations} 정책 위반
-                        </span>
-                    )}
+
+                {/* Project Info Panel */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {/* Description */}
+                        <div className="md:col-span-2">
+                            <div className="flex items-start gap-2">
+                                <Info className="h-4 w-4 text-slate-400 mt-0.5" />
+                                <div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">설명</p>
+                                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                                        {project.description || '설명이 없습니다.'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Organization */}
+                        <div>
+                            <div className="flex items-start gap-2">
+                                <Building2 className="h-4 w-4 text-slate-400 mt-0.5" />
+                                <div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">조직</p>
+                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        {project.organization?.name || '-'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {/* Dates */}
+                        <div>
+                            <div className="flex items-start gap-2">
+                                <Calendar className="h-4 w-4 text-slate-400 mt-0.5" />
+                                <div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">생성일 / 마지막 스캔</p>
+                                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                                        {formatDate(project.createdAt)} / {project.stats?.lastScanAt ? formatDate(project.stats.lastScanAt) : '없음'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
                     <div className="flex items-center justify-between">
                         <div>
@@ -228,15 +293,27 @@ export default function ProjectDetailPage() {
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
                     <div className="flex items-center justify-between">
                         <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Low</p>
+                            <p className="text-2xl font-bold text-blue-600">{project.stats?.vulnerabilities.low || 0}</p>
+                        </div>
+                        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <AlertTriangle className="h-5 w-5 text-blue-600" />
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+                    <div className="flex items-center justify-between">
+                        <div>
                             <p className="text-sm text-slate-500 dark:text-slate-400">총 스캔</p>
                             <p className="text-2xl font-bold text-slate-900 dark:text-white">{project.stats?.totalScans || 0}</p>
                         </div>
-                        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                            <FileSearch className="h-5 w-5 text-blue-600" />
+                        <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                            <FileSearch className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                         </div>
                     </div>
                 </div>
             </div>
+
 
             {/* Vulnerability Trend Chart */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
@@ -283,9 +360,21 @@ export default function ProjectDetailPage() {
                         <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                     </div>
                 ) : scans.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-                        <FileSearch className="h-12 w-12 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-                        <p>스캔 이력이 없습니다.</p>
+                    <div className="p-12 text-center">
+                        <FileSearch className="h-16 w-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                        <h4 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                            스캔 이력이 없습니다
+                        </h4>
+                        <p className="text-slate-500 dark:text-slate-400 mb-6">
+                            첫 번째 보안 스캔을 실행하여 프로젝트의 취약점을 분석해보세요.
+                        </p>
+                        <Link
+                            href="/dashboard/scans/new"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        >
+                            <Play className="h-4 w-4" />
+                            첫 스캔 시작하기
+                        </Link>
                     </div>
                 ) : (
                     <table className="w-full">

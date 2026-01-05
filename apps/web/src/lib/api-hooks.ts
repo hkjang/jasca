@@ -640,7 +640,7 @@ export function useProject(id: string) {
 }
 
 export function useProjectScans(projectId: string) {
-    return useQuery<{ data: Scan[]; total: number }>({
+    return useQuery<{ results: Scan[]; total: number }>({
         queryKey: ['project-scans', projectId],
         queryFn: () => authFetch(`${API_BASE}/scans?projectId=${projectId}&limit=20`),
         enabled: !!projectId,
