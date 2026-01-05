@@ -5,8 +5,110 @@ import { useAuthStore } from '@/stores/auth-store';
 
 const API_BASE = '/api';
 
-// Utility function for authenticated fetch
-async function authFetch(url: string, options: RequestInit = {}) {
+// ============ Retry Configuration ============
+const RETRY_CONFIG = {
+    maxRetries: 3,
+    baseDelay: 1000,
+    maxDelay: 5000,
+    timeout: 30000,
+};
+
+// ============ Custom Error Class ============
+export class ApiError extends Error {
+    constructor(
+        message: string,
+        public status: number,
+        public isRetryable: boolean = false,
+        public isNetworkError: boolean = false
+    ) {
+        super(message);
+        this.name = 'ApiError';
+    }
+}
+
+// ============ Token Refresh ============
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+    // 이미 갱신 중이면 기존 Promise 반환
+    if (isRefreshing && refreshPromise) {
+        return refreshPromise;
+    }
+
+    const { refreshToken, setTokens, logout } = useAuthStore.getState();
+    if (!refreshToken) {
+        logout();
+        return false;
+    }
+
+    isRefreshing = true;
+    refreshPromise = (async () => {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
+            const response = await fetch('/api/auth/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
+                signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                const data = await response.json();
+                setTokens(data.accessToken, data.refreshToken);
+                return true;
+            }
+            
+            // 401 또는 403 - refresh token도 만료됨
+            if (response.status === 401 || response.status === 403) {
+                logout();
+                return false;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('[Auth] Token refresh failed:', error);
+            return false;
+        } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
+}
+
+// ============ Retry Delay Calculation ============
+function getRetryDelay(attempt: number): number {
+    const delay = Math.min(
+        RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
+        RETRY_CONFIG.maxDelay
+    );
+    // 지터 추가하여 thundering herd 방지
+    return delay + Math.random() * 500;
+}
+
+// ============ Safe JSON Parse ============
+async function safeParseJson(response: Response): Promise<any> {
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+        return null;
+    }
+    try {
+        return JSON.parse(text);
+    } catch {
+        // HTML 응답이나 잘못된 형식인 경우
+        console.warn('[API] Failed to parse response as JSON:', text.substring(0, 100));
+        return null;
+    }
+}
+
+// ============ Main Auth Fetch Function ============
+async function authFetch(url: string, options: RequestInit = {}, retryCount = 0): Promise<any> {
     const token = useAuthStore.getState().accessToken;
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -15,13 +117,151 @@ async function authFetch(url: string, options: RequestInit = {}) {
     if (token) {
         (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     }
-    const response = await fetch(url, { ...options, headers });
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Request failed' }));
-        throw new Error(error.message || 'Request failed');
+    
+    // AbortController로 타임아웃 구현
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), RETRY_CONFIG.timeout);
+    
+    try {
+        const response = await fetch(url, { 
+            ...options, 
+            headers,
+            signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        
+        // ========== 401 Unauthorized ==========
+        // 토큰 갱신 시도 후 재요청
+        if (response.status === 401 && retryCount === 0) {
+            console.log('[API] 401 received, attempting token refresh...');
+            const refreshed = await refreshAccessToken();
+            if (refreshed) {
+                console.log('[API] Token refreshed, retrying request...');
+                return authFetch(url, options, 1);
+            }
+            throw new ApiError(
+                '인증이 만료되었습니다. 다시 로그인해주세요.',
+                401,
+                false,
+                false
+            );
+        }
+        
+        // ========== 5xx Server Errors ==========
+        // 재시도 가능한 서버 에러 (500, 502, 503, 504)
+        if ([500, 502, 503, 504].includes(response.status)) {
+            if (retryCount < RETRY_CONFIG.maxRetries) {
+                const delay = getRetryDelay(retryCount);
+                console.log(`[API] ${response.status} error, retrying in ${Math.round(delay)}ms... (attempt ${retryCount + 1}/${RETRY_CONFIG.maxRetries})`);
+                await new Promise(r => setTimeout(r, delay));
+                return authFetch(url, options, retryCount + 1);
+            }
+            
+            const errorData = await safeParseJson(response);
+            throw new ApiError(
+                errorData?.message || '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+                response.status,
+                true,
+                false
+            );
+        }
+        
+        // ========== Other Error Responses ==========
+        if (!response.ok) {
+            const errorData = await safeParseJson(response);
+            const errorMessage = errorData?.message || getDefaultErrorMessage(response.status);
+            throw new ApiError(
+                errorMessage,
+                response.status,
+                response.status >= 500,
+                false
+            );
+        }
+        
+        // ========== Success Response ==========
+        return await safeParseJson(response);
+        
+    } catch (error: any) {
+        clearTimeout(timeoutId);
+        
+        // ApiError는 그대로 전파
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        
+        // ========== AbortError (Timeout) ==========
+        if (error.name === 'AbortError') {
+            if (retryCount < RETRY_CONFIG.maxRetries) {
+                const delay = getRetryDelay(retryCount);
+                console.log(`[API] Request timeout, retrying in ${Math.round(delay)}ms... (attempt ${retryCount + 1}/${RETRY_CONFIG.maxRetries})`);
+                await new Promise(r => setTimeout(r, delay));
+                return authFetch(url, options, retryCount + 1);
+            }
+            throw new ApiError(
+                '요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.',
+                0,
+                true,
+                true
+            );
+        }
+        
+        // ========== Network Error (fetch failed) ==========
+        if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('network'))) {
+            if (retryCount < RETRY_CONFIG.maxRetries) {
+                const delay = getRetryDelay(retryCount);
+                console.log(`[API] Network error, retrying in ${Math.round(delay)}ms... (attempt ${retryCount + 1}/${RETRY_CONFIG.maxRetries})`);
+                await new Promise(r => setTimeout(r, delay));
+                return authFetch(url, options, retryCount + 1);
+            }
+            throw new ApiError(
+                '서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.',
+                0,
+                true,
+                true
+            );
+        }
+        
+        // ========== Unknown Error ==========
+        console.error('[API] Unexpected error:', error);
+        throw new ApiError(
+            error.message || '알 수 없는 오류가 발생했습니다.',
+            0,
+            false,
+            false
+        );
     }
-    return response.json();
 }
+
+// ============ Default Error Messages ============
+function getDefaultErrorMessage(status: number): string {
+    switch (status) {
+        case 400:
+            return '잘못된 요청입니다.';
+        case 401:
+            return '인증이 필요합니다.';
+        case 403:
+            return '접근 권한이 없습니다.';
+        case 404:
+            return '요청한 리소스를 찾을 수 없습니다.';
+        case 409:
+            return '중복된 데이터가 존재합니다.';
+        case 422:
+            return '입력 데이터가 유효하지 않습니다.';
+        case 429:
+            return '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
+        case 500:
+            return '서버 내부 오류가 발생했습니다.';
+        case 502:
+            return '서버 연결에 문제가 발생했습니다.';
+        case 503:
+            return '서비스를 일시적으로 사용할 수 없습니다.';
+        case 504:
+            return '서버 응답 시간이 초과되었습니다.';
+        default:
+            return '요청 처리에 실패했습니다.';
+    }
+}
+
 
 // ============ Scans API ============
 

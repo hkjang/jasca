@@ -74,20 +74,20 @@ export type { TableProps, TableHeadProps, TableEmptyProps, TablePaginationProps 
 // Toast
 export {
     ToastProvider,
+    ToastContainer,
     useToast,
-    useToastHelpers,
-    StandaloneToast,
+    toast,
 } from './toast';
-export type { Toast, ToastType, StandaloneToastProps } from './toast';
 
-// Tooltip
+// Tooltip & Dropdown & Popover
 export {
     Tooltip,
-    InfoTooltip,
-    CveTooltip,
-    CvssTooltip,
+    Dropdown,
+    DropdownItem,
+    DropdownDivider,
+    Popover,
+    BadgeNew,
 } from './tooltip';
-export type { TooltipProps, InfoTooltipProps, CveTooltipProps, CvssTooltipProps } from './tooltip';
 
 // CodeBlock
 export { CodeBlock } from './code-block';
@@ -96,3 +96,4 @@ export type { CodeBlockProps } from './code-block';
 // StepNavigator
 export { StepNavigator, StepNavigatorVertical } from './step-navigator';
 export type { Step, StepNavigatorProps } from './step-navigator';
+

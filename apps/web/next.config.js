@@ -2,13 +2,17 @@
 const nextConfig = {
     output: 'standalone',
     async rewrites() {
+        // API_URL 환경변수가 설정되어 있으면 사용, 없으면 localhost:3001 (개발환경)
+        const apiUrl = process.env.API_URL || 'http://localhost:3001';
+        console.log(`[Next.js] API rewrite configured to: ${apiUrl}`);
         return [
             {
                 source: '/api/:path*',
-                destination: 'http://localhost:3001/api/:path*',
+                destination: `${apiUrl}/api/:path*`,
             },
         ];
     },
 };
 
 module.exports = nextConfig;
+

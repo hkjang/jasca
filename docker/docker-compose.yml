@@ -48,7 +48,7 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key}
       JWT_EXPIRES_IN: 1d
-      CORS_ORIGIN: http://localhost:3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://jasca.koreacb.com}
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,7 +65,8 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://api:3001
+      # API_URL은 Docker 내부 통신용 (컨테이너 이름 사용)
+      API_URL: http://api:3001
     depends_on:
       - api
 
@@ -76,3 +77,4 @@ volumes:
 networks:
   default:
     name: jasca-network
+
