@@ -170,6 +170,62 @@ export default function ReportsPage() {
     const reports = reportsData?.data || [];
     const pagination = reportsData?.pagination;
 
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            // N - New report
+            if (e.key === 'n' && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                setShowCreateForm(true);
+            }
+            // Escape - Close modals
+            if (e.key === 'Escape') {
+                setShowCreateForm(false);
+                setEditingReport(null);
+                setPreviewReport(null);
+            }
+            // Ctrl/Cmd + A - Select all (when not in input)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a' && reports.length > 0) {
+                e.preventDefault();
+                setSelectedIds(new Set(reports.map(r => r.id)));
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [reports, showCreateForm, editingReport, previewReport]);
+
+    // Duplicate report
+    const handleDuplicate = async (report: Report) => {
+        try {
+            await createMutation.mutateAsync({
+                name: `${report.name} (복사본)`,
+                type: report.type,
+                format: report.format as 'pdf' | 'csv' | 'xlsx',
+            });
+        } catch (err) {
+            console.error('Failed to duplicate report:', err);
+        }
+    };
+
+    // Regenerate report - create a new one with same params
+    const handleRegenerate = async (report: Report) => {
+        try {
+            await createMutation.mutateAsync({
+                name: `${report.name} (재생성)`,
+                type: report.type,
+                format: report.format as 'pdf' | 'csv' | 'xlsx',
+            });
+        } catch (err) {
+            console.error('Failed to regenerate report:', err);
+        }
+    };
+
     const handleAiReportGenerate = () => {
         const context = {
             screen: 'reports',
@@ -868,7 +924,7 @@ export default function ReportsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
+                                            <div className="flex items-center justify-end gap-1">
                                                 {report.status === 'completed' && (
                                                     <>
                                                         <button
@@ -887,9 +943,25 @@ export default function ReportsPage() {
                                                         </button>
                                                     </>
                                                 )}
+                                                {report.status === 'failed' && (
+                                                    <button
+                                                        onClick={() => handleRegenerate(report)}
+                                                        className="p-2 text-slate-400 hover:text-orange-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                        title="재생성"
+                                                    >
+                                                        <RefreshCw className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDuplicate(report)}
+                                                    className="p-2 text-slate-400 hover:text-purple-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                    title="복제"
+                                                >
+                                                    <Copy className="h-4 w-4" />
+                                                </button>
                                                 <button
                                                     onClick={() => handleEdit(report)}
-                                                    className="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                    className="p-2 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="수정"
                                                 >
                                                     <Edit className="h-4 w-4" />
@@ -974,6 +1046,22 @@ export default function ReportsPage() {
                                             </button>
                                         </>
                                     )}
+                                    {report.status === 'failed' && (
+                                        <button
+                                            onClick={() => handleRegenerate(report)}
+                                            className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                                            title="재생성"
+                                        >
+                                            <RefreshCw className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => handleDuplicate(report)}
+                                        className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                                        title="복제"
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </button>
                                     <button
                                         onClick={() => handleEdit(report)}
                                         className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
