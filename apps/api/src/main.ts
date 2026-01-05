@@ -5,7 +5,31 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { json, urlencoded } from 'express';
 
+function validateEnvironment() {
+    const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
+    const missing: string[] = [];
+
+    for (const envVar of requiredEnvVars) {
+        if (!process.env[envVar]) {
+            missing.push(envVar);
+        }
+    }
+
+    if (missing.length > 0) {
+        console.error('❌ Missing required environment variables:');
+        missing.forEach((v) => console.error(`   - ${v}`));
+        console.error('\nPlease set these environment variables before starting the server.');
+        console.error('For offline deployment, ensure .env file is properly configured.');
+        process.exit(1);
+    }
+
+    console.log('✅ Environment variables validated');
+}
+
 async function bootstrap() {
+    // Validate environment variables first
+    validateEnvironment();
+
     const app = await NestFactory.create(AppModule);
 
     // Increase body size limit for AI requests
