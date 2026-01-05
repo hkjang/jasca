@@ -406,7 +406,7 @@ export function useVulnerabilities(filters?: {
     severity?: string[];
     status?: string[];
 }) {
-    return useQuery<{ data: Vulnerability[]; total: number }>({
+    return useQuery<{ results: Vulnerability[]; total: number }>({
         queryKey: ['vulnerabilities', filters],
         queryFn: () => {
             const params = new URLSearchParams();
@@ -417,7 +417,7 @@ export function useVulnerabilities(filters?: {
             if (filters?.status?.length) {
                 filters.status.forEach(s => params.append('status', s));
             }
-            params.set('limit', '50');
+            params.set('limit', '200');
             return authFetch(`${API_BASE}/vulnerabilities?${params.toString()}`);
         },
     });
