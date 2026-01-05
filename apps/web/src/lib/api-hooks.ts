@@ -1115,12 +1115,87 @@ export interface Report {
     downloadUrl?: string;
 }
 
-export function useReports() {
-    return useQuery<Report[]>({
-        queryKey: ['reports'],
-        queryFn: () => authFetch(`${API_BASE}/reports`),
-        // Auto-refresh every 3 seconds to catch status updates
-        refetchInterval: 3000,
+export interface ReportFilters {
+    type?: string;
+    status?: string;
+    format?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+}
+
+export interface ReportStatistics {
+    total: number;
+    statusCounts: {
+        completed: number;
+        generating: number;
+        pending: number;
+        failed: number;
+    };
+    completionRate: number;
+    typeDistribution: Array<{
+        type: string;
+        name: string;
+        count: number;
+    }>;
+    dailyTrend: Array<{
+        date: string;
+        count: number;
+    }>;
+    avgGenerationTime: number;
+    recentCount: number;
+}
+
+export function useReports(filters?: ReportFilters) {
+    return useQuery<{ data: Report[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>({
+        queryKey: ['reports', filters],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (filters?.type) params.set('type', filters.type);
+            if (filters?.status) params.set('status', filters.status);
+            if (filters?.format) params.set('format', filters.format);
+            if (filters?.search) params.set('search', filters.search);
+            if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom);
+            if (filters?.dateTo) params.set('dateTo', filters.dateTo);
+            if (filters?.page) params.set('page', String(filters.page));
+            if (filters?.limit) params.set('limit', String(filters.limit));
+            if (filters?.sortBy) params.set('sortBy', filters.sortBy);
+            if (filters?.sortOrder) params.set('sortOrder', filters.sortOrder);
+            
+            const queryString = params.toString();
+            return authFetch(`${API_BASE}/reports${queryString ? `?${queryString}` : ''}`);
+        },
+        // Auto-refresh every 5 seconds to catch status updates
+        refetchInterval: 5000,
+    });
+}
+
+export function useReportStatistics() {
+    return useQuery<ReportStatistics>({
+        queryKey: ['report-statistics'],
+        queryFn: () => authFetch(`${API_BASE}/reports/statistics`),
+        refetchInterval: 10000, // Refresh every 10 seconds
+    });
+}
+
+export function useReport(id: string) {
+    return useQuery<Report>({
+        queryKey: ['report', id],
+        queryFn: () => authFetch(`${API_BASE}/reports/${id}`),
+        enabled: !!id,
+    });
+}
+
+export function useReportPreview(id: string) {
+    return useQuery<Record<string, any>>({
+        queryKey: ['report-preview', id],
+        queryFn: () => authFetch(`${API_BASE}/reports/${id}/download`).then(res => res),
+        enabled: !!id,
+        staleTime: 60000, // Don't refetch for 1 minute
     });
 }
 

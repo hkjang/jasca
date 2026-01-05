@@ -15,8 +15,40 @@ export class ReportsController {
 
     @Get()
     @ApiOperation({ summary: 'List all reports' })
-    async findAll() {
-        return this.reportsService.findAll();
+    @ApiQuery({ name: 'type', required: false })
+    @ApiQuery({ name: 'status', required: false })
+    @ApiQuery({ name: 'format', required: false })
+    @ApiQuery({ name: 'search', required: false })
+    @ApiQuery({ name: 'dateFrom', required: false })
+    @ApiQuery({ name: 'dateTo', required: false })
+    @ApiQuery({ name: 'page', required: false })
+    @ApiQuery({ name: 'limit', required: false })
+    @ApiQuery({ name: 'sortBy', required: false })
+    @ApiQuery({ name: 'sortOrder', required: false })
+    async findAll(
+        @Query('type') type?: string,
+        @Query('status') status?: string,
+        @Query('format') format?: string,
+        @Query('search') search?: string,
+        @Query('dateFrom') dateFrom?: string,
+        @Query('dateTo') dateTo?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('sortBy') sortBy?: string,
+        @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+    ) {
+        return this.reportsService.findAll({
+            type,
+            status,
+            format,
+            search,
+            dateFrom,
+            dateTo,
+            page: page ? parseInt(page, 10) : undefined,
+            limit: limit ? parseInt(limit, 10) : undefined,
+            sortBy,
+            sortOrder,
+        });
     }
 
     // Fixed routes must come before parameter routes
@@ -25,6 +57,12 @@ export class ReportsController {
     @ApiQuery({ name: 'projectId', required: true })
     async generateReport(@Query('projectId') projectId: string) {
         return this.reportsService.generateVulnerabilityReport(projectId);
+    }
+
+    @Get('statistics')
+    @ApiOperation({ summary: 'Get report statistics' })
+    async getStatistics() {
+        return this.reportsService.getStatistics();
     }
 
     @Get('export/csv')

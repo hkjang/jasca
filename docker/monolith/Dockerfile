@@ -63,6 +63,17 @@ RUN cd apps/api && npx tsc prisma/seed.ts --outDir prisma --skipLibCheck
 FROM base AS runner
 WORKDIR /app
 
+# Install Trivy (Offline capability preparation)
+RUN apt-get update && apt-get install -y wget lsb-release \
+    && wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | tee /usr/share/keyrings/trivy.gpg > /dev/null \
+    && echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | tee -a /etc/apt/sources.list.d/trivy.list \
+    && apt-get update && apt-get install -y trivy \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Trivy DB for offline usage
+COPY trivy-db /app/trivy-db
+ENV TRIVY_CACHE_DIR=/app/trivy-db
+
 # Copy production node_modules from prod-deps
 COPY --from=prod-deps /app/node_modules ./node_modules
 

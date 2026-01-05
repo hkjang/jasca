@@ -6,29 +6,101 @@ import { Prisma } from '@prisma/client';
 export class ReportsService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async findAll() {
-        const reports = await this.prisma.report.findMany({
-            include: {
-                template: {
-                    select: {
-                        name: true,
-                        type: true,
+    async findAll(filters?: {
+        type?: string;
+        status?: string;
+        format?: string;
+        search?: string;
+        dateFrom?: string;
+        dateTo?: string;
+        page?: number;
+        limit?: number;
+        sortBy?: string;
+        sortOrder?: 'asc' | 'desc';
+    }) {
+        const {
+            type,
+            status,
+            format,
+            search,
+            dateFrom,
+            dateTo,
+            page = 1,
+            limit = 50,
+            sortBy = 'createdAt',
+            sortOrder = 'desc',
+        } = filters || {};
+
+        // Build where clause
+        const where: any = {};
+
+        if (type) {
+            const templateType = type.toUpperCase().replace('-', '_');
+            where.template = { type: templateType };
+        }
+
+        if (status) {
+            where.status = status.toUpperCase();
+        }
+
+        if (format) {
+            where.fileType = format.toLowerCase();
+        }
+
+        if (search) {
+            where.name = { contains: search, mode: 'insensitive' };
+        }
+
+        if (dateFrom || dateTo) {
+            where.createdAt = {};
+            if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+            if (dateTo) where.createdAt.lte = new Date(dateTo);
+        }
+
+        // Build orderBy
+        const orderBy: any = {};
+        if (sortBy === 'name' || sortBy === 'createdAt' || sortBy === 'status') {
+            orderBy[sortBy] = sortOrder;
+        } else {
+            orderBy.createdAt = 'desc';
+        }
+
+        const [reports, total] = await Promise.all([
+            this.prisma.report.findMany({
+                where,
+                include: {
+                    template: {
+                        select: {
+                            name: true,
+                            type: true,
+                        },
                     },
                 },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+                orderBy,
+                skip: (page - 1) * limit,
+                take: limit,
+            }),
+            this.prisma.report.count({ where }),
+        ]);
 
-        return reports.map(report => ({
-            id: report.id,
-            name: report.name,
-            type: report.template.type.toLowerCase().replace('_', '_'),
-            status: report.status.toLowerCase(),
-            format: report.fileType || 'pdf',
-            createdAt: report.createdAt.toISOString(),
-            completedAt: report.completedAt?.toISOString(),
-            downloadUrl: report.filePath ? `/api/reports/${report.id}/download` : undefined,
-        }));
+        return {
+            data: reports.map(report => ({
+                id: report.id,
+                name: report.name,
+                type: report.template.type.toLowerCase().replace('_', '_'),
+                status: report.status.toLowerCase(),
+                format: report.fileType || 'pdf',
+                createdAt: report.createdAt.toISOString(),
+                completedAt: report.completedAt?.toISOString(),
+                downloadUrl: report.filePath ? `/api/reports/${report.id}/download` : undefined,
+            })),
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 
     async findOne(id: string) {
@@ -437,6 +509,123 @@ export class ReportsService {
         ]);
 
         return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    }
+
+    /**
+     * Get report statistics for dashboard
+     */
+    async getStatistics() {
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        const [total, byStatus, byType, recentReports, generationTimes] = await Promise.all([
+            // Total count
+            this.prisma.report.count(),
+
+            // Count by status
+            this.prisma.report.groupBy({
+                by: ['status'],
+                _count: true,
+            }),
+
+            // Count by type
+            this.prisma.report.groupBy({
+                by: ['templateId'],
+                _count: true,
+            }),
+
+            // Recent 30 days reports
+            this.prisma.report.findMany({
+                where: { createdAt: { gte: thirtyDaysAgo } },
+                select: { createdAt: true, status: true },
+                orderBy: { createdAt: 'asc' },
+            }),
+
+            // Average generation time (for completed reports)
+            this.prisma.report.findMany({
+                where: {
+                    status: 'COMPLETED',
+                    completedAt: { not: null },
+                },
+                select: { createdAt: true, completedAt: true },
+                take: 100,
+            }),
+        ]);
+
+        // Calculate status counts
+        const statusCounts = {
+            completed: 0,
+            generating: 0,
+            pending: 0,
+            failed: 0,
+        };
+
+        byStatus.forEach(item => {
+            const status = item.status.toLowerCase() as keyof typeof statusCounts;
+            if (status in statusCounts) {
+                statusCounts[status] = item._count;
+            }
+        });
+
+        // Get template info for type distribution
+        const templateIds = byType.map(t => t.templateId);
+        const templates = await this.prisma.reportTemplate.findMany({
+            where: { id: { in: templateIds } },
+            select: { id: true, type: true, name: true },
+        });
+
+        const typeDistribution = byType.map(item => {
+            const template = templates.find(t => t.id === item.templateId);
+            return {
+                type: template?.type.toLowerCase().replace('_', '_') || 'unknown',
+                name: template?.name || 'Unknown',
+                count: item._count,
+            };
+        });
+
+        // Calculate daily trend for last 30 days
+        const dailyTrend: Record<string, number> = {};
+        for (let i = 0; i < 30; i++) {
+            const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+            const dateStr = date.toISOString().split('T')[0];
+            dailyTrend[dateStr] = 0;
+        }
+
+        recentReports.forEach(report => {
+            const dateStr = report.createdAt.toISOString().split('T')[0];
+            if (dailyTrend[dateStr] !== undefined) {
+                dailyTrend[dateStr]++;
+            }
+        });
+
+        const trendData = Object.entries(dailyTrend)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([date, count]) => ({ date, count }));
+
+        // Calculate average generation time
+        let avgGenerationTime = 0;
+        if (generationTimes.length > 0) {
+            const totalTime = generationTimes.reduce((sum, report) => {
+                if (report.completedAt) {
+                    const diff = report.completedAt.getTime() - report.createdAt.getTime();
+                    return sum + diff;
+                }
+                return sum;
+            }, 0);
+            avgGenerationTime = Math.round(totalTime / generationTimes.length / 1000); // in seconds
+        }
+
+        const completionRate = total > 0 ? Math.round((statusCounts.completed / total) * 100) : 0;
+
+        return {
+            total,
+            statusCounts,
+            completionRate,
+            typeDistribution,
+            dailyTrend: trendData,
+            avgGenerationTime,
+            recentCount: recentReports.length,
+        };
     }
 }
 

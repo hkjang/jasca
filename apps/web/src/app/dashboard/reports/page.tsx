@@ -12,19 +12,18 @@ import {
     File,
     Trash2,
     Edit,
-    Clock,
-    Bell,
-    FileSpreadsheet,
-    FileType,
-    Repeat,
-    Settings,
+    Eye,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
-import { useReports, useCreateReport, useDeleteReport, useUpdateReport, type Report } from '@/lib/api-hooks';
+import { useReports, useCreateReport, useDeleteReport, useUpdateReport, type Report, type ReportFilters as FiltersType } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
 import { useAuthStore } from '@/stores/auth-store';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { ReportStatistics } from '@/components/reports/report-statistics';
+import { ReportFilters } from '@/components/reports/report-filters';
+import { ReportPreviewModal } from '@/components/reports/report-preview-modal';
 
 const reportTypes = [
     { id: 'vulnerability_summary', name: '취약점 요약', description: '프로젝트별 취약점 현황 요약' },
@@ -78,26 +77,24 @@ function formatDate(dateString: string) {
 }
 
 export default function ReportsPage() {
-    const { data: reports = [], isLoading, error } = useReports();
+    const [filters, setFilters] = useState<FiltersType>({ page: 1, limit: 25, sortBy: 'createdAt', sortOrder: 'desc' });
+    const { data: reportsData, isLoading, error } = useReports(filters);
     const createMutation = useCreateReport();
     const deleteMutation = useDeleteReport();
+    const updateMutation = useUpdateReport();
 
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [selectedType, setSelectedType] = useState('');
     const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv' | 'xlsx'>('pdf');
     const [reportName, setReportName] = useState('');
-    const [enableSchedule, setEnableSchedule] = useState(false);
-    const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
-    const [scheduleTime, setScheduleTime] = useState('09:00');
-    const [notifyOnComplete, setNotifyOnComplete] = useState(true);
 
-    // Edit state
     const [editingReport, setEditingReport] = useState<Report | null>(null);
     const [editName, setEditName] = useState('');
     const [editFormat, setEditFormat] = useState<'pdf' | 'csv' | 'xlsx'>('pdf');
-    const updateMutation = useUpdateReport();
 
-    // AI Execution for report generation
+    const [previewReport, setPreviewReport] = useState<Report | null>(null);
+
+    // AI Execution
     const {
         execute: executeReportGenerate,
         isLoading: aiLoading,
@@ -110,22 +107,17 @@ export default function ReportsPage() {
 
     const { activePanel, closePanel } = useAiStore();
 
+    const reports = reportsData?.data || [];
+    const pagination = reportsData?.pagination;
+
     const handleAiReportGenerate = () => {
         const context = {
             screen: 'reports',
-            existingReports: reports?.slice(0, 5) || [],
+            existingReports: reports.slice(0, 5),
             timestamp: new Date().toISOString(),
         };
         executeReportGenerate(context);
     };
-
-    const handleAiRegenerate = () => {
-        handleAiReportGenerate();
-    };
-
-    const estimatedTokens = estimateTokens({
-        reports: reports?.slice(0, 5) || [],
-    });
 
     const handleDownload = async (report: Report) => {
         if (report.downloadUrl) {
@@ -168,7 +160,6 @@ export default function ReportsPage() {
             setShowCreateForm(false);
             setSelectedType('');
             setReportName('');
-            setEnableSchedule(false);
         } catch (err) {
             console.error('Failed to create report:', err);
         }
@@ -187,7 +178,7 @@ export default function ReportsPage() {
     const handleEdit = (report: Report) => {
         setEditingReport(report);
         setEditName(report.name);
-        setEditFormat(report.format as 'pdf' | 'csv');
+        setEditFormat(report.format as 'pdf' | 'csv' | 'xlsx');
     };
 
     const handleUpdate = async () => {
@@ -204,7 +195,7 @@ export default function ReportsPage() {
         }
     };
 
-    if (isLoading) {
+    if (isLoading && !reportsData) {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -237,7 +228,7 @@ export default function ReportsPage() {
                         action="report.generation"
                         variant="primary"
                         size="md"
-                        estimatedTokens={estimatedTokens}
+                        estimatedTokens={estimateTokens({ reports: reports.slice(0, 5) })}
                         loading={aiLoading}
                         onExecute={handleAiReportGenerate}
                         onCancel={cancelAi}
@@ -251,6 +242,12 @@ export default function ReportsPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Statistics Dashboard */}
+            <ReportStatistics />
+
+            {/* Filters */}
+            <ReportFilters filters={filters} onFilterChange={setFilters} />
 
             {/* Create Form */}
             {showCreateForm && (
@@ -294,24 +291,18 @@ export default function ReportsPage() {
                                 출력 형식
                             </label>
                             <div className="flex gap-3">
-                                <button
-                                    onClick={() => setSelectedFormat('pdf')}
-                                    className={`px-4 py-2 rounded-lg border transition-colors ${selectedFormat === 'pdf'
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                                        }`}
-                                >
-                                    PDF
-                                </button>
-                                <button
-                                    onClick={() => setSelectedFormat('csv')}
-                                    className={`px-4 py-2 rounded-lg border transition-colors ${selectedFormat === 'csv'
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                                        }`}
-                                >
-                                    CSV
-                                </button>
+                                {(['pdf', 'csv', 'xlsx'] as const).map((format) => (
+                                    <button
+                                        key={format}
+                                        onClick={() => setSelectedFormat(format)}
+                                        className={`px-4 py-2 rounded-lg border transition-colors ${selectedFormat === format
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                            }`}
+                                    >
+                                        {format.toUpperCase()}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -362,24 +353,18 @@ export default function ReportsPage() {
                                     출력 형식
                                 </label>
                                 <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setEditFormat('pdf')}
-                                        className={`px-4 py-2 rounded-lg border transition-colors ${editFormat === 'pdf'
-                                            ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                                            }`}
-                                    >
-                                        PDF
-                                    </button>
-                                    <button
-                                        onClick={() => setEditFormat('csv')}
-                                        className={`px-4 py-2 rounded-lg border transition-colors ${editFormat === 'csv'
-                                            ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                                            }`}
-                                    >
-                                        CSV
-                                    </button>
+                                    {(['pdf', 'csv', 'xlsx'] as const).map((format) => (
+                                        <button
+                                            key={format}
+                                            onClick={() => setEditFormat(format)}
+                                            className={`px-4 py-2 rounded-lg border transition-colors ${editFormat === format
+                                                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                                }`}
+                                        >
+                                            {format.toUpperCase()}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                             <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -428,84 +413,126 @@ export default function ReportsPage() {
                     </button>
                 </div>
             ) : (
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <table className="w-full">
-                        <thead className="bg-slate-50 dark:bg-slate-700/50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                    리포트
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                    유형
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                    상태
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                    생성일
-                                </th>
-                                <th className="px-6 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                            {reports.map((report) => (
-                                <tr key={report.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${report.format === 'pdf' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30'}`}>
-                                                <File className={`h-5 w-5 ${report.format === 'pdf' ? 'text-red-600' : 'text-green-600'}`} />
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-slate-900 dark:text-white">{report.name}</p>
-                                                <p className="text-sm text-slate-500">{report.format.toUpperCase()}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                        {reportTypes.find(t => t.id === report.type)?.name || report.type}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {getStatusBadge(report.status)}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                                            <Calendar className="h-4 w-4" />
-                                            {formatDate(report.createdAt)}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {report.status === 'completed' && (
-                                                <button
-                                                    onClick={() => handleDownload(report)}
-                                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
-                                                >
-                                                    <Download className="h-4 w-4" />
-                                                    다운로드
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => handleEdit(report)}
-                                                className="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                                title="수정"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(report.id)}
-                                                className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                                title="삭제"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </td>
+                <>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 dark:bg-slate-700/50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                        리포트
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                        유형
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                        상태
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                        생성일
+                                    </th>
+                                    <th className="px-6 py-3"></th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                {reports.map((report) => (
+                                    <tr key={report.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${report.format === 'pdf' ? 'bg-red-100 dark:bg-red-900/30' : report.format === 'csv' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+                                                    <File className={`h-5 w-5 ${report.format === 'pdf' ? 'text-red-600' : report.format === 'csv' ? 'text-green-600' : 'text-blue-600'}`} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-slate-900 dark:text-white">{report.name}</p>
+                                                    <p className="text-sm text-slate-500">{report.format.toUpperCase()}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                            {reportTypes.find(t => t.id === report.type)?.name || report.type}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {getStatusBadge(report.status)}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                                                <Calendar className="h-4 w-4" />
+                                                {formatDate(report.createdAt)}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {report.status === 'completed' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => setPreviewReport(report)}
+                                                            className="p-2 text-slate-400 hover:text-green-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                            title="미리보기"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDownload(report)}
+                                                            className="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                            title="다운로드"
+                                                        >
+                                                            <Download className="h-4 w-4" />
+                                                        </button>
+                                                    </>
+                                                )}
+                                                <button
+                                                    onClick={() => handleEdit(report)}
+                                                    className="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                    title="수정"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(report.id)}
+                                                    className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                    title="삭제"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {pagination && pagination.totalPages > 1 && (
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                {pagination.total}개 중 {((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)}개 표시
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setFilters({ ...filters, page: Math.max(1, filters.page! - 1) })}
+                                    disabled={pagination.page === 1}
+                                    className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </button>
+                                <span className="text-sm text-slate-600 dark:text-slate-400">
+                                    {pagination.page} / {pagination.totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setFilters({ ...filters, page: Math.min(pagination.totalPages, filters.page! + 1) })}
+                                    disabled={pagination.page === pagination.totalPages}
+                                    className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
+
+            {/* Preview Modal */}
+            <ReportPreviewModal report={previewReport} onClose={() => setPreviewReport(null)} />
 
             {/* AI Result Panel */}
             <AiResultPanel
@@ -515,7 +542,7 @@ export default function ReportsPage() {
                 previousResults={aiPreviousResults}
                 loading={aiLoading}
                 loadingProgress={aiProgress}
-                onRegenerate={handleAiRegenerate}
+                onRegenerate={handleAiReportGenerate}
                 action="report.generation"
             />
         </div>
