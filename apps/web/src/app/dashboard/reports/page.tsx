@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     FileText,
     Download,
@@ -18,6 +18,16 @@ import {
     CheckSquare,
     Square,
     MinusSquare,
+    Clock,
+    Repeat,
+    LayoutGrid,
+    List,
+    Copy,
+    RefreshCw,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    Sparkles,
 } from 'lucide-react';
 import { useReports, useCreateReport, useDeleteReport, useUpdateReport, type Report, type ReportFilters as FiltersType } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
@@ -27,7 +37,6 @@ import { useAuthStore } from '@/stores/auth-store';
 import { ReportStatistics } from '@/components/reports/report-statistics';
 import { ReportFilters } from '@/components/reports/report-filters';
 import { ReportPreviewModal } from '@/components/reports/report-preview-modal';
-import { Clock, Repeat } from 'lucide-react';
 
 const reportTypes = [
     { id: 'vulnerability_summary', name: '취약점 요약', description: '프로젝트별 취약점 현황 요약' },
@@ -108,6 +117,42 @@ export default function ReportsPage() {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
+
+    // View mode state
+    const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+    const [showStats, setShowStats] = useState(true);
+
+    // Quick filter helpers
+    const applyQuickFilter = (range: 'today' | 'week' | 'month') => {
+        const now = new Date();
+        let dateFrom: string;
+        
+        if (range === 'today') {
+            dateFrom = now.toISOString().split('T')[0];
+        } else if (range === 'week') {
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            dateFrom = weekAgo.toISOString().split('T')[0];
+        } else {
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            dateFrom = monthAgo.toISOString().split('T')[0];
+        }
+        
+        setFilters({ ...filters, dateFrom, dateTo: now.toISOString().split('T')[0], page: 1 });
+    };
+
+    // Sort handler
+    const handleSort = (field: string) => {
+        if (filters.sortBy === field) {
+            setFilters({ ...filters, sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc' });
+        } else {
+            setFilters({ ...filters, sortBy: field, sortOrder: 'desc' });
+        }
+    };
+
+    const getSortIcon = (field: string) => {
+        if (filters.sortBy !== field) return <ArrowUpDown className="h-4 w-4 opacity-50" />;
+        return filters.sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
+    };
 
     // AI Execution
     const {
@@ -330,7 +375,7 @@ export default function ReportsPage() {
                     />
                     <button
                         onClick={() => setShowCreateForm(true)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
                     >
                         <Plus className="h-4 w-4" />
                         리포트 생성
@@ -338,17 +383,82 @@ export default function ReportsPage() {
                 </div>
             </div>
 
+            {/* Quick Actions Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400 mr-2">빠른 필터:</span>
+                    <button
+                        onClick={() => applyQuickFilter('today')}
+                        className="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                    >
+                        오늘
+                    </button>
+                    <button
+                        onClick={() => applyQuickFilter('week')}
+                        className="px-3 py-1.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                    >
+                        이번 주
+                    </button>
+                    <button
+                        onClick={() => applyQuickFilter('month')}
+                        className="px-3 py-1.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                    >
+                        이번 달
+                    </button>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowStats(!showStats)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${showStats ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+                    >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        통계
+                    </button>
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`p-2 rounded-md transition-all ${viewMode === 'table' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                            title="테이블 뷰"
+                        >
+                            <List className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('card')}
+                            className={`p-2 rounded-md transition-all ${viewMode === 'card' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                            title="카드 뷰"
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             {/* Statistics Dashboard */}
-            <ReportStatistics />
+            {showStats && (
+                <div className="animate-in slide-in-from-top-2 duration-300">
+                    <ReportStatistics />
+                </div>
+            )}
 
             {/* Filters */}
             <ReportFilters filters={filters} onFilterChange={setFilters} />
 
-            {/* Create Form */}
+            {/* Create Modal */}
             {showCreateForm && (
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">새 리포트 생성</h3>
-                    <div className="space-y-4">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+                        <div className="sticky top-0 bg-white dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">✨ 새 리포트 생성</h3>
+                            <button
+                                onClick={() => setShowCreateForm(false)}
+                                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                            >
+                                <svg className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-6">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                 리포트 이름
@@ -521,6 +631,7 @@ export default function ReportsPage() {
                         </div>
                     </div>
                 </div>
+                </div>
             )}
 
             {/* Edit Modal */}
@@ -588,21 +699,34 @@ export default function ReportsPage() {
 
             {/* Reports List */}
             {reports.length === 0 ? (
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center">
-                    <FileText className="h-16 w-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-16 text-center">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-2xl flex items-center justify-center">
+                        <FileText className="h-10 w-10 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
                         리포트가 없습니다
                     </h3>
-                    <p className="text-slate-600 dark:text-slate-400 mb-4">
-                        새로운 보안 리포트를 생성해보세요.
+                    <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-md mx-auto">
+                        프로젝트의 보안 현황을 파악할 수 있는 리포트를 생성해보세요.<br />
+                        PDF, CSV, Excel 형식으로 내보낼 수 있습니다.
                     </p>
-                    <button
-                        onClick={() => setShowCreateForm(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <Plus className="h-4 w-4" />
-                        첫 리포트 생성
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <button
+                            onClick={() => setShowCreateForm(true)}
+                            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transform hover:-translate-y-0.5"
+                        >
+                            <Plus className="h-5 w-5" />
+                            첫 리포트 생성
+                        </button>
+                        <button
+                            onClick={handleAiReportGenerate}
+                            disabled={aiLoading}
+                            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium border-2 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                        >
+                            <Sparkles className="h-5 w-5" />
+                            AI로 자동 생성
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <>
@@ -647,6 +771,7 @@ export default function ReportsPage() {
                         </div>
                     )}
 
+                    {viewMode === 'table' ? (
                     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                         <table className="w-full">
                             <thead className="bg-slate-50 dark:bg-slate-700/50">
@@ -665,17 +790,41 @@ export default function ReportsPage() {
                                             )}
                                         </button>
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                        리포트
+                                    <th 
+                                        onClick={() => handleSort('name')}
+                                        className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            리포트
+                                            {getSortIcon('name')}
+                                        </div>
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                        유형
+                                    <th 
+                                        onClick={() => handleSort('type')}
+                                        className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            유형
+                                            {getSortIcon('type')}
+                                        </div>
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                        상태
+                                    <th 
+                                        onClick={() => handleSort('status')}
+                                        className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            상태
+                                            {getSortIcon('status')}
+                                        </div>
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                        생성일
+                                    <th 
+                                        onClick={() => handleSort('createdAt')}
+                                        className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            생성일
+                                            {getSortIcon('createdAt')}
+                                        </div>
                                     </th>
                                     <th className="px-6 py-3"></th>
                                 </tr>
@@ -759,6 +908,98 @@ export default function ReportsPage() {
                             </tbody>
                         </table>
                     </div>
+                    ) : (
+                    /* Card View */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {reports.map((report) => (
+                            <div
+                                key={report.id}
+                                className={`group relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200 ${selectedIds.has(report.id) ? 'ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                            >
+                                {/* Checkbox */}
+                                <button
+                                    onClick={() => toggleSelection(report.id)}
+                                    className="absolute top-3 left-3 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                                >
+                                    {selectedIds.has(report.id) ? (
+                                        <CheckSquare className="h-5 w-5 text-blue-600" />
+                                    ) : (
+                                        <Square className="h-5 w-5 text-slate-400 group-hover:text-slate-600" />
+                                    )}
+                                </button>
+
+                                {/* Format Icon */}
+                                <div className="flex justify-center mb-4 pt-4">
+                                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${report.format === 'pdf' ? 'bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40' : report.format === 'csv' ? 'bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/40 dark:to-green-800/40' : 'bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40'}`}>
+                                        <File className={`h-7 w-7 ${report.format === 'pdf' ? 'text-red-600' : report.format === 'csv' ? 'text-green-600' : 'text-blue-600'}`} />
+                                    </div>
+                                </div>
+
+                                {/* Content */}
+                                <div className="text-center mb-4">
+                                    <h3 className="font-semibold text-slate-900 dark:text-white truncate mb-1" title={report.name}>
+                                        {report.name}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                        {reportTypes.find(t => t.id === report.type)?.name || report.type}
+                                    </p>
+                                    <div className="flex justify-center">
+                                        {getStatusBadge(report.status)}
+                                    </div>
+                                </div>
+
+                                {/* Meta */}
+                                <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-4">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    {formatDate(report.createdAt)}
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex justify-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+                                    {report.status === 'completed' && (
+                                        <>
+                                            <button
+                                                onClick={() => setPreviewReport(report)}
+                                                className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                                title="미리보기"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDownload(report)}
+                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                title="다운로드"
+                                            >
+                                                <Download className="h-4 w-4" />
+                                            </button>
+                                        </>
+                                    )}
+                                    <button
+                                        onClick={() => handleEdit(report)}
+                                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                                        title="수정"
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(report.id)}
+                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                        title="삭제"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+
+                                {/* Format Badge */}
+                                <div className="absolute top-3 right-3">
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${report.format === 'pdf' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : report.format === 'csv' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                                        {report.format}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    )}
 
                     {/* Pagination */}
                     {pagination && pagination.totalPages > 1 && (
