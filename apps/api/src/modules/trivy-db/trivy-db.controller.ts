@@ -29,8 +29,8 @@ export class TrivyDbController {
   private readonly dbPath: string;
 
   constructor() {
-    // Resolve path relative to project root
-    this.dbPath = path.resolve(process.cwd(), '..', 'trivy-db');
+    // Resolve path relative to project root (apps/api is two levels deep)
+    this.dbPath = path.resolve(process.cwd(), '..', '..', 'trivy-db');
   }
 
   @Get('info')
