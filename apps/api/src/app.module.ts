@@ -23,6 +23,7 @@ import { ComplianceModule } from './modules/compliance/compliance.module';
 import { OperationsModule } from './modules/operations/operations.module';
 import { InfrastructureModule } from './modules/infrastructure/infrastructure.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { TrivyDbModule } from './modules/trivy-db/trivy-db.module';
 
 @Module({
     imports: [
@@ -53,6 +54,7 @@ import { SettingsModule } from './modules/settings/settings.module';
         ComplianceModule,
         OperationsModule,
         SettingsModule,
+        TrivyDbModule,
     ],
 })
 export class AppModule { }

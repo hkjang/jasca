@@ -1,15 +1,15 @@
 {
   "SchemaVersion": 2,
-  "ReportID": "019b8dd7-0c83-7ade-9012-6e038fd17e38",
-  "CreatedAt": "2026-01-05T20:07:19.5557123+09:00",
-  "ArtifactID": "sha256:a225c4f059eeb3ba60c6db17d55ee597f0a57022c27425c2be6c33279e7ea607",
+  "ReportID": "019b8de3-50a7-7c68-a8b0-abbfe50abea3",
+  "CreatedAt": "2026-01-05T20:20:43.4318132+09:00",
+  "ArtifactID": "sha256:bf58f0cdbf5502f0dd8637abada98a4c671c3c7703c098abe3cf1ce137a8de05",
   "ArtifactName": ".",
   "ArtifactType": "repository",
   "Metadata": {
     "RepoURL": "https://github.com/hkjang/jasca.git",
     "Branch": "main",
-    "Commit": "698b3fcc21452f4bddab0e73df08a82d662afb33",
-    "CommitMsg": "feat: Add core authentication module with JWT strategy and Prisma ORM integration.",
+    "Commit": "617916fa9063ef3745f39d2d2bbdc86d2f31ee02",
+    "CommitMsg": "feat: Implement Trivy security scanning scripts and a dashboard UI for scan results.",
     "Author": "hkjang \u003cgagagiga@naver.com\u003e",
     "Committer": "hkjang \u003cgagagiga@naver.com\u003e"
   },
@@ -24,7 +24,7 @@
           "Name": "@nestjs/common",
           "Identifier": {
             "PURL": "pkg:npm/%40nestjs/common@10.4.20",
-            "UID": "44e500c8a6e6ea68"
+            "UID": "d1e931be8c1d13e4"
           },
           "Version": "10.4.20",
           "Licenses": [
@@ -32,10 +32,10 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
+            "class-transformer@0.5.1",
+            "class-validator@0.14.3",
             "iterare@1.2.1",
             "reflect-metadata@0.2.2",
-            "class-validator@0.14.3",
-            "class-transformer@0.5.1",
             "rxjs@7.8.2",
             "tslib@2.8.1",
             "uid@2.0.2",
@@ -47,7 +47,7 @@
           "Name": "@nestjs/config",
           "Identifier": {
             "PURL": "pkg:npm/%40nestjs/config@4.0.2",
-            "UID": "db70e07bbea9a942"
+            "UID": "ee882d830c27087b"
           },
           "Version": "4.0.2",
           "Licenses": [
@@ -55,11 +55,11 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "dotenv@16.4.7",
             "dotenv-expand@12.0.1",
             "lodash@4.17.21",
             "rxjs@7.8.2",
-            "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)"
+            "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
+            "dotenv@16.4.7"
           ]
         },
         {
@@ -67,7 +67,7 @@
           "Name": "@nestjs/core",
           "Identifier": {
             "PURL": "pkg:npm/%40nestjs/core@10.4.20",
-            "UID": "10fd48ebc65e00f8"
+            "UID": "88ce08a6fafcf547"
           },
           "Version": "10.4.20",
           "Licenses": [
@@ -75,16 +75,16 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "fast-safe-stringify@2.1.1",
-            "tslib@2.8.1",
-            "@nuxtjs/opencollective@0.3.2",
-            "iterare@1.2.1",
-            "rxjs@7.8.2",
-            "uid@2.0.2",
-            "path-to-regexp@3.3.0",
             "reflect-metadata@0.2.2",
+            "@nuxtjs/opencollective@0.3.2",
+            "uid@2.0.2",
             "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
-            "@nestjs/platform-express@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)"
+            "fast-safe-stringify@2.1.1",
+            "@nestjs/platform-express@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.20)",
+            "rxjs@7.8.2",
+            "tslib@2.8.1",
+            "iterare@1.2.1",
+            "path-to-regexp@3.3.0"
           ]
         },
         {
@@ -127,7 +127,7 @@
           "Name": "@nestjs/platform-express",
           "Identifier": {
             "PURL": "pkg:npm/%40nestjs/platform-express@10.4.20",
-            "UID": "81239ca65bc8b21b"
+            "UID": "afae4df6cb6c1d80"
           },
           "Version": "10.4.20",
           "Licenses": [
@@ -135,13 +135,13 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
+            "tslib@2.8.1",
+            "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
             "@nestjs/core@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
             "body-parser@1.20.3",
             "cors@2.8.5",
             "express@4.21.2",
-            "multer@2.0.2",
-            "tslib@2.8.1",
-            "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)"
+            "multer@2.0.2"
           ]
         },
         {
@@ -149,7 +149,7 @@
           "Name": "@nestjs/swagger",
           "Identifier": {
             "PURL": "pkg:npm/%40nestjs/swagger@7.4.2",
-            "UID": "388db75b8e2ceced"
+            "UID": "be52a73b02b92f03"
           },
           "Version": "7.4.2",
           "Licenses": [
@@ -157,17 +157,17 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
-            "@nestjs/core@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
-            "path-to-regexp@3.3.0",
-            "reflect-metadata@0.2.2",
-            "swagger-ui-dist@5.17.14",
-            "class-validator@0.14.3",
             "@nestjs/mapped-types@2.0.5(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)",
             "js-yaml@4.1.0",
-            "lodash@4.17.21",
             "class-transformer@0.5.1",
-            "@microsoft/tsdoc@0.15.1"
+            "path-to-regexp@3.3.0",
+            "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
+            "swagger-ui-dist@5.17.14",
+            "class-validator@0.14.3",
+            "lodash@4.17.21",
+            "@microsoft/tsdoc@0.15.1",
+            "reflect-metadata@0.2.2",
+            "@nestjs/core@10.4.20(@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.20)(reflect-metadata@0.2.2)(rxjs@7.8.2)"
           ]
         },
         {
@@ -191,7 +191,7 @@
           "Name": "@radix-ui/react-dialog",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-dialog@1.1.15",
-            "UID": "5aba5696e6cd50b8"
+            "UID": "415483f89a8b71ff"
           },
           "Version": "1.1.15",
           "Licenses": [
@@ -199,24 +199,24 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "@radix-ui/react-focus-scope@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-slot@1.2.3(@types/react@18.3.27)(react@18.3.1)",
-            "react-dom@18.3.1(react@18.3.1)",
-            "@radix-ui/primitive@1.1.3",
-            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-focus-guards@1.1.3(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-dismissable-layer@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "react@18.3.1",
-            "react-remove-scroll@2.7.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-portal@1.1.9(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "aria-hidden@1.2.6",
-            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-presence@1.1.5(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-presence@1.1.5(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-dismissable-layer@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "aria-hidden@1.2.6",
+            "@radix-ui/primitive@1.1.3",
+            "react@18.3.1",
             "@types/react@18.3.27",
             "@types/react-dom@18.3.7(@types/react@18.3.27)",
-            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)"
+            "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-focus-guards@1.1.3(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-portal@1.1.9(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-focus-scope@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "react-remove-scroll@2.7.2(@types/react@18.3.27)(react@18.3.1)",
+            "react-dom@18.3.1(react@18.3.1)",
+            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-slot@1.2.3(@types/react@18.3.27)(react@18.3.1)"
           ]
         },
         {
@@ -224,7 +224,7 @@
           "Name": "@radix-ui/react-dropdown-menu",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-dropdown-menu@2.1.16",
-            "UID": "59caee4b84f9af53"
+            "UID": "b87439f928a9f018"
           },
           "Version": "2.1.16",
           "Licenses": [
@@ -232,17 +232,17 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "react@18.3.1",
-            "@types/react@18.3.27",
-            "@radix-ui/react-menu@2.1.16(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "@radix-ui/primitive@1.1.3",
             "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "react-dom@18.3.1(react@18.3.1)",
-            "@radix-ui/primitive@1.1.3",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)",
-            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)"
+            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-menu@2.1.16(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@types/react@18.3.27",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
+            "react@18.3.1",
+            "react-dom@18.3.1(react@18.3.1)"
           ]
         },
         {
@@ -250,7 +250,7 @@
           "Name": "@radix-ui/react-select",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-select@2.2.6",
-            "UID": "58f945b6b7cf6b15"
+            "UID": "b5e38d5899d43902"
           },
           "Version": "2.2.6",
           "Licenses": [
@@ -258,31 +258,31 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "@radix-ui/react-direction@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@types/react@18.3.27",
-            "react-remove-scroll@2.7.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/number@1.1.1",
-            "@radix-ui/react-dismissable-layer@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "aria-hidden@1.2.6",
-            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)",
             "@radix-ui/react-popper@1.2.8(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "@radix-ui/react-use-previous@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "react-dom@18.3.1(react@18.3.1)",
-            "@radix-ui/react-portal@1.1.9(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-collection@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-focus-scope@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-slot@1.2.3(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-visually-hidden@1.2.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
             "react@18.3.1",
             "@radix-ui/primitive@1.1.3",
+            "@radix-ui/react-focus-scope@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "@radix-ui/react-focus-guards@1.1.3(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)"
+            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
+            "react-remove-scroll@2.7.2(@types/react@18.3.27)(react@18.3.1)",
+            "react-dom@18.3.1(react@18.3.1)",
+            "@radix-ui/react-collection@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-portal@1.1.9(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-visually-hidden@1.2.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-dismissable-layer@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "aria-hidden@1.2.6",
+            "@types/react@18.3.27",
+            "@radix-ui/number@1.1.1",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-slot@1.2.3(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-direction@1.1.1(@types/react@18.3.27)(react@18.3.1)"
           ]
         },
         {
@@ -290,7 +290,7 @@
           "Name": "@radix-ui/react-slot",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-slot@1.2.4",
-            "UID": "35cc1fcdf257dd97"
+            "UID": "5b806c26ecab7686"
           },
           "Version": "1.2.4",
           "Licenses": [
@@ -299,8 +299,8 @@
           "Relationship": "direct",
           "DependsOn": [
             "@types/react@18.3.27",
-            "react@18.3.1",
-            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)"
+            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "react@18.3.1"
           ]
         },
         {
@@ -308,7 +308,7 @@
           "Name": "@radix-ui/react-tabs",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-tabs@1.1.13",
-            "UID": "d44a78a303109731"
+            "UID": "7cf9bc7dc39378dc"
           },
           "Version": "1.1.13",
           "Licenses": [
@@ -316,18 +316,18 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "@radix-ui/primitive@1.1.3",
+            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
             "react@18.3.1",
+            "@radix-ui/react-direction@1.1.1(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "react-dom@18.3.1(react@18.3.1)",
-            "@radix-ui/react-direction@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@types/react@18.3.27",
-            "@radix-ui/react-roving-focus@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/primitive@1.1.3",
             "@radix-ui/react-presence@1.1.5(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)"
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-roving-focus@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "react-dom@18.3.1(react@18.3.1)",
+            "@types/react@18.3.27",
+            "@types/react-dom@18.3.7(@types/react@18.3.27)"
           ]
         },
         {
@@ -335,7 +335,7 @@
           "Name": "@radix-ui/react-toast",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-toast@1.2.15",
-            "UID": "7edacc1be994363f"
+            "UID": "f1c4f229f88ab7d9"
           },
           "Version": "1.2.15",
           "Licenses": [
@@ -343,22 +343,22 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/primitive@1.1.3",
-            "@radix-ui/react-collection@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "@radix-ui/react-dismissable-layer@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-portal@1.1.9(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-presence@1.1.5(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-collection@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "react@18.3.1",
             "react-dom@18.3.1(react@18.3.1)",
             "@types/react@18.3.27",
-            "@radix-ui/react-presence@1.1.5(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "react@18.3.1",
-            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-visually-hidden@1.2.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)",
-            "@radix-ui/react-portal@1.1.9(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)"
+            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-visually-hidden@1.2.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)"
           ]
         },
         {
@@ -366,7 +366,7 @@
           "Name": "@tanstack/react-query",
           "Identifier": {
             "PURL": "pkg:npm/%40tanstack/react-query@5.90.12",
-            "UID": "b34ddc16c30acdcf"
+            "UID": "eeb1991a421d1cb6"
           },
           "Version": "5.90.12",
           "Licenses": [
@@ -374,8 +374,8 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "@tanstack/query-core@5.90.12",
-            "react@18.3.1"
+            "react@18.3.1",
+            "@tanstack/query-core@5.90.12"
           ]
         },
         {
@@ -383,7 +383,7 @@
           "Name": "@types/express",
           "Identifier": {
             "PURL": "pkg:npm/%40types/express@4.17.25",
-            "UID": "7a7c235807e46b62"
+            "UID": "3f6efbd935b3241d"
           },
           "Version": "4.17.25",
           "Licenses": [
@@ -391,10 +391,10 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "@types/qs@6.14.0",
-            "@types/serve-static@1.15.10",
             "@types/body-parser@1.19.6",
-            "@types/express-serve-static-core@4.19.7"
+            "@types/express-serve-static-core@4.19.7",
+            "@types/qs@6.14.0",
+            "@types/serve-static@1.15.10"
           ]
         },
         {
@@ -509,7 +509,7 @@
           "Name": "class-validator",
           "Identifier": {
             "PURL": "pkg:npm/class-validator@0.14.3",
-            "UID": "c7da0729bc693c53"
+            "UID": "a4f4d80727d55961"
           },
           "Version": "0.14.3",
           "Licenses": [
@@ -517,9 +517,9 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
+            "@types/validator@13.15.10",
             "libphonenumber-js@1.12.31",
-            "validator@13.15.23",
-            "@types/validator@13.15.10"
+            "validator@13.15.23"
           ]
         },
         {
@@ -572,7 +572,7 @@
           "Name": "multer",
           "Identifier": {
             "PURL": "pkg:npm/multer@2.0.2",
-            "UID": "8b48c4716d66e0c2"
+            "UID": "1bdd30d699bb6f3b"
           },
           "Version": "2.0.2",
           "Licenses": [
@@ -580,47 +580,46 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "busboy@1.6.0",
-            "concat-stream@2.0.0",
             "mkdirp@0.5.6",
             "object-assign@4.1.1",
             "type-is@1.6.18",
             "xtend@4.0.2",
-            "append-field@1.0.0"
+            "append-field@1.0.0",
+            "busboy@1.6.0",
+            "concat-stream@2.0.0"
           ]
         },
         {
-          "ID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+          "ID": "next@14.2.25(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
           "Name": "next",
           "Identifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
+            "PURL": "pkg:npm/next@14.2.25",
+            "UID": "11a345cdea7ca856"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Licenses": [
             "MIT"
           ],
           "Relationship": "direct",
           "DependsOn": [
             "react-dom@18.3.1(react@18.3.1)",
-            "busboy@1.6.0",
-            "react@18.3.1",
-            "caniuse-lite@1.0.30001760",
-            "@next/swc-linux-x64-gnu@14.0.4",
-            "@next/swc-linux-arm64-musl@14.0.4",
             "postcss@8.4.31",
-            "@swc/helpers@0.5.2",
             "styled-jsx@5.1.1(react@18.3.1)",
-            "watchpack@2.4.0",
-            "@next/swc-win32-ia32-msvc@14.0.4",
-            "@next/swc-darwin-arm64@14.0.4",
-            "@next/swc-win32-arm64-msvc@14.0.4",
-            "@next/swc-linux-arm64-gnu@14.0.4",
-            "@next/swc-linux-x64-musl@14.0.4",
-            "@next/env@14.0.4",
-            "@next/swc-win32-x64-msvc@14.0.4",
-            "@next/swc-darwin-x64@14.0.4",
-            "graceful-fs@4.2.11"
+            "@next/env@14.2.25",
+            "@swc/helpers@0.5.5",
+            "busboy@1.6.0",
+            "caniuse-lite@1.0.30001760",
+            "@next/swc-darwin-x64@14.2.25",
+            "@next/swc-linux-arm64-gnu@14.2.25",
+            "@next/swc-linux-x64-gnu@14.2.25",
+            "@next/swc-linux-x64-musl@14.2.25",
+            "react@18.3.1",
+            "@next/swc-linux-arm64-musl@14.2.25",
+            "@next/swc-win32-ia32-msvc@14.2.25",
+            "@next/swc-win32-x64-msvc@14.2.25",
+            "graceful-fs@4.2.11",
+            "@next/swc-darwin-arm64@14.2.25",
+            "@next/swc-win32-arm64-msvc@14.2.25"
           ]
         },
         {
@@ -628,7 +627,7 @@
           "Name": "otplib",
           "Identifier": {
             "PURL": "pkg:npm/otplib@12.0.1",
-            "UID": "5858208a990a41bd"
+            "UID": "983d13d2a169152e"
           },
           "Version": "12.0.1",
           "Licenses": [
@@ -636,9 +635,9 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
+            "@otplib/preset-v11@12.0.1",
             "@otplib/core@12.0.1",
-            "@otplib/preset-default@12.0.1",
-            "@otplib/preset-v11@12.0.1"
+            "@otplib/preset-default@12.0.1"
           ]
         },
         {
@@ -680,7 +679,7 @@
           "Name": "passport-jwt",
           "Identifier": {
             "PURL": "pkg:npm/passport-jwt@4.0.1",
-            "UID": "7aee52a21c4ee35e"
+            "UID": "5ccd6c83f5cda0a4"
           },
           "Version": "4.0.1",
           "Licenses": [
@@ -688,8 +687,8 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "passport-strategy@1.0.0",
-            "jsonwebtoken@9.0.3"
+            "jsonwebtoken@9.0.3",
+            "passport-strategy@1.0.0"
           ]
         },
         {
@@ -697,7 +696,7 @@
           "Name": "prisma",
           "Identifier": {
             "PURL": "pkg:npm/prisma@5.22.0",
-            "UID": "34b7508037e799f4"
+            "UID": "5ba82a08840577d7"
           },
           "Version": "5.22.0",
           "Licenses": [
@@ -705,8 +704,8 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "fsevents@2.3.3",
-            "@prisma/engines@5.22.0"
+            "@prisma/engines@5.22.0",
+            "fsevents@2.3.3"
           ]
         },
         {
@@ -714,7 +713,7 @@
           "Name": "qrcode",
           "Identifier": {
             "PURL": "pkg:npm/qrcode@1.5.4",
-            "UID": "8d10bd71dd7047d9"
+            "UID": "15d9cf177af049fe"
           },
           "Version": "1.5.4",
           "Licenses": [
@@ -722,9 +721,9 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "yargs@15.4.1",
             "dijkstrajs@1.0.3",
-            "pngjs@5.0.0"
+            "pngjs@5.0.0",
+            "yargs@15.4.1"
           ]
         },
         {
@@ -748,7 +747,7 @@
           "Name": "react-dom",
           "Identifier": {
             "PURL": "pkg:npm/react-dom@18.3.1",
-            "UID": "37a8889f8d8cc4bd"
+            "UID": "7939e8f36e79cd21"
           },
           "Version": "18.3.1",
           "Licenses": [
@@ -756,9 +755,9 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
+            "loose-envify@1.4.0",
             "react@18.3.1",
-            "scheduler@0.23.2",
-            "loose-envify@1.4.0"
+            "scheduler@0.23.2"
           ]
         },
         {
@@ -766,7 +765,7 @@
           "Name": "recharts",
           "Identifier": {
             "PURL": "pkg:npm/recharts@2.15.4",
-            "UID": "bf50907926b2cfac"
+            "UID": "5ff3f18c05792b5e"
           },
           "Version": "2.15.4",
           "Licenses": [
@@ -774,16 +773,16 @@
           ],
           "Relationship": "direct",
           "DependsOn": [
-            "react-smooth@4.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "tiny-invariant@1.3.3",
-            "lodash@4.17.21",
-            "recharts-scale@0.4.5",
             "react@18.3.1",
+            "react-smooth@4.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "recharts-scale@0.4.5",
+            "react-dom@18.3.1(react@18.3.1)",
             "react-is@18.3.1",
-            "eventemitter3@4.0.7",
+            "tiny-invariant@1.3.3",
             "victory-vendor@36.9.2",
             "clsx@2.1.1",
-            "react-dom@18.3.1(react@18.3.1)"
+            "eventemitter3@4.0.7",
+            "lodash@4.17.21"
           ]
         },
         {
@@ -909,7 +908,7 @@
           "Name": "@floating-ui/dom",
           "Identifier": {
             "PURL": "pkg:npm/%40floating-ui/dom@1.7.4",
-            "UID": "af17375df8900928"
+            "UID": "fb2567185c198af4"
           },
           "Version": "1.7.4",
           "Licenses": [
@@ -918,8 +917,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@floating-ui/utils@0.2.10",
-            "@floating-ui/core@1.7.3"
+            "@floating-ui/core@1.7.3",
+            "@floating-ui/utils@0.2.10"
           ]
         },
         {
@@ -988,7 +987,7 @@
           "Name": "@nestjs/mapped-types",
           "Identifier": {
             "PURL": "pkg:npm/%40nestjs/mapped-types@2.0.5",
-            "UID": "51b026d9e7839ba0"
+            "UID": "dbdd8c6e694d43bf"
           },
           "Version": "2.0.5",
           "Licenses": [
@@ -997,20 +996,20 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)",
-            "reflect-metadata@0.2.2",
             "class-transformer@0.5.1",
-            "class-validator@0.14.3"
+            "class-validator@0.14.3",
+            "reflect-metadata@0.2.2",
+            "@nestjs/common@10.4.20(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)"
           ]
         },
         {
-          "ID": "@next/env@14.0.4",
+          "ID": "@next/env@14.2.25",
           "Name": "@next/env",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/env@14.0.4",
-            "UID": "2cd01fd1a2a594f3"
+            "PURL": "pkg:npm/%40next/env@14.2.25",
+            "UID": "7805c413c9e760d9"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Licenses": [
             "MIT"
           ],
@@ -1018,101 +1017,101 @@
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-darwin-arm64@14.0.4",
+          "ID": "@next/swc-darwin-arm64@14.2.25",
           "Name": "@next/swc-darwin-arm64",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-darwin-arm64@14.0.4",
-            "UID": "cdb6f4e5c8d5996c"
+            "PURL": "pkg:npm/%40next/swc-darwin-arm64@14.2.25",
+            "UID": "e87fed89f55a23e0"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Indirect": true,
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-darwin-x64@14.0.4",
+          "ID": "@next/swc-darwin-x64@14.2.25",
           "Name": "@next/swc-darwin-x64",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-darwin-x64@14.0.4",
-            "UID": "c43b810915ccbfaf"
+            "PURL": "pkg:npm/%40next/swc-darwin-x64@14.2.25",
+            "UID": "7dc3d6ba17215c52"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Indirect": true,
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-linux-arm64-gnu@14.0.4",
+          "ID": "@next/swc-linux-arm64-gnu@14.2.25",
           "Name": "@next/swc-linux-arm64-gnu",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-linux-arm64-gnu@14.0.4",
-            "UID": "fe4020ad1b674b97"
+            "PURL": "pkg:npm/%40next/swc-linux-arm64-gnu@14.2.25",
+            "UID": "a401147b62180060"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Indirect": true,
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-linux-arm64-musl@14.0.4",
+          "ID": "@next/swc-linux-arm64-musl@14.2.25",
           "Name": "@next/swc-linux-arm64-musl",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-linux-arm64-musl@14.0.4",
-            "UID": "d8e4bf3e1472cb02"
+            "PURL": "pkg:npm/%40next/swc-linux-arm64-musl@14.2.25",
+            "UID": "d5f6dea829bfc8f1"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Indirect": true,
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-linux-x64-gnu@14.0.4",
+          "ID": "@next/swc-linux-x64-gnu@14.2.25",
           "Name": "@next/swc-linux-x64-gnu",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-linux-x64-gnu@14.0.4",
-            "UID": "7698d687f1d81eff"
+            "PURL": "pkg:npm/%40next/swc-linux-x64-gnu@14.2.25",
+            "UID": "9a25eebca4d3ee7e"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Indirect": true,
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-linux-x64-musl@14.0.4",
+          "ID": "@next/swc-linux-x64-musl@14.2.25",
           "Name": "@next/swc-linux-x64-musl",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-linux-x64-musl@14.0.4",
-            "UID": "dd479a7e772a2ef1"
+            "PURL": "pkg:npm/%40next/swc-linux-x64-musl@14.2.25",
+            "UID": "26b9e6945e9b8730"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Indirect": true,
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-win32-arm64-msvc@14.0.4",
+          "ID": "@next/swc-win32-arm64-msvc@14.2.25",
           "Name": "@next/swc-win32-arm64-msvc",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-win32-arm64-msvc@14.0.4",
-            "UID": "158f783edb09edd4"
+            "PURL": "pkg:npm/%40next/swc-win32-arm64-msvc@14.2.25",
+            "UID": "e0d1a661ac87ddbc"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Indirect": true,
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-win32-ia32-msvc@14.0.4",
+          "ID": "@next/swc-win32-ia32-msvc@14.2.25",
           "Name": "@next/swc-win32-ia32-msvc",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-win32-ia32-msvc@14.0.4",
-            "UID": "892bdc71c930ac9a"
+            "PURL": "pkg:npm/%40next/swc-win32-ia32-msvc@14.2.25",
+            "UID": "cb16473dd47b73f"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Indirect": true,
           "Relationship": "indirect"
         },
         {
-          "ID": "@next/swc-win32-x64-msvc@14.0.4",
+          "ID": "@next/swc-win32-x64-msvc@14.2.25",
           "Name": "@next/swc-win32-x64-msvc",
           "Identifier": {
-            "PURL": "pkg:npm/%40next/swc-win32-x64-msvc@14.0.4",
-            "UID": "360a1e03247f6723"
+            "PURL": "pkg:npm/%40next/swc-win32-x64-msvc@14.2.25",
+            "UID": "76618caed52a7979"
           },
-          "Version": "14.0.4",
+          "Version": "14.2.25",
           "Licenses": [
             "MIT"
           ],
@@ -1174,7 +1173,7 @@
           "Name": "@otplib/plugin-thirty-two",
           "Identifier": {
             "PURL": "pkg:npm/%40otplib/plugin-thirty-two@12.0.1",
-            "UID": "7306571e41f29ecf"
+            "UID": "c044f9a98c513b04"
           },
           "Version": "12.0.1",
           "Licenses": [
@@ -1183,8 +1182,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@otplib/core@12.0.1",
-            "thirty-two@1.0.2"
+            "thirty-two@1.0.2",
+            "@otplib/core@12.0.1"
           ]
         },
         {
@@ -1211,7 +1210,7 @@
           "Name": "@otplib/preset-v11",
           "Identifier": {
             "PURL": "pkg:npm/%40otplib/preset-v11@12.0.1",
-            "UID": "c9109a7daf056ad1"
+            "UID": "20af94a148862c11"
           },
           "Version": "12.0.1",
           "Licenses": [
@@ -1220,9 +1219,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "@otplib/core@12.0.1",
             "@otplib/plugin-crypto@12.0.1",
-            "@otplib/plugin-thirty-two@12.0.1",
-            "@otplib/core@12.0.1"
+            "@otplib/plugin-thirty-two@12.0.1"
           ]
         },
         {
@@ -1244,7 +1243,7 @@
           "Name": "@prisma/engines",
           "Identifier": {
             "PURL": "pkg:npm/%40prisma/engines@5.22.0",
-            "UID": "3b788503412a2068"
+            "UID": "85f936b0aab25045"
           },
           "Version": "5.22.0",
           "Licenses": [
@@ -1253,10 +1252,10 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@prisma/fetch-engine@5.22.0",
             "@prisma/get-platform@5.22.0",
             "@prisma/debug@5.22.0",
-            "@prisma/engines-version@5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2"
+            "@prisma/engines-version@5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+            "@prisma/fetch-engine@5.22.0"
           ]
         },
         {
@@ -1278,7 +1277,7 @@
           "Name": "@prisma/fetch-engine",
           "Identifier": {
             "PURL": "pkg:npm/%40prisma/fetch-engine@5.22.0",
-            "UID": "ce9c92854f8b17d"
+            "UID": "eb451a2f952be859"
           },
           "Version": "5.22.0",
           "Licenses": [
@@ -1287,9 +1286,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "@prisma/debug@5.22.0",
             "@prisma/engines-version@5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
-            "@prisma/get-platform@5.22.0",
-            "@prisma/debug@5.22.0"
+            "@prisma/get-platform@5.22.0"
           ]
         },
         {
@@ -1342,7 +1341,7 @@
           "Name": "@radix-ui/react-arrow",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-arrow@1.1.7",
-            "UID": "e195d0168fce93cc"
+            "UID": "e28ab5e0c9e20548"
           },
           "Version": "1.1.7",
           "Licenses": [
@@ -1351,11 +1350,11 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@types/react@18.3.27",
             "@types/react-dom@18.3.7(@types/react@18.3.27)",
             "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "react@18.3.1",
-            "react-dom@18.3.1(react@18.3.1)"
+            "react-dom@18.3.1(react@18.3.1)",
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -1363,7 +1362,7 @@
           "Name": "@radix-ui/react-collection",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-collection@1.1.7",
-            "UID": "714ab498e828e39e"
+            "UID": "c89a3eb98d634071"
           },
           "Version": "1.1.7",
           "Licenses": [
@@ -1372,12 +1371,12 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "@radix-ui/react-slot@1.2.3(@types/react@18.3.27)(react@18.3.1)",
             "react@18.3.1",
             "react-dom@18.3.1(react@18.3.1)",
             "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "@types/react@18.3.27",
             "@types/react-dom@18.3.7(@types/react@18.3.27)"
           ]
@@ -1441,7 +1440,7 @@
           "Name": "@radix-ui/react-dismissable-layer",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-dismissable-layer@1.1.11",
-            "UID": "ae30edc428ca37ac"
+            "UID": "1bf66e4f889306ea"
           },
           "Version": "1.1.11",
           "Licenses": [
@@ -1450,15 +1449,15 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@radix-ui/react-use-escape-keydown@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "react@18.3.1",
             "@types/react@18.3.27",
-            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "react@18.3.1",
             "react-dom@18.3.1(react@18.3.1)",
             "@radix-ui/primitive@1.1.3",
             "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)"
+            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-use-escape-keydown@1.1.1(@types/react@18.3.27)(react@18.3.1)"
           ]
         },
         {
@@ -1484,7 +1483,7 @@
           "Name": "@radix-ui/react-focus-scope",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-focus-scope@1.1.7",
-            "UID": "c2abb2683b0b1167"
+            "UID": "5e6df176b7ffc7eb"
           },
           "Version": "1.1.7",
           "Licenses": [
@@ -1493,13 +1492,13 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
             "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
             "react@18.3.1",
-            "@types/react@18.3.27",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)",
-            "react-dom@18.3.1(react@18.3.1)"
+            "react-dom@18.3.1(react@18.3.1)",
+            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -1526,7 +1525,7 @@
           "Name": "@radix-ui/react-menu",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-menu@2.1.16",
-            "UID": "39626d286c43a404"
+            "UID": "5d03b65141b35f16"
           },
           "Version": "2.1.16",
           "Licenses": [
@@ -1535,28 +1534,28 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@radix-ui/react-slot@1.2.3(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/primitive@1.1.3",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-direction@1.1.1(@types/react@18.3.27)(react@18.3.1)",
             "react@18.3.1",
-            "@radix-ui/react-popper@1.2.8(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-roving-focus@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "aria-hidden@1.2.6",
-            "@radix-ui/react-dismissable-layer@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "@radix-ui/react-presence@1.1.5(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)",
-            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-focus-guards@1.1.3(@types/react@18.3.27)(react@18.3.1)",
-            "react-dom@18.3.1(react@18.3.1)",
-            "@radix-ui/react-portal@1.1.9(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-collection@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "react-remove-scroll@2.7.2(@types/react@18.3.27)(react@18.3.1)",
             "@types/react@18.3.27",
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "@radix-ui/react-roving-focus@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-focus-scope@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)"
+            "@radix-ui/react-dismissable-layer@1.1.11(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-collection@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "react-dom@18.3.1(react@18.3.1)",
+            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-portal@1.1.9(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "aria-hidden@1.2.6",
+            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/primitive@1.1.3",
+            "@radix-ui/react-focus-guards@1.1.3(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-popper@1.2.8(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-slot@1.2.3(@types/react@18.3.27)(react@18.3.1)",
+            "react-remove-scroll@2.7.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-focus-scope@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-direction@1.1.1(@types/react@18.3.27)(react@18.3.1)"
           ]
         },
         {
@@ -1564,7 +1563,7 @@
           "Name": "@radix-ui/react-popper",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-popper@1.2.8",
-            "UID": "487cef289bf5a6a3"
+            "UID": "124f1f69d6072169"
           },
           "Version": "1.2.8",
           "Licenses": [
@@ -1573,20 +1572,20 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@floating-ui/react-dom@2.1.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@types/react@18.3.27",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)",
-            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-rect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
             "react-dom@18.3.1(react@18.3.1)",
             "@radix-ui/react-arrow@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-size@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-use-rect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/rect@1.1.1",
-            "react@18.3.1"
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "react@18.3.1",
+            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@floating-ui/react-dom@2.1.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-use-size@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -1594,7 +1593,7 @@
           "Name": "@radix-ui/react-portal",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-portal@1.1.9",
-            "UID": "17c9905462718eb6"
+            "UID": "ed78567ba7d2298d"
           },
           "Version": "1.1.9",
           "Licenses": [
@@ -1603,12 +1602,12 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
             "react@18.3.1",
             "react-dom@18.3.1(react@18.3.1)",
-            "@types/react@18.3.27",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)"
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -1616,7 +1615,7 @@
           "Name": "@radix-ui/react-presence",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-presence@1.1.5",
-            "UID": "1bb19ab164828942"
+            "UID": "743519915e1a33cc"
           },
           "Version": "1.1.5",
           "Licenses": [
@@ -1625,12 +1624,12 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@types/react@18.3.27",
-            "@types/react-dom@18.3.7(@types/react@18.3.27)",
-            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)",
             "react@18.3.1",
             "react-dom@18.3.1(react@18.3.1)",
-            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)"
+            "@types/react@18.3.27",
+            "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)"
           ]
         },
         {
@@ -1638,7 +1637,7 @@
           "Name": "@radix-ui/react-primitive",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-primitive@2.1.3",
-            "UID": "dc238e472d6dea15"
+            "UID": "35a51ed125f53199"
           },
           "Version": "2.1.3",
           "Licenses": [
@@ -1647,11 +1646,11 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@types/react@18.3.27",
+            "react-dom@18.3.1(react@18.3.1)",
             "@types/react-dom@18.3.7(@types/react@18.3.27)",
+            "@types/react@18.3.27",
             "@radix-ui/react-slot@1.2.3(@types/react@18.3.27)(react@18.3.1)",
-            "react@18.3.1",
-            "react-dom@18.3.1(react@18.3.1)"
+            "react@18.3.1"
           ]
         },
         {
@@ -1659,7 +1658,7 @@
           "Name": "@radix-ui/react-roving-focus",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-roving-focus@1.1.11",
-            "UID": "25c9b9ffbbb5cd33"
+            "UID": "5d6d30aedb2f91c9"
           },
           "Version": "1.1.11",
           "Licenses": [
@@ -1668,19 +1667,19 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "react-dom@18.3.1(react@18.3.1)",
-            "@types/react@18.3.27",
             "@types/react-dom@18.3.7(@types/react@18.3.27)",
             "@radix-ui/react-collection@1.1.7(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "@radix-ui/react-direction@1.1.1(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/primitive@1.1.3",
-            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
             "react@18.3.1",
-            "@radix-ui/react-direction@1.1.1(@types/react@18.3.27)(react@18.3.1)",
+            "@radix-ui/react-context@1.1.2(@types/react@18.3.27)(react@18.3.1)",
             "@radix-ui/react-id@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)"
+            "@radix-ui/react-use-controllable-state@1.2.2(@types/react@18.3.27)(react@18.3.1)",
+            "react-dom@18.3.1(react@18.3.1)",
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -1688,7 +1687,7 @@
           "Name": "@radix-ui/react-slot",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-slot@1.2.3",
-            "UID": "ed2fbb85405d92eb"
+            "UID": "a5801101111ad08"
           },
           "Version": "1.2.3",
           "Licenses": [
@@ -1697,9 +1696,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@types/react@18.3.27",
             "@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)",
-            "react@18.3.1"
+            "react@18.3.1",
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -1764,7 +1763,7 @@
           "Name": "@radix-ui/react-use-escape-keydown",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-use-escape-keydown@1.1.1",
-            "UID": "15796d57c886119b"
+            "UID": "6d18580ab932cf0d"
           },
           "Version": "1.1.1",
           "Licenses": [
@@ -1773,9 +1772,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@types/react@18.3.27",
             "@radix-ui/react-use-callback-ref@1.1.1(@types/react@18.3.27)(react@18.3.1)",
-            "react@18.3.1"
+            "react@18.3.1",
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -1838,7 +1837,7 @@
           "Name": "@radix-ui/react-use-size",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-use-size@1.1.1",
-            "UID": "5583dbbaf5b0697f"
+            "UID": "c995b293f1701477"
           },
           "Version": "1.1.1",
           "Licenses": [
@@ -1847,8 +1846,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@types/react@18.3.27",
             "react@18.3.1",
+            "@types/react@18.3.27",
             "@radix-ui/react-use-layout-effect@1.1.1(@types/react@18.3.27)(react@18.3.1)"
           ]
         },
@@ -1857,7 +1856,7 @@
           "Name": "@radix-ui/react-visually-hidden",
           "Identifier": {
             "PURL": "pkg:npm/%40radix-ui/react-visually-hidden@1.2.3",
-            "UID": "eb11f1024793532e"
+            "UID": "d775d28b351fad23"
           },
           "Version": "1.2.3",
           "Licenses": [
@@ -1866,11 +1865,11 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "react@18.3.1",
             "react-dom@18.3.1(react@18.3.1)",
             "@types/react@18.3.27",
             "@types/react-dom@18.3.7(@types/react@18.3.27)",
-            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)"
+            "@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+            "react@18.3.1"
           ]
         },
         {
@@ -1888,19 +1887,34 @@
           "Relationship": "indirect"
         },
         {
-          "ID": "@swc/helpers@0.5.2",
+          "ID": "@swc/counter@0.1.3",
+          "Name": "@swc/counter",
+          "Identifier": {
+            "PURL": "pkg:npm/%40swc/counter@0.1.3",
+            "UID": "68b053fa5696bd1d"
+          },
+          "Version": "0.1.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Indirect": true,
+          "Relationship": "indirect"
+        },
+        {
+          "ID": "@swc/helpers@0.5.5",
           "Name": "@swc/helpers",
           "Identifier": {
-            "PURL": "pkg:npm/%40swc/helpers@0.5.2",
-            "UID": "8c54d3868a68cf31"
+            "PURL": "pkg:npm/%40swc/helpers@0.5.5",
+            "UID": "fe6148fa97394b8b"
           },
-          "Version": "0.5.2",
+          "Version": "0.5.5",
           "Licenses": [
             "Apache-2.0"
           ],
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "@swc/counter@0.1.3",
             "tslib@2.8.1"
           ]
         },
@@ -1923,7 +1937,7 @@
           "Name": "@tokenizer/inflate",
           "Identifier": {
             "PURL": "pkg:npm/%40tokenizer/inflate@0.2.7",
-            "UID": "cca72354c54abc59"
+            "UID": "7f810e7669d23aeb"
           },
           "Version": "0.2.7",
           "Licenses": [
@@ -1932,9 +1946,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "debug@4.4.3",
             "fflate@0.8.2",
-            "token-types@6.1.1",
-            "debug@4.4.3"
+            "token-types@6.1.1"
           ]
         },
         {
@@ -2126,7 +2140,7 @@
           "Name": "@types/express-serve-static-core",
           "Identifier": {
             "PURL": "pkg:npm/%40types/express-serve-static-core@4.19.7",
-            "UID": "db0f68a315972f82"
+            "UID": "1c8819340a3792e2"
           },
           "Version": "4.19.7",
           "Licenses": [
@@ -2135,10 +2149,10 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@types/send@1.2.1",
             "@types/node@20.19.27",
             "@types/qs@6.14.0",
-            "@types/range-parser@1.2.7"
+            "@types/range-parser@1.2.7",
+            "@types/send@1.2.1"
           ]
         },
         {
@@ -2409,7 +2423,7 @@
           "Name": "body-parser",
           "Identifier": {
             "PURL": "pkg:npm/body-parser@1.20.3",
-            "UID": "c8d687f8d70876fa"
+            "UID": "585a9c3568677815"
           },
           "Version": "1.20.3",
           "Licenses": [
@@ -2418,18 +2432,18 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "http-errors@2.0.0",
-            "type-is@1.6.18",
+            "unpipe@1.0.0",
             "debug@2.6.9",
+            "qs@6.14.1",
+            "iconv-lite@0.4.24",
             "on-finished@2.4.1",
             "raw-body@2.5.2",
-            "destroy@1.2.0",
-            "qs@6.13.0",
-            "unpipe@1.0.0",
-            "content-type@1.0.5",
             "depd@2.0.0",
-            "iconv-lite@0.4.24",
-            "bytes@3.1.2"
+            "destroy@1.2.0",
+            "bytes@3.1.2",
+            "content-type@1.0.5",
+            "http-errors@2.0.0",
+            "type-is@1.6.18"
           ]
         },
         {
@@ -2493,7 +2507,7 @@
           "Name": "call-bind-apply-helpers",
           "Identifier": {
             "PURL": "pkg:npm/call-bind-apply-helpers@1.0.2",
-            "UID": "5aee8402ffb1061f"
+            "UID": "2b2d83c808295765"
           },
           "Version": "1.0.2",
           "Licenses": [
@@ -2502,8 +2516,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "function-bind@1.1.2",
-            "es-errors@1.3.0"
+            "es-errors@1.3.0",
+            "function-bind@1.1.2"
           ]
         },
         {
@@ -2511,7 +2525,7 @@
           "Name": "call-bound",
           "Identifier": {
             "PURL": "pkg:npm/call-bound@1.0.4",
-            "UID": "2ea8c424f9063a0f"
+            "UID": "7563faccfe27ff6e"
           },
           "Version": "1.0.4",
           "Licenses": [
@@ -2520,8 +2534,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "get-intrinsic@1.3.0",
-            "call-bind-apply-helpers@1.0.2"
+            "call-bind-apply-helpers@1.0.2",
+            "get-intrinsic@1.3.0"
           ]
         },
         {
@@ -2557,7 +2571,7 @@
           "Name": "chalk",
           "Identifier": {
             "PURL": "pkg:npm/chalk@4.1.2",
-            "UID": "69c6de9e428a415d"
+            "UID": "523317462467ae9d"
           },
           "Version": "4.1.2",
           "Licenses": [
@@ -2566,8 +2580,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "ansi-styles@4.3.0",
-            "supports-color@7.2.0"
+            "supports-color@7.2.0",
+            "ansi-styles@4.3.0"
           ]
         },
         {
@@ -2589,7 +2603,7 @@
           "Name": "cliui",
           "Identifier": {
             "PURL": "pkg:npm/cliui@6.0.0",
-            "UID": "7edb6613a36b6270"
+            "UID": "ced977dde0d62911"
           },
           "Version": "6.0.0",
           "Licenses": [
@@ -2598,9 +2612,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "strip-ansi@6.0.1",
             "wrap-ansi@6.2.0",
-            "string-width@4.2.3"
+            "string-width@4.2.3",
+            "strip-ansi@6.0.1"
           ]
         },
         {
@@ -2639,7 +2653,7 @@
           "Name": "concat-stream",
           "Identifier": {
             "PURL": "pkg:npm/concat-stream@2.0.0",
-            "UID": "c4ecf05048d95d7d"
+            "UID": "e6fa2842e73b7a30"
           },
           "Version": "2.0.0",
           "Licenses": [
@@ -2648,10 +2662,10 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "buffer-from@1.1.2",
             "inherits@2.0.4",
             "readable-stream@3.6.2",
-            "typedarray@0.0.6"
+            "typedarray@0.0.6",
+            "buffer-from@1.1.2"
           ]
         },
         {
@@ -2854,7 +2868,7 @@
           "Name": "d3-scale",
           "Identifier": {
             "PURL": "pkg:npm/d3-scale@4.0.2",
-            "UID": "eca55a4329b682d0"
+            "UID": "fc8085ef7b5f24c0"
           },
           "Version": "4.0.2",
           "Licenses": [
@@ -2863,11 +2877,11 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "d3-time-format@4.1.0",
             "d3-array@3.2.4",
             "d3-format@3.1.0",
             "d3-interpolate@3.0.1",
-            "d3-time@3.1.0",
-            "d3-time-format@4.1.0"
+            "d3-time@3.1.0"
           ]
         },
         {
@@ -3058,7 +3072,7 @@
           "Name": "dom-helpers",
           "Identifier": {
             "PURL": "pkg:npm/dom-helpers@5.2.1",
-            "UID": "522ef2f9262ba471"
+            "UID": "730caa65a4a8465e"
           },
           "Version": "5.2.1",
           "Licenses": [
@@ -3067,8 +3081,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@babel/runtime@7.28.4",
-            "csstype@3.2.3"
+            "csstype@3.2.3",
+            "@babel/runtime@7.28.4"
           ]
         },
         {
@@ -3107,7 +3121,7 @@
           "Name": "dunder-proto",
           "Identifier": {
             "PURL": "pkg:npm/dunder-proto@1.0.1",
-            "UID": "e83d3bc1386c3855"
+            "UID": "b1f98e996251b34"
           },
           "Version": "1.0.1",
           "Licenses": [
@@ -3116,9 +3130,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "call-bind-apply-helpers@1.0.2",
             "es-errors@1.3.0",
-            "gopd@1.2.0"
+            "gopd@1.2.0",
+            "call-bind-apply-helpers@1.0.2"
           ]
         },
         {
@@ -3286,7 +3300,7 @@
           "Name": "express",
           "Identifier": {
             "PURL": "pkg:npm/express@4.21.2",
-            "UID": "235567de9c246d08"
+            "UID": "bf3e3414f19f3d14"
           },
           "Version": "4.21.2",
           "Licenses": [
@@ -3295,37 +3309,37 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "statuses@2.0.1",
-            "cookie-signature@1.0.6",
-            "range-parser@1.2.1",
-            "accepts@1.3.8",
-            "body-parser@1.20.3",
-            "methods@1.1.2",
-            "serve-static@1.16.2",
-            "send@0.19.0",
-            "vary@1.1.2",
             "array-flatten@1.1.1",
-            "fresh@0.5.2",
-            "encodeurl@2.0.0",
-            "on-finished@2.4.1",
-            "qs@6.13.0",
-            "finalhandler@1.3.1",
-            "safe-buffer@5.2.1",
-            "path-to-regexp@0.1.12",
-            "etag@1.8.1",
-            "depd@2.0.0",
-            "debug@2.6.9",
-            "parseurl@1.3.3",
-            "content-disposition@0.5.4",
-            "merge-descriptors@1.0.3",
-            "cookie@0.7.1",
-            "http-errors@2.0.0",
-            "escape-html@1.0.3",
+            "setprototypeof@1.2.0",
             "type-is@1.6.18",
+            "safe-buffer@5.2.1",
+            "fresh@0.5.2",
+            "on-finished@2.4.1",
+            "methods@1.1.2",
+            "qs@6.14.1",
+            "range-parser@1.2.1",
+            "finalhandler@1.3.1",
+            "send@0.19.0",
+            "encodeurl@2.0.0",
+            "body-parser@1.20.3",
+            "path-to-regexp@0.1.12",
+            "depd@2.0.0",
+            "cookie@0.7.1",
+            "vary@1.1.2",
+            "http-errors@2.0.0",
+            "statuses@2.0.1",
+            "serve-static@1.16.2",
+            "debug@2.6.9",
+            "merge-descriptors@1.0.3",
+            "cookie-signature@1.0.6",
+            "content-disposition@0.5.4",
             "proxy-addr@2.0.7",
-            "utils-merge@1.0.1",
+            "escape-html@1.0.3",
+            "accepts@1.3.8",
+            "parseurl@1.3.3",
             "content-type@1.0.5",
-            "setprototypeof@1.2.0"
+            "etag@1.8.1",
+            "utils-merge@1.0.1"
           ]
         },
         {
@@ -3375,7 +3389,7 @@
           "Name": "file-type",
           "Identifier": {
             "PURL": "pkg:npm/file-type@20.4.1",
-            "UID": "5da94cbce78520b7"
+            "UID": "902f2ae7bd712a88"
           },
           "Version": "20.4.1",
           "Licenses": [
@@ -3384,10 +3398,10 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "uint8array-extras@1.5.0",
-            "@tokenizer/inflate@0.2.7",
             "strtok3@10.3.4",
-            "token-types@6.1.1"
+            "token-types@6.1.1",
+            "uint8array-extras@1.5.0",
+            "@tokenizer/inflate@0.2.7"
           ]
         },
         {
@@ -3503,7 +3517,7 @@
           "Name": "get-intrinsic",
           "Identifier": {
             "PURL": "pkg:npm/get-intrinsic@1.3.0",
-            "UID": "108a5e37cc333ac7"
+            "UID": "b238cc07158e5635"
           },
           "Version": "1.3.0",
           "Licenses": [
@@ -3512,16 +3526,16 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "call-bind-apply-helpers@1.0.2",
-            "es-define-property@1.0.1",
-            "get-proto@1.0.1",
-            "math-intrinsics@1.1.0",
             "es-errors@1.3.0",
             "function-bind@1.1.2",
             "gopd@1.2.0",
-            "has-symbols@1.1.0",
+            "math-intrinsics@1.1.0",
+            "call-bind-apply-helpers@1.0.2",
             "hasown@2.0.2",
-            "es-object-atoms@1.1.1"
+            "es-define-property@1.0.1",
+            "es-object-atoms@1.1.1",
+            "get-proto@1.0.1",
+            "has-symbols@1.1.0"
           ]
         },
         {
@@ -3555,20 +3569,6 @@
             "dunder-proto@1.0.1",
             "es-object-atoms@1.1.1"
           ]
-        },
-        {
-          "ID": "glob-to-regexp@0.4.1",
-          "Name": "glob-to-regexp",
-          "Identifier": {
-            "PURL": "pkg:npm/glob-to-regexp@0.4.1",
-            "UID": "e5ce5330feeaf9ca"
-          },
-          "Version": "0.4.1",
-          "Licenses": [
-            "BSD-2-Clause"
-          ],
-          "Indirect": true,
-          "Relationship": "indirect"
         },
         {
           "ID": "gopd@1.2.0",
@@ -3648,7 +3648,7 @@
           "Name": "http-errors",
           "Identifier": {
             "PURL": "pkg:npm/http-errors@2.0.0",
-            "UID": "e9d403c369f39394"
+            "UID": "37f3ce7f3fbce6ae"
           },
           "Version": "2.0.0",
           "Licenses": [
@@ -3657,11 +3657,11 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "inherits@2.0.4",
-            "setprototypeof@1.2.0",
             "statuses@2.0.1",
             "toidentifier@1.0.1",
-            "depd@2.0.0"
+            "depd@2.0.0",
+            "inherits@2.0.4",
+            "setprototypeof@1.2.0"
           ]
         },
         {
@@ -3801,7 +3801,7 @@
           "Name": "jsonwebtoken",
           "Identifier": {
             "PURL": "pkg:npm/jsonwebtoken@9.0.2",
-            "UID": "71fb7dac16598b99"
+            "UID": "e35f5a48098a32af"
           },
           "Version": "9.0.2",
           "Licenses": [
@@ -3811,15 +3811,15 @@
           "Relationship": "indirect",
           "DependsOn": [
             "jws@3.2.3",
-            "lodash.isnumber@3.0.3",
-            "lodash.isplainobject@4.0.6",
-            "lodash.isinteger@4.0.4",
-            "lodash.isstring@4.0.1",
-            "lodash.once@4.1.1",
+            "lodash.isboolean@3.0.3",
             "semver@7.7.3",
             "lodash.includes@4.3.0",
+            "lodash.once@4.1.1",
+            "lodash.isinteger@4.0.4",
+            "lodash.isstring@4.0.1",
             "ms@2.1.3",
-            "lodash.isboolean@3.0.3"
+            "lodash.isnumber@3.0.3",
+            "lodash.isplainobject@4.0.6"
           ]
         },
         {
@@ -3827,7 +3827,7 @@
           "Name": "jsonwebtoken",
           "Identifier": {
             "PURL": "pkg:npm/jsonwebtoken@9.0.3",
-            "UID": "f003e45d51972534"
+            "UID": "d99b78e42886e7b"
           },
           "Version": "9.0.3",
           "Licenses": [
@@ -3837,15 +3837,15 @@
           "Relationship": "indirect",
           "DependsOn": [
             "ms@2.1.3",
-            "lodash.includes@4.3.0",
+            "lodash.isinteger@4.0.4",
             "lodash.isstring@4.0.1",
-            "lodash.once@4.1.1",
             "semver@7.7.3",
             "jws@4.0.1",
-            "lodash.isboolean@3.0.3",
+            "lodash.includes@4.3.0",
             "lodash.isnumber@3.0.3",
-            "lodash.isinteger@4.0.4",
-            "lodash.isplainobject@4.0.6"
+            "lodash.isboolean@3.0.3",
+            "lodash.isplainobject@4.0.6",
+            "lodash.once@4.1.1"
           ]
         },
         {
@@ -3872,7 +3872,7 @@
           "Name": "jwa",
           "Identifier": {
             "PURL": "pkg:npm/jwa@2.0.1",
-            "UID": "d7a635bc47994ec9"
+            "UID": "197d1d28a167485a"
           },
           "Version": "2.0.1",
           "Licenses": [
@@ -3881,9 +3881,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "safe-buffer@5.2.1",
             "buffer-equal-constant-time@1.0.1",
-            "ecdsa-sig-formatter@1.0.11"
+            "ecdsa-sig-formatter@1.0.11",
+            "safe-buffer@5.2.1"
           ]
         },
         {
@@ -3909,7 +3909,7 @@
           "Name": "jws",
           "Identifier": {
             "PURL": "pkg:npm/jws@4.0.1",
-            "UID": "52a41bc4cda282fa"
+            "UID": "357fb8696928cef3"
           },
           "Version": "4.0.1",
           "Licenses": [
@@ -3918,8 +3918,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "jwa@2.0.1",
-            "safe-buffer@5.2.1"
+            "safe-buffer@5.2.1",
+            "jwa@2.0.1"
           ]
         },
         {
@@ -4491,7 +4491,7 @@
           "Name": "postcss",
           "Identifier": {
             "PURL": "pkg:npm/postcss@8.4.31",
-            "UID": "871a2610cbfa9746"
+            "UID": "69a15438f75d6ecb"
           },
           "Version": "8.4.31",
           "Licenses": [
@@ -4500,9 +4500,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "source-map-js@1.2.1",
             "nanoid@3.3.11",
-            "picocolors@1.1.1"
+            "picocolors@1.1.1",
+            "source-map-js@1.2.1"
           ]
         },
         {
@@ -4510,7 +4510,7 @@
           "Name": "prop-types",
           "Identifier": {
             "PURL": "pkg:npm/prop-types@15.8.1",
-            "UID": "5f86bc9c9dca3e55"
+            "UID": "4238df908395958d"
           },
           "Version": "15.8.1",
           "Licenses": [
@@ -4519,9 +4519,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "loose-envify@1.4.0",
             "object-assign@4.1.1",
-            "react-is@16.13.1"
+            "react-is@16.13.1",
+            "loose-envify@1.4.0"
           ]
         },
         {
@@ -4529,7 +4529,7 @@
           "Name": "proxy-addr",
           "Identifier": {
             "PURL": "pkg:npm/proxy-addr@2.0.7",
-            "UID": "3aeff43909241fd4"
+            "UID": "1ecedf00c3b3734f"
           },
           "Version": "2.0.7",
           "Licenses": [
@@ -4538,18 +4538,18 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "ipaddr.js@1.9.1",
-            "forwarded@0.2.0"
+            "forwarded@0.2.0",
+            "ipaddr.js@1.9.1"
           ]
         },
         {
-          "ID": "qs@6.13.0",
+          "ID": "qs@6.14.1",
           "Name": "qs",
           "Identifier": {
-            "PURL": "pkg:npm/qs@6.13.0",
-            "UID": "3709b6fa8d2c9be4"
+            "PURL": "pkg:npm/qs@6.14.1",
+            "UID": "e6d1505d7d827f66"
           },
-          "Version": "6.13.0",
+          "Version": "6.14.1",
           "Licenses": [
             "BSD-3-Clause"
           ],
@@ -4626,7 +4626,7 @@
           "Name": "react-remove-scroll",
           "Identifier": {
             "PURL": "pkg:npm/react-remove-scroll@2.7.2",
-            "UID": "bde38e4589eb41d"
+            "UID": "a01baab3be886630"
           },
           "Version": "2.7.2",
           "Licenses": [
@@ -4635,13 +4635,13 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "@types/react@18.3.27",
+            "react@18.3.1",
+            "react-remove-scroll-bar@2.3.8(@types/react@18.3.27)(react@18.3.1)",
             "react-style-singleton@2.2.3(@types/react@18.3.27)(react@18.3.1)",
             "tslib@2.8.1",
             "use-callback-ref@1.3.3(@types/react@18.3.27)(react@18.3.1)",
-            "use-sidecar@1.1.3(@types/react@18.3.27)(react@18.3.1)",
-            "react@18.3.1",
-            "react-remove-scroll-bar@2.3.8(@types/react@18.3.27)(react@18.3.1)",
-            "@types/react@18.3.27"
+            "use-sidecar@1.1.3(@types/react@18.3.27)(react@18.3.1)"
           ]
         },
         {
@@ -4649,7 +4649,7 @@
           "Name": "react-remove-scroll-bar",
           "Identifier": {
             "PURL": "pkg:npm/react-remove-scroll-bar@2.3.8",
-            "UID": "587e7f174473559e"
+            "UID": "2410db2d8fbbbc74"
           },
           "Version": "2.3.8",
           "Licenses": [
@@ -4659,9 +4659,9 @@
           "Relationship": "indirect",
           "DependsOn": [
             "tslib@2.8.1",
-            "@types/react@18.3.27",
             "react@18.3.1",
-            "react-style-singleton@2.2.3(@types/react@18.3.27)(react@18.3.1)"
+            "react-style-singleton@2.2.3(@types/react@18.3.27)(react@18.3.1)",
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -4690,7 +4690,7 @@
           "Name": "react-style-singleton",
           "Identifier": {
             "PURL": "pkg:npm/react-style-singleton@2.2.3",
-            "UID": "92050647a09b14a0"
+            "UID": "8b9d5e33d1d096e5"
           },
           "Version": "2.2.3",
           "Licenses": [
@@ -4699,10 +4699,10 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "get-nonce@1.0.1",
             "react@18.3.1",
             "tslib@2.8.1",
-            "@types/react@18.3.27",
-            "get-nonce@1.0.1"
+            "@types/react@18.3.27"
           ]
         },
         {
@@ -4710,7 +4710,7 @@
           "Name": "react-transition-group",
           "Identifier": {
             "PURL": "pkg:npm/react-transition-group@4.4.5",
-            "UID": "f7cb2a60e63e1fa0"
+            "UID": "462790f42dd174f0"
           },
           "Version": "4.4.5",
           "Licenses": [
@@ -4719,12 +4719,12 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "prop-types@15.8.1",
             "react@18.3.1",
             "react-dom@18.3.1(react@18.3.1)",
             "@babel/runtime@7.28.4",
             "dom-helpers@5.2.1",
-            "loose-envify@1.4.0",
-            "prop-types@15.8.1"
+            "loose-envify@1.4.0"
           ]
         },
         {
@@ -4732,7 +4732,7 @@
           "Name": "readable-stream",
           "Identifier": {
             "PURL": "pkg:npm/readable-stream@3.6.2",
-            "UID": "3ddd02f038ec68a5"
+            "UID": "7a55329524b5481a"
           },
           "Version": "3.6.2",
           "Licenses": [
@@ -4741,9 +4741,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "util-deprecate@1.0.2",
             "inherits@2.0.4",
-            "string_decoder@1.3.0",
-            "util-deprecate@1.0.2"
+            "string_decoder@1.3.0"
           ]
         },
         {
@@ -4855,7 +4855,7 @@
           "Name": "send",
           "Identifier": {
             "PURL": "pkg:npm/send@0.19.0",
-            "UID": "e0708ab39c556fd3"
+            "UID": "87cde5311e06d3ef"
           },
           "Version": "0.19.0",
           "Licenses": [
@@ -4864,19 +4864,19 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "http-errors@2.0.0",
+            "debug@2.6.9",
             "encodeurl@1.0.2",
-            "ms@2.1.3",
-            "etag@1.8.1",
             "fresh@0.5.2",
+            "ms@2.1.3",
+            "statuses@2.0.1",
+            "depd@2.0.0",
+            "escape-html@1.0.3",
+            "etag@1.8.1",
+            "range-parser@1.2.1",
             "mime@1.6.0",
             "on-finished@2.4.1",
-            "debug@2.6.9",
-            "depd@2.0.0",
-            "http-errors@2.0.0",
-            "destroy@1.2.0",
-            "escape-html@1.0.3",
-            "range-parser@1.2.1",
-            "statuses@2.0.1"
+            "destroy@1.2.0"
           ]
         },
         {
@@ -4884,7 +4884,7 @@
           "Name": "serve-static",
           "Identifier": {
             "PURL": "pkg:npm/serve-static@1.16.2",
-            "UID": "2350a4cdf5d507ce"
+            "UID": "c2fa522de0485949"
           },
           "Version": "1.16.2",
           "Licenses": [
@@ -4893,10 +4893,10 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "escape-html@1.0.3",
-            "parseurl@1.3.3",
             "send@0.19.0",
-            "encodeurl@2.0.0"
+            "encodeurl@2.0.0",
+            "escape-html@1.0.3",
+            "parseurl@1.3.3"
           ]
         },
         {
@@ -4932,7 +4932,7 @@
           "Name": "side-channel",
           "Identifier": {
             "PURL": "pkg:npm/side-channel@1.1.0",
-            "UID": "282f41a5d415d50c"
+            "UID": "22c9a04464591ae"
           },
           "Version": "1.1.0",
           "Licenses": [
@@ -4941,11 +4941,11 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "es-errors@1.3.0",
-            "object-inspect@1.13.4",
             "side-channel-list@1.0.0",
             "side-channel-map@1.0.1",
-            "side-channel-weakmap@1.0.2"
+            "side-channel-weakmap@1.0.2",
+            "es-errors@1.3.0",
+            "object-inspect@1.13.4"
           ]
         },
         {
@@ -4971,7 +4971,7 @@
           "Name": "side-channel-map",
           "Identifier": {
             "PURL": "pkg:npm/side-channel-map@1.0.1",
-            "UID": "a021dd7aa566303b"
+            "UID": "786d87c2c330cd91"
           },
           "Version": "1.0.1",
           "Licenses": [
@@ -4980,10 +4980,10 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "object-inspect@1.13.4",
             "call-bound@1.0.4",
             "es-errors@1.3.0",
-            "get-intrinsic@1.3.0",
-            "object-inspect@1.13.4"
+            "get-intrinsic@1.3.0"
           ]
         },
         {
@@ -5121,7 +5121,7 @@
           "Name": "styled-jsx",
           "Identifier": {
             "PURL": "pkg:npm/styled-jsx@5.1.1",
-            "UID": "ad284f368b32227f"
+            "UID": "45d6594fd3522614"
           },
           "Version": "5.1.1",
           "Licenses": [
@@ -5130,8 +5130,8 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "react@18.3.1",
-            "client-only@0.0.1"
+            "client-only@0.0.1",
+            "react@18.3.1"
           ]
         },
         {
@@ -5209,7 +5209,7 @@
           "Name": "token-types",
           "Identifier": {
             "PURL": "pkg:npm/token-types@6.1.1",
-            "UID": "ccbdffddc6c65228"
+            "UID": "c38d00bd42ce0f3d"
           },
           "Version": "6.1.1",
           "Licenses": [
@@ -5218,9 +5218,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
+            "@borewit/text-codec@0.1.1",
             "@tokenizer/token@0.3.0",
-            "ieee754@1.2.1",
-            "@borewit/text-codec@0.1.1"
+            "ieee754@1.2.1"
           ]
         },
         {
@@ -5459,7 +5459,7 @@
           "Name": "victory-vendor",
           "Identifier": {
             "PURL": "pkg:npm/victory-vendor@36.9.2",
-            "UID": "611eac0180045c4"
+            "UID": "d7d17044da79946c"
           },
           "Version": "36.9.2",
           "Licenses": [
@@ -5468,38 +5468,20 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "@types/d3-scale@4.0.9",
             "@types/d3-time@3.0.4",
             "d3-array@3.2.4",
-            "d3-ease@3.0.1",
-            "d3-scale@4.0.2",
-            "@types/d3-interpolate@3.0.4",
             "@types/d3-shape@3.1.7",
+            "d3-ease@3.0.1",
+            "d3-time@3.1.0",
+            "@types/d3-timer@3.0.2",
+            "d3-interpolate@3.0.1",
+            "@types/d3-interpolate@3.0.4",
+            "d3-scale@4.0.2",
+            "d3-shape@3.2.0",
+            "d3-timer@3.0.1",
             "@types/d3-array@3.2.2",
             "@types/d3-ease@3.0.2",
-            "d3-interpolate@3.0.1",
-            "@types/d3-timer@3.0.2",
-            "d3-shape@3.2.0",
-            "d3-time@3.1.0",
-            "d3-timer@3.0.1"
-          ]
-        },
-        {
-          "ID": "watchpack@2.4.0",
-          "Name": "watchpack",
-          "Identifier": {
-            "PURL": "pkg:npm/watchpack@2.4.0",
-            "UID": "7961a72704f63b45"
-          },
-          "Version": "2.4.0",
-          "Licenses": [
-            "MIT"
-          ],
-          "Indirect": true,
-          "Relationship": "indirect",
-          "DependsOn": [
-            "glob-to-regexp@0.4.1",
-            "graceful-fs@4.2.11"
+            "@types/d3-scale@4.0.9"
           ]
         },
         {
@@ -5553,7 +5535,7 @@
           "Name": "wrap-ansi",
           "Identifier": {
             "PURL": "pkg:npm/wrap-ansi@6.2.0",
-            "UID": "f620a05e4534baff"
+            "UID": "31f1456894fc0f3a"
           },
           "Version": "6.2.0",
           "Licenses": [
@@ -5562,9 +5544,9 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "strip-ansi@6.0.1",
             "ansi-styles@4.3.0",
-            "string-width@4.2.3"
+            "string-width@4.2.3",
+            "strip-ansi@6.0.1"
           ]
         },
         {
@@ -5600,7 +5582,7 @@
           "Name": "yargs",
           "Identifier": {
             "PURL": "pkg:npm/yargs@15.4.1",
-            "UID": "7f6d7604fa53f1a9"
+            "UID": "3d890b7b510417d5"
           },
           "Version": "15.4.1",
           "Licenses": [
@@ -5609,17 +5591,17 @@
           "Indirect": true,
           "Relationship": "indirect",
           "DependsOn": [
-            "require-main-filename@2.0.0",
-            "set-blocking@2.0.0",
-            "string-width@4.2.3",
-            "decamelize@1.2.0",
-            "yargs-parser@18.1.3",
-            "get-caller-file@2.0.5",
             "require-directory@2.1.1",
             "which-module@2.0.1",
             "y18n@4.0.3",
-            "cliui@6.0.0",
-            "find-up@4.1.0"
+            "decamelize@1.2.0",
+            "find-up@4.1.0",
+            "require-main-filename@2.0.0",
+            "set-blocking@2.0.0",
+            "string-width@4.2.3",
+            "get-caller-file@2.0.5",
+            "yargs-parser@18.1.3",
+            "cliui@6.0.0"
           ]
         },
         {
@@ -5660,7 +5642,7 @@
             "Name": "GitHub Security Advisory npm",
             "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
           },
-          "Fingerprint": "sha256:38dc4b8e8c317c7fed6c96c61a4637bf047e02c6f83f1901ab0f8f483292de08",
+          "Fingerprint": "sha256:a57c1e96de3567fd8e14990447c1f12605e844bd67c159ca54ac0cc5d45436d9",
           "Title": "js-yaml: js-yaml prototype pollution in merge",
           "Description": "js-yaml is a JavaScript YAML parser and dumper. In js-yaml 4.1.0 and below, it's possible for an attacker to modify the prototype of the result of a parsed yaml document via prototype pollution (`__proto__`). All users who parse untrusted yaml documents may be impacted. The problem is patched in js-yaml 4.1.1. Users can protect against this kind of attack on the server by using `node --disable-proto=delete` or `deno` (in Deno, pollution protection is on by default).",
           "Severity": "MEDIUM",
@@ -5694,219 +5676,14 @@
           "LastModifiedDate": "2025-12-02T19:33:03.31Z"
         },
         {
-          "VulnerabilityID": "CVE-2025-29927",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-          "PkgName": "next",
-          "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
-          },
-          "InstalledVersion": "14.0.4",
-          "FixedVersion": "13.5.9, 14.2.25, 15.2.3, 12.3.5",
-          "Status": "fixed",
-          "SeveritySource": "ghsa",
-          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2025-29927",
-          "DataSource": {
-            "ID": "ghsa",
-            "Name": "GitHub Security Advisory npm",
-            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
-          },
-          "Fingerprint": "sha256:b0a3773b6306e79bce26b7e45a32e621ceaef3e93f11238d6a26f601be8d9192",
-          "Title": "nextjs: Authorization Bypass in Next.js Middleware",
-          "Description": "Next.js is a React framework for building full-stack web applications. Starting in version 1.11.4 and prior to versions 12.3.5, 13.5.9, 14.2.25, and 15.2.3, it is possible to bypass authorization checks within a Next.js application, if the authorization check occurs in middleware. If patching to a safe version is infeasible, it is recommend that you prevent external user requests which contain the x-middleware-subrequest header from reaching your Next.js application. This vulnerability is fixed in 12.3.5, 13.5.9, 14.2.25, and 15.2.3.",
-          "Severity": "CRITICAL",
-          "CweIDs": [
-            "CWE-285",
-            "CWE-863"
-          ],
-          "VendorSeverity": {
-            "ghsa": 4,
-            "redhat": 4
-          },
-          "CVSS": {
-            "ghsa": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-              "V3Score": 9.1
-            },
-            "redhat": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-              "V3Score": 9.1
-            }
-          },
-          "References": [
-            "http://www.openwall.com/lists/oss-security/2025/03/23/3",
-            "http://www.openwall.com/lists/oss-security/2025/03/23/4",
-            "https://access.redhat.com/security/cve/CVE-2025-29927",
-            "https://github.com/vercel/next.js",
-            "https://github.com/vercel/next.js/commit/52a078da3884efe6501613c7834a3d02a91676d2",
-            "https://github.com/vercel/next.js/commit/5fd3ae8f8542677c6294f32d18022731eab6fe48",
-            "https://github.com/vercel/next.js/releases/tag/v12.3.5",
-            "https://github.com/vercel/next.js/releases/tag/v13.5.9",
-            "https://github.com/vercel/next.js/security/advisories/GHSA-f82v-jwr5-mffw",
-            "https://jfrog.com/blog/cve-2025-29927-next-js-authorization-bypass/",
-            "https://nvd.nist.gov/vuln/detail/CVE-2025-29927",
-            "https://security.netapp.com/advisory/ntap-20250328-0002",
-            "https://security.netapp.com/advisory/ntap-20250328-0002/",
-            "https://vercel.com/changelog/vercel-firewall-proactively-protects-against-vulnerability-with-middleware",
-            "https://www.cve.org/CVERecord?id=CVE-2025-29927"
-          ],
-          "PublishedDate": "2025-03-21T15:15:42.66Z",
-          "LastModifiedDate": "2025-09-10T15:49:40.637Z"
-        },
-        {
-          "VulnerabilityID": "CVE-2024-34351",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-          "PkgName": "next",
-          "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
-          },
-          "InstalledVersion": "14.0.4",
-          "FixedVersion": "14.1.1",
-          "Status": "fixed",
-          "SeveritySource": "ghsa",
-          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-34351",
-          "DataSource": {
-            "ID": "ghsa",
-            "Name": "GitHub Security Advisory npm",
-            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
-          },
-          "Fingerprint": "sha256:f2b4a5307522e772a218d1b915d7f087ed29ea8edefcc4c5afa04586a63b4333",
-          "Title": "Next.js Server-Side Request Forgery in Server Actions",
-          "Description": "Next.js is a React framework that can provide building blocks to create web applications. A Server-Side Request Forgery (SSRF) vulnerability was identified in Next.js Server Actions. If the `Host` header is modified, and the below conditions are also met, an attacker may be able to make requests that appear to be originating from the Next.js application server itself. The required conditions are 1) Next.js is running in a self-hosted manner; 2) the Next.js application makes use of Server Actions; and 3) the Server Action performs a redirect to a relative path which starts with a `/`. This vulnerability was fixed in Next.js `14.1.1`.",
-          "Severity": "HIGH",
-          "CweIDs": [
-            "CWE-918"
-          ],
-          "VendorSeverity": {
-            "ghsa": 3,
-            "nvd": 3
-          },
-          "CVSS": {
-            "ghsa": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-              "V3Score": 7.5
-            },
-            "nvd": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
-              "V3Score": 7.5
-            }
-          },
-          "References": [
-            "https://github.com/vercel/next.js",
-            "https://github.com/vercel/next.js/commit/8f7a6ca7d21a97bc9f7a1bbe10427b5ad74b9085",
-            "https://github.com/vercel/next.js/pull/62561",
-            "https://github.com/vercel/next.js/security/advisories/GHSA-fr5h-rqp8-mj6g",
-            "https://nvd.nist.gov/vuln/detail/CVE-2024-34351"
-          ],
-          "PublishedDate": "2024-05-14T15:38:42.563Z",
-          "LastModifiedDate": "2025-09-10T15:43:33.553Z"
-        },
-        {
-          "VulnerabilityID": "CVE-2024-46982",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-          "PkgName": "next",
-          "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
-          },
-          "InstalledVersion": "14.0.4",
-          "FixedVersion": "13.5.7, 14.2.10",
-          "Status": "fixed",
-          "SeveritySource": "ghsa",
-          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-46982",
-          "DataSource": {
-            "ID": "ghsa",
-            "Name": "GitHub Security Advisory npm",
-            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
-          },
-          "Fingerprint": "sha256:dff97d044a1e25402283d8ab0940bbfac6a68fc99519a8d63869b409b28ffd87",
-          "Title": "Next.js Cache Poisoning",
-          "Description": "Next.js is a React framework for building full-stack web applications. By sending a crafted HTTP request, it is possible to poison the cache of a non-dynamic server-side rendered route in the pages router (this does not affect the app router). When this crafted request is sent it could coerce Next.js to cache a route that is meant to not be cached and send a `Cache-Control: s-maxage=1, stale-while-revalidate` header which some upstream CDNs may cache as well. To be potentially affected all of the following must apply: 1. Next.js between 13.5.1 and 14.2.9, 2. Using pages router, \u0026 3. Using non-dynamic server-side rendered routes e.g. `pages/dashboard.tsx` not `pages/blog/[slug].tsx`. This vulnerability was resolved in Next.js v13.5.7, v14.2.10, and later. We recommend upgrading regardless of whether you can reproduce the issue or not. There are no official or recommended workarounds for this issue, we recommend that users patch to a safe version.",
-          "Severity": "HIGH",
-          "CweIDs": [
-            "CWE-639"
-          ],
-          "VendorSeverity": {
-            "ghsa": 3
-          },
-          "CVSS": {
-            "ghsa": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-              "V3Score": 7.5
-            }
-          },
-          "References": [
-            "https://github.com/vercel/next.js",
-            "https://github.com/vercel/next.js/commit/7ed7f125e07ef0517a331009ed7e32691ba403d3",
-            "https://github.com/vercel/next.js/commit/bd164d53af259c05f1ab434004bcfdd3837d7cda",
-            "https://github.com/vercel/next.js/security/advisories/GHSA-gp8f-8m3g-qvj9",
-            "https://nvd.nist.gov/vuln/detail/CVE-2024-46982"
-          ],
-          "PublishedDate": "2024-09-17T22:15:02.273Z",
-          "LastModifiedDate": "2025-09-10T15:46:05.173Z"
-        },
-        {
-          "VulnerabilityID": "CVE-2024-51479",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-          "PkgName": "next",
-          "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
-          },
-          "InstalledVersion": "14.0.4",
-          "FixedVersion": "14.2.15",
-          "Status": "fixed",
-          "SeveritySource": "ghsa",
-          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-51479",
-          "DataSource": {
-            "ID": "ghsa",
-            "Name": "GitHub Security Advisory npm",
-            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
-          },
-          "Fingerprint": "sha256:166ac4c676ab736be5b67795e89bf56d897b25f617c3929fe3aa72fb02ee50df",
-          "Title": "next.js: next: authorization bypass in Next.js",
-          "Description": "Next.js is a React framework for building full-stack web applications. In affected versions if a Next.js application is performing authorization in middleware based on pathname, it was possible for this authorization to be bypassed for pages directly under the application's root directory. For example: * [Not affected] `https://example.com/` * [Affected] `https://example.com/foo` * [Not affected] `https://example.com/foo/bar`. This issue is patched in Next.js `14.2.15` and later. If your Next.js application is hosted on Vercel, this vulnerability has been automatically mitigated, regardless of Next.js version. There are no official workarounds for this vulnerability.",
-          "Severity": "HIGH",
-          "CweIDs": [
-            "CWE-285",
-            "CWE-863"
-          ],
-          "VendorSeverity": {
-            "ghsa": 3,
-            "redhat": 2
-          },
-          "CVSS": {
-            "ghsa": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-              "V3Score": 7.5
-            },
-            "redhat": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-              "V3Score": 7.5
-            }
-          },
-          "References": [
-            "https://access.redhat.com/security/cve/CVE-2024-51479",
-            "https://github.com/vercel/next.js",
-            "https://github.com/vercel/next.js/commit/1c8234eb20bc8afd396b89999a00f06b61d72d7b",
-            "https://github.com/vercel/next.js/releases/tag/v14.2.15",
-            "https://github.com/vercel/next.js/security/advisories/GHSA-7gfc-8cq8-jh5f",
-            "https://nvd.nist.gov/vuln/detail/CVE-2024-51479",
-            "https://www.cve.org/CVERecord?id=CVE-2024-51479"
-          ],
-          "PublishedDate": "2024-12-17T19:15:06.697Z",
-          "LastModifiedDate": "2025-09-10T15:48:08.253Z"
-        },
-        {
           "VulnerabilityID": "GHSA-5j59-xgg2-r9c4",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+          "PkgID": "next@14.2.25(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
           "PkgName": "next",
           "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
+            "PURL": "pkg:npm/next@14.2.25",
+            "UID": "11a345cdea7ca856"
           },
-          "InstalledVersion": "14.0.4",
+          "InstalledVersion": "14.2.25",
           "FixedVersion": "14.2.35, 15.0.7, 15.1.11, 15.2.8, 15.3.8, 15.4.10, 15.5.9, 15.6.0-canary.60, 16.0.10, 16.1.0-canary.19",
           "Status": "fixed",
           "SeveritySource": "ghsa",
@@ -5916,7 +5693,7 @@
             "Name": "GitHub Security Advisory npm",
             "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
           },
-          "Fingerprint": "sha256:6e70a0291580fadc3a59b3dc021dc0039f8a7da2a96551cf66395a3531c01ea1",
+          "Fingerprint": "sha256:d6f4e7fa53e55886df2a7891d6117ac33fc380ab6538fb274464029cf20246e0",
           "Title": "Next has a Denial of Service with Server Components - Incomplete Fix Follow-Up",
           "Description": "It was found that the fix addressing [CVE-2025-55184](https://github.com/advisories/GHSA-2m3v-v2m8-q956) in React Server Components was incomplete and did not fully prevent denial-of-service attacks in all payload types. This affects React package versions 19.0.2, 19.1.3, and 19.2.2 and frameworks that use the affected packages, including Next.js 13.x, 14.x, 15.x and 16.x using the App Router. The issue is tracked upstream as [CVE-2025-67779](https://www.cve.org/CVERecord?id=CVE-2025-67779).\n\nA malicious HTTP request can be crafted and sent to any Server Function endpoint that, when deserialized, can enter an infinite loop within the React Server Components runtime. This can cause the server process to hang and consume CPU, resulting in denial of service in unpatched environments.",
           "Severity": "HIGH",
@@ -5943,13 +5720,13 @@
         },
         {
           "VulnerabilityID": "GHSA-mwv6-3258-q52c",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+          "PkgID": "next@14.2.25(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
           "PkgName": "next",
           "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
+            "PURL": "pkg:npm/next@14.2.25",
+            "UID": "11a345cdea7ca856"
           },
-          "InstalledVersion": "14.0.4",
+          "InstalledVersion": "14.2.25",
           "FixedVersion": "14.2.34, 15.0.6, 15.1.10, 15.2.7, 15.3.7, 15.4.9, 15.5.8, 15.6.0-canary.59, 16.0.9, 16.1.0-canary.17",
           "Status": "fixed",
           "SeveritySource": "ghsa",
@@ -5959,7 +5736,7 @@
             "Name": "GitHub Security Advisory npm",
             "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
           },
-          "Fingerprint": "sha256:379c8260968a8ca196f41e4508474e0023433837253d03be5b3cd5c17e898312",
+          "Fingerprint": "sha256:9a1b831f36bbf63d7f1ed12897f2b188c9cb3e24f677e6f1470a5678d22bb96c",
           "Title": "Next Vulnerable to Denial of Service with Server Components",
           "Description": "A vulnerability affects certain React packages for versions 19.0.0, 19.0.1, 19.1.0, 19.1.1, 19.1.2, 19.2.0, and 19.2.1 and frameworks that use the affected packages, including Next.js 15.x and 16.x using the App Router. The issue is tracked upstream as [CVE-2025-55184](https://www.cve.org/CVERecord?id=CVE-2025-55184).\n\nA malicious HTTP request can be crafted and sent to any App Router endpoint that, when deserialized, can cause the server process to hang and consume CPU. This can result in denial of service in unpatched environments.",
           "Severity": "HIGH",
@@ -5982,118 +5759,14 @@
           "LastModifiedDate": "2025-12-11T22:49:28Z"
         },
         {
-          "VulnerabilityID": "CVE-2024-47831",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-          "PkgName": "next",
-          "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
-          },
-          "InstalledVersion": "14.0.4",
-          "FixedVersion": "14.2.7",
-          "Status": "fixed",
-          "SeveritySource": "ghsa",
-          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-47831",
-          "DataSource": {
-            "ID": "ghsa",
-            "Name": "GitHub Security Advisory npm",
-            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
-          },
-          "Fingerprint": "sha256:f6482f86bb8a24237643efedcb39e6fec1bc7aa362f6db6873cf784f1ce22371",
-          "Title": "next.js: Next.js image optimization has Denial of Service condition",
-          "Description": "Next.js is a React Framework for the Web. Cersions on the 10.x, 11.x, 12.x, 13.x, and 14.x branches before version 14.2.7 contain a vulnerability in the image optimization feature which allows for a potential Denial of Service (DoS) condition which could lead to excessive CPU consumption. Neither the `next.config.js` file that is configured with `images.unoptimized` set to `true` or `images.loader` set to a non-default value nor the Next.js application that is hosted on Vercel are affected. This issue was fully patched in Next.js `14.2.7`. As a workaround, ensure that the `next.config.js` file has either `images.unoptimized`, `images.loader` or `images.loaderFile` assigned.",
-          "Severity": "MEDIUM",
-          "CweIDs": [
-            "CWE-674"
-          ],
-          "VendorSeverity": {
-            "ghsa": 2,
-            "nvd": 3,
-            "redhat": 2
-          },
-          "CVSS": {
-            "ghsa": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-              "V3Score": 5.9
-            },
-            "nvd": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-              "V3Score": 7.5
-            },
-            "redhat": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-              "V3Score": 5.9
-            }
-          },
-          "References": [
-            "https://access.redhat.com/security/cve/CVE-2024-47831",
-            "https://github.com/vercel/next.js",
-            "https://github.com/vercel/next.js/commit/d11cbc9ff0b1aaefabcba9afe1e562e0b1fde65a",
-            "https://github.com/vercel/next.js/security/advisories/GHSA-g77x-44xx-532m",
-            "https://nvd.nist.gov/vuln/detail/CVE-2024-47831",
-            "https://www.cve.org/CVERecord?id=CVE-2024-47831"
-          ],
-          "PublishedDate": "2024-10-14T18:15:05.013Z",
-          "LastModifiedDate": "2024-11-08T15:39:21.823Z"
-        },
-        {
-          "VulnerabilityID": "CVE-2024-56332",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
-          "PkgName": "next",
-          "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
-          },
-          "InstalledVersion": "14.0.4",
-          "FixedVersion": "13.5.8, 14.2.21, 15.1.2",
-          "Status": "fixed",
-          "SeveritySource": "ghsa",
-          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-56332",
-          "DataSource": {
-            "ID": "ghsa",
-            "Name": "GitHub Security Advisory npm",
-            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
-          },
-          "Fingerprint": "sha256:a9c9ed6bbb12cf16ca5f4606a0ceec6c3b1e1d94f0e3c4f2a161c9e219125a40",
-          "Title": "next.js: Next.js Vulnerable to Denial of Service (DoS) with Server Actions",
-          "Description": "Next.js is a React framework for building full-stack web applications. Starting in version 13.0.0 and prior to versions 13.5.8, 14.2.21, and 15.1.2, Next.js is vulnerable to a Denial of Service (DoS) attack that allows attackers to construct requests that leaves requests to Server Actions hanging until the hosting provider cancels the function execution. This vulnerability can also be used as a Denial of Wallet (DoW) attack when deployed in providers billing by response times. (Note: Next.js server is idle during that time and only keeps the connection open. CPU and memory footprint are low during that time.). Deployments without any protection against long running Server Action invocations are especially vulnerable. Hosting providers like Vercel or Netlify set a default maximum duration on function execution to reduce the risk of excessive billing. This is the same issue as if the incoming HTTP request has an invalid `Content-Length` header or never closes. If the host has no other mitigations to those then this vulnerability is novel. This vulnerability affects only Next.js deployments using Server Actions. The issue was resolved in Next.js 13.5.8, 14.2.21, and 15.1.2. We recommend that users upgrade to a safe version. There are no official workarounds.",
-          "Severity": "MEDIUM",
-          "CweIDs": [
-            "CWE-770"
-          ],
-          "VendorSeverity": {
-            "ghsa": 2,
-            "redhat": 2
-          },
-          "CVSS": {
-            "ghsa": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-              "V3Score": 5.3
-            },
-            "redhat": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-              "V3Score": 5.3
-            }
-          },
-          "References": [
-            "https://access.redhat.com/security/cve/CVE-2024-56332",
-            "https://github.com/vercel/next.js",
-            "https://github.com/vercel/next.js/security/advisories/GHSA-7m27-7ghc-44w9",
-            "https://nvd.nist.gov/vuln/detail/CVE-2024-56332",
-            "https://www.cve.org/CVERecord?id=CVE-2024-56332"
-          ],
-          "PublishedDate": "2025-01-03T21:15:13.55Z",
-          "LastModifiedDate": "2025-09-10T15:48:41.83Z"
-        },
-        {
           "VulnerabilityID": "CVE-2025-55173",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+          "PkgID": "next@14.2.25(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
           "PkgName": "next",
           "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
+            "PURL": "pkg:npm/next@14.2.25",
+            "UID": "11a345cdea7ca856"
           },
-          "InstalledVersion": "14.0.4",
+          "InstalledVersion": "14.2.25",
           "FixedVersion": "14.2.31, 15.4.5",
           "Status": "fixed",
           "SeveritySource": "ghsa",
@@ -6103,7 +5776,7 @@
             "Name": "GitHub Security Advisory npm",
             "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
           },
-          "Fingerprint": "sha256:f15c60c6cebcea28fbe59b53d8bab39ea1176a5a42035d9ba80310282489b3c0",
+          "Fingerprint": "sha256:93e21c9557270ccce5b62855f283eb382c207848b4acad1c58f38d0a4116b5dc",
           "Title": "nextjs: Next.js Content Injection Vulnerability for Image Optimization",
           "Description": "Next.js is a React framework for building full-stack web applications. In versions before 14.2.31 and from 15.0.0 to before 15.4.5, Next.js Image Optimization is vulnerable to content injection. The issue allowed attacker-controlled external image sources to trigger file downloads with arbitrary content and filenames under specific configurations. This behavior could be abused for phishing or malicious file delivery. This vulnerability has been fixed in Next.js versions 14.2.31 and 15.4.5.",
           "Severity": "MEDIUM",
@@ -6139,13 +5812,13 @@
         },
         {
           "VulnerabilityID": "CVE-2025-57752",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+          "PkgID": "next@14.2.25(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
           "PkgName": "next",
           "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
+            "PURL": "pkg:npm/next@14.2.25",
+            "UID": "11a345cdea7ca856"
           },
-          "InstalledVersion": "14.0.4",
+          "InstalledVersion": "14.2.25",
           "FixedVersion": "14.2.31, 15.4.5",
           "Status": "fixed",
           "SeveritySource": "ghsa",
@@ -6155,7 +5828,7 @@
             "Name": "GitHub Security Advisory npm",
             "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
           },
-          "Fingerprint": "sha256:d20b0d5bc636802e6daa14291915d67e660d65ba992cbd677caa4b4a81b13b93",
+          "Fingerprint": "sha256:a3801f3db43eb86d7770c114fe7e6c57c2e0d06894c3e5b6bf62069bfd5532fb",
           "Title": "nextjs: Next.js Affected by Cache Key Confusion for Image Optimization API Routes",
           "Description": "Next.js is a React framework for building full-stack web applications. In versions before 14.2.31 and from 15.0.0 to before 15.4.5, Next.js Image Optimization API routes are affected by cache key confusion. When images returned from API routes vary based on request headers (such as Cookie or Authorization), these responses could be incorrectly cached and served to unauthorized users due to a cache key confusion bug. This vulnerability has been fixed in Next.js versions 14.2.31 and 15.4.5. All users are encouraged to upgrade if they use API routes to serve images that depend on request headers and have image optimization enabled.",
           "Severity": "MEDIUM",
@@ -6191,13 +5864,13 @@
         },
         {
           "VulnerabilityID": "CVE-2025-57822",
-          "PkgID": "next@14.0.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
+          "PkgID": "next@14.2.25(react-dom@18.3.1(react@18.3.1))(react@18.3.1)",
           "PkgName": "next",
           "PkgIdentifier": {
-            "PURL": "pkg:npm/next@14.0.4",
-            "UID": "338fcc50e46e6091"
+            "PURL": "pkg:npm/next@14.2.25",
+            "UID": "11a345cdea7ca856"
           },
-          "InstalledVersion": "14.0.4",
+          "InstalledVersion": "14.2.25",
           "FixedVersion": "14.2.32, 15.4.7",
           "Status": "fixed",
           "SeveritySource": "ghsa",
@@ -6207,7 +5880,7 @@
             "Name": "GitHub Security Advisory npm",
             "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
           },
-          "Fingerprint": "sha256:96af790010bf3d8c346df6f56a18c5d5cd9411c1b3343700193e3a52a4454797",
+          "Fingerprint": "sha256:a28e60c67a4395662ff60cce94580b145243397ed397ab662e947b91e72f2517",
           "Title": "Next.js Improper Middleware Redirect Handling Leads to SSRF",
           "Description": "Next.js is a React framework for building full-stack web applications. Prior to versions 14.2.32 and 15.4.7, when next() was used without explicitly passing the request object, it could lead to SSRF in self-hosted applications that incorrectly forwarded user-supplied headers. This vulnerability has been fixed in Next.js versions 14.2.32 and 15.4.7. All users implementing custom middleware logic in self-hosted environments are strongly encouraged to upgrade and verify correct usage of the next() function.",
           "Severity": "MEDIUM",
@@ -6237,56 +5910,6 @@
           ],
           "PublishedDate": "2025-08-29T22:15:32.143Z",
           "LastModifiedDate": "2025-09-08T16:41:41.253Z"
-        },
-        {
-          "VulnerabilityID": "CVE-2025-15284",
-          "PkgID": "qs@6.13.0",
-          "PkgName": "qs",
-          "PkgIdentifier": {
-            "PURL": "pkg:npm/qs@6.13.0",
-            "UID": "3709b6fa8d2c9be4"
-          },
-          "InstalledVersion": "6.13.0",
-          "FixedVersion": "6.14.1",
-          "Status": "fixed",
-          "SeveritySource": "ghsa",
-          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2025-15284",
-          "DataSource": {
-            "ID": "ghsa",
-            "Name": "GitHub Security Advisory npm",
-            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
-          },
-          "Fingerprint": "sha256:337fa9d19a96fdf0bfe1547c06c09754d44fbaeaabb7eaac540f8f59ccab0264",
-          "Title": "qs: qs: Denial of Service via improper input validation in array parsing",
-          "Description": "Improper Input Validation vulnerability in qs (parse modules) allows HTTP DoS.This issue affects qs: \u003c 6.14.1.\n\n\nSummaryThe arrayLimit option in qs does not enforce limits for bracket notation (a[]=1\u0026a[]=2), allowing attackers to cause denial-of-service via memory exhaustion. Applications using arrayLimit for DoS protection are vulnerable.\n\nDetailsThe arrayLimit option only checks limits for indexed notation (a[0]=1\u0026a[1]=2) but completely bypasses it for bracket notation (a[]=1\u0026a[]=2).\n\nVulnerable code (lib/parse.js:159-162):\n\nif (root === '[]' \u0026\u0026 options.parseArrays) {\n    obj = utils.combine([], leaf);  // No arrayLimit check\n}\n\n\n\n\n\nWorking code (lib/parse.js:175):\n\nelse if (index \u003c= options.arrayLimit) {  // Limit checked here\n    obj = [];\n    obj[index] = leaf;\n}\n\n\n\n\n\nThe bracket notation handler at line 159 uses utils.combine([], leaf) without validating against options.arrayLimit, while indexed notation at line 175 checks index \u003c= options.arrayLimit before creating arrays.\n\nPoCTest 1 - Basic bypass:\n\nnpm install qs\n\n\n\n\n\nconst qs = require('qs');\nconst result = qs.parse('a[]=1\u0026a[]=2\u0026a[]=3\u0026a[]=4\u0026a[]=5\u0026a[]=6', { arrayLimit: 5 });\nconsole.log(result.a.length);  // Output: 6 (should be max 5)\n\n\n\n\n\nTest 2 - DoS demonstration:\n\nconst qs = require('qs');\nconst attack = 'a[]=' + Array(10000).fill('x').join('\u0026a[]=');\nconst result = qs.parse(attack, { arrayLimit: 100 });\nconsole.log(result.a.length);  // Output: 10000 (should be max 100)\n\n\n\n\n\nConfiguration:\n\n  *  arrayLimit: 5 (test 1) or arrayLimit: 100 (test 2)\n  *  Use bracket notation: a[]=value (not indexed a[0]=value)\n\n\nImpactDenial of Service via memory exhaustion. Affects applications using qs.parse() with user-controlled input and arrayLimit for protection.\n\nAttack scenario:\n\n  *  Attacker sends HTTP request: GET /api/search?filters[]=x\u0026filters[]=x\u0026...\u0026filters[]=x (100,000+ times)\n  *  Application parses with qs.parse(query, { arrayLimit: 100 })\n  *  qs ignores limit, parses all 100,000 elements into array\n  *  Server memory exhausted → application crashes or becomes unresponsive\n  *  Service unavailable for all users\nReal-world impact:\n\n  *  Single malicious request can crash server\n  *  No authentication required\n  *  Easy to automate and scale\n  *  Affects any endpoint parsing query strings with bracket notation",
-          "Severity": "HIGH",
-          "CweIDs": [
-            "CWE-20"
-          ],
-          "VendorSeverity": {
-            "ghsa": 3,
-            "redhat": 3
-          },
-          "CVSS": {
-            "ghsa": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-              "V3Score": 7.5
-            },
-            "redhat": {
-              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-              "V3Score": 7.5
-            }
-          },
-          "References": [
-            "https://access.redhat.com/security/cve/CVE-2025-15284",
-            "https://github.com/ljharb/qs",
-            "https://github.com/ljharb/qs/commit/3086902ecf7f088d0d1803887643ac6c03d415b9",
-            "https://github.com/ljharb/qs/security/advisories/GHSA-6rw7-vpxm-498p",
-            "https://nvd.nist.gov/vuln/detail/CVE-2025-15284",
-            "https://www.cve.org/CVERecord?id=CVE-2025-15284"
-          ],
-          "PublishedDate": "2025-12-29T23:15:42.703Z",
-          "LastModifiedDate": "2025-12-31T20:43:25.83Z"
         }
       ]
     }
