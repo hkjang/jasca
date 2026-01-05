@@ -137,13 +137,22 @@ interface DbMetadata {
 export default function TrivyDbPage() {
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'erd' | 'files' | 'stats' | 'types' | 'sources'>('erd');
+  const [activeTab, setActiveTab] = useState<'erd' | 'files' | 'stats' | 'query' | 'types' | 'sources'>('erd');
   const [svgContent, setSvgContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Query state
+  const [cveQuery, setCveQuery] = useState('');
+  const [packageQuery, setPackageQuery] = useState('');
+  const [packageVersion, setPackageVersion] = useState('');
+  const [queryResult, setQueryResult] = useState<any>(null);
+  const [isQuerying, setIsQuerying] = useState(false);
   
   // Live DB info state
   const [dbInfo, setDbInfo] = useState<{
@@ -195,31 +204,94 @@ export default function TrivyDbPage() {
     }
   };
 
-  // Handle file upload
+  // Handle file upload with progress tracking
   const handleFileUpload = async (files: FileList) => {
     const formData = new FormData();
+    let totalSize = 0;
     Array.from(files).forEach((file) => {
       formData.append('files', file);
+      totalSize += file.size;
     });
 
-    try {
-      const res = await fetch('/api/trivy-db/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      const result = await res.json();
-      setUploadStatus({
-        success: result.success,
-        message: result.success 
-          ? `업로드 완료: ${result.uploaded.join(', ')}`
-          : `오류: ${result.errors.join(', ')}`,
-      });
-      if (result.success) {
-        fetchDbInfo(true);
-        fetchStats();
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadStatus(null);
+
+    // Use XMLHttpRequest for progress tracking
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const progress = Math.round((e.loaded / e.total) * 100);
+        setUploadProgress(progress);
       }
+    });
+
+    xhr.addEventListener('load', () => {
+      setIsUploading(false);
+      try {
+        const result = JSON.parse(xhr.responseText);
+        setUploadStatus({
+          success: result.success,
+          message: result.message || (result.success 
+            ? `업로드 완료: ${result.uploaded.join(', ')}`
+            : `오류: ${result.errors.join(', ')}`),
+        });
+        if (result.success) {
+          fetchDbInfo(true);
+          fetchStats();
+        }
+      } catch {
+        setUploadStatus({ success: false, message: '응답 파싱 실패' });
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      setIsUploading(false);
+      setUploadStatus({ success: false, message: '업로드 실패: 네트워크 오류' });
+    });
+
+    xhr.addEventListener('abort', () => {
+      setIsUploading(false);
+      setUploadStatus({ success: false, message: '업로드 취소됨' });
+    });
+
+    xhr.open('POST', '/api/trivy-db/upload');
+    xhr.send(formData);
+  };
+
+  // Query CVE
+  const queryCve = async () => {
+    if (!cveQuery.trim()) return;
+    setIsQuerying(true);
+    setQueryResult(null);
+    try {
+      const res = await fetch(`/api/trivy-db/query/cve?id=${encodeURIComponent(cveQuery)}`);
+      const data = await res.json();
+      setQueryResult({ type: 'cve', ...data });
     } catch (error) {
-      setUploadStatus({ success: false, message: '업로드 실패' });
+      setQueryResult({ type: 'cve', found: false, message: '조회 실패' });
+    } finally {
+      setIsQuerying(false);
+    }
+  };
+
+  // Query package
+  const queryPackage = async () => {
+    if (!packageQuery.trim()) return;
+    setIsQuerying(true);
+    setQueryResult(null);
+    try {
+      const url = packageVersion 
+        ? `/api/trivy-db/query/package?name=${encodeURIComponent(packageQuery)}&version=${encodeURIComponent(packageVersion)}`
+        : `/api/trivy-db/query/package?name=${encodeURIComponent(packageQuery)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      setQueryResult({ type: 'package', ...data });
+    } catch (error) {
+      setQueryResult({ type: 'package', message: '조회 실패' });
+    } finally {
+      setIsQuerying(false);
     }
   };
 
@@ -425,7 +497,7 @@ export default function TrivyDbPage() {
 
       {/* Tab Navigation */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {(['erd', 'files', 'stats', 'types', 'sources'] as const).map((tab) => (
+        {(['erd', 'files', 'stats', 'query', 'types', 'sources'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -438,6 +510,7 @@ export default function TrivyDbPage() {
             {tab === 'erd' && 'ERD 다이어그램'}
             {tab === 'files' && 'DB 파일'}
             {tab === 'stats' && '취약점 통계'}
+            {tab === 'query' && 'DB 조회'}
             {tab === 'types' && '타입 정의'}
             {tab === 'sources' && '데이터 소스'}
           </button>
@@ -860,6 +933,180 @@ export default function TrivyDbPage() {
         </div>
       )}
 
+      {/* Query Tab Content */}
+      {activeTab === 'query' && (
+        <div className="space-y-6">
+          {/* Search Forms */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* CVE Search */}
+            <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Search className="w-5 h-5 text-indigo-400" />
+                CVE 조회
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-slate-400 text-sm mb-2">CVE ID</label>
+                  <input
+                    type="text"
+                    value={cveQuery}
+                    onChange={(e) => setCveQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && queryCve()}
+                    placeholder="예: CVE-2021-44228"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <button
+                  onClick={queryCve}
+                  disabled={isQuerying || !cveQuery.trim()}
+                  className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  {isQuerying ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  조회
+                </button>
+              </div>
+            </div>
+
+            {/* Package Search */}
+            <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Search className="w-5 h-5 text-orange-400" />
+                패키지 취약점 검사
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-slate-400 text-sm mb-2">패키지명</label>
+                  <input
+                    type="text"
+                    value={packageQuery}
+                    onChange={(e) => setPackageQuery(e.target.value)}
+                    placeholder="예: lodash"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-sm mb-2">버전 (선택)</label>
+                  <input
+                    type="text"
+                    value={packageVersion}
+                    onChange={(e) => setPackageVersion(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && queryPackage()}
+                    placeholder="예: 4.17.20"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <button
+                  onClick={queryPackage}
+                  disabled={isQuerying || !packageQuery.trim()}
+                  className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  {isQuerying ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  검사
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Query Results */}
+          {queryResult && (
+            <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-green-400" />
+                조회 결과
+              </h3>
+              
+              {queryResult.type === 'cve' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${queryResult.found ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                      {queryResult.cveId}
+                    </span>
+                  </div>
+                  <p className="text-slate-300">{queryResult.message}</p>
+                  {queryResult.details?.links && (
+                    <div className="space-y-2">
+                      <p className="text-slate-400 text-sm">참조 링크:</p>
+                      {queryResult.details.links.map((link: string, i: number) => (
+                        <a
+                          key={i}
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          {link}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {queryResult.type === 'package' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full text-sm font-medium bg-orange-500/20 text-orange-400">
+                      {queryResult.packageName}
+                      {queryResult.version && ` @ ${queryResult.version}`}
+                    </span>
+                  </div>
+                  <p className="text-slate-300">{queryResult.message}</p>
+                  
+                  {queryResult.vulnerabilities?.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-700/50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-slate-400">CVE ID</th>
+                            <th className="px-4 py-2 text-left text-slate-400">심각도</th>
+                            <th className="px-4 py-2 text-left text-slate-400">수정 버전</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700">
+                          {queryResult.vulnerabilities.map((vuln: any, i: number) => (
+                            <tr key={i} className="hover:bg-slate-700/30">
+                              <td className="px-4 py-2 text-indigo-400">{vuln.VulnerabilityID}</td>
+                              <td className="px-4 py-2">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  vuln.Severity === 'CRITICAL' ? 'bg-purple-500/20 text-purple-400' :
+                                  vuln.Severity === 'HIGH' ? 'bg-red-500/20 text-red-400' :
+                                  vuln.Severity === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-400' :
+                                  'bg-green-500/20 text-green-400'
+                                }`}>
+                                  {vuln.Severity}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-slate-300">{vuln.FixedVersion || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Trivy CLI Info */}
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
+            <p className="text-slate-400 text-sm">
+              💡 전체 프로젝트 스캔을 위해 Trivy CLI를 사용하세요: 
+              <code className="ml-2 px-2 py-1 bg-slate-700 rounded text-indigo-400">trivy fs --severity CRITICAL,HIGH .</code>
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -904,7 +1151,27 @@ export default function TrivyDbPage() {
               </div>
             </div>
 
-            <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center mb-4 hover:border-indigo-500 transition-colors">
+            <div 
+              className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center mb-4 hover:border-indigo-500 transition-colors"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.add('border-indigo-500', 'bg-indigo-500/10');
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.currentTarget.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleFileUpload(e.dataTransfer.files);
+                }
+              }}
+            >
               <input
                 type="file"
                 multiple
@@ -923,6 +1190,25 @@ export default function TrivyDbPage() {
                 <p className="text-slate-500 text-sm">또는 파일을 여기에 드래그</p>
               </label>
             </div>
+
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-slate-300">업로드 중...</span>
+                  <span className="text-indigo-400 font-medium">{uploadProgress}%</span>
+                </div>
+                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-slate-500 text-xs mt-1">
+                  대용량 파일은 시간이 걸릴 수 있습니다. 창을 닫지 마세요.
+                </p>
+              </div>
+            )}
 
             {uploadStatus && (
               <div className={`p-3 rounded-lg mb-4 ${uploadStatus.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>

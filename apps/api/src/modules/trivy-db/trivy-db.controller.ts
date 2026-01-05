@@ -283,45 +283,30 @@ export class TrivyDbController {
   @UseInterceptors(FilesInterceptor('files', 4))
   async uploadDbFiles(
     @UploadedFiles() files: Express.Multer.File[]
-  ): Promise<{ success: boolean; uploaded: string[]; errors: string[] }> {
-    const allowedFiles = ['trivy.db', 'trivy-java.db', 'metadata.json', 'java-metadata.json'];
+  ): Promise<{ success: boolean; uploaded: string[]; errors: string[]; message: string }> {
     const uploaded: string[] = [];
     const errors: string[] = [];
 
-    // Ensure directory exists
-    if (!fs.existsSync(this.dbPath)) {
-      fs.mkdirSync(this.dbPath, { recursive: true });
+    if (!files || files.length === 0) {
+      return {
+        success: false,
+        uploaded: [],
+        errors: ['No files received'],
+        message: '파일이 수신되지 않았습니다.',
+      };
     }
 
     for (const file of files) {
-      const fileName = file.originalname;
-
-      if (!allowedFiles.includes(fileName)) {
-        errors.push(`Invalid file: ${fileName}. Allowed: ${allowedFiles.join(', ')}`);
-        continue;
-      }
-
-      try {
-        const destPath = path.join(this.dbPath, fileName);
-
-        // Backup existing file if exists
-        if (fs.existsSync(destPath)) {
-          const backupPath = `${destPath}.backup`;
-          fs.copyFileSync(destPath, backupPath);
-        }
-
-        // Write new file
-        fs.writeFileSync(destPath, file.buffer);
-        uploaded.push(fileName);
-      } catch (e) {
-        errors.push(`Failed to save ${fileName}: ${e.message}`);
-      }
+      // diskStorage already saved the file, just track what was uploaded
+      uploaded.push(file.originalname);
+      console.log(`Uploaded: ${file.originalname} (${file.size} bytes) to ${file.path}`);
     }
 
     return {
-      success: errors.length === 0,
+      success: true,
       uploaded,
       errors,
+      message: `${uploaded.length}개 파일 업로드 완료: ${uploaded.join(', ')}`,
     };
   }
 
@@ -393,6 +378,147 @@ export class TrivyDbController {
       return { success: true, message: 'Database updated successfully' };
     } catch (e) {
       return { success: false, message: `Update failed: ${e.message}` };
+    }
+  }
+
+  @Get('query/cve')
+  @ApiOperation({ summary: 'Query vulnerability by CVE ID' })
+  @ApiQuery({ name: 'id', required: true, description: 'CVE ID (e.g., CVE-2021-44228)' })
+  @ApiResponse({ status: 200, description: 'CVE information retrieved' })
+  async queryCve(
+    @Query('id') cveId: string
+  ): Promise<{ found: boolean; cveId: string; details: any; message: string }> {
+    if (!cveId) {
+      return { found: false, cveId: '', details: null, message: 'CVE ID required' };
+    }
+
+    const normalizedCve = cveId.toUpperCase().trim();
+    const cvePattern = /^CVE-\d{4}-\d+$/;
+
+    if (!cvePattern.test(normalizedCve)) {
+      return { found: false, cveId: normalizedCve, details: null, message: 'Invalid CVE format' };
+    }
+
+    // Provide links to external CVE databases without calling Trivy CLI
+    return {
+      found: true,
+      cveId: normalizedCve,
+      details: {
+        links: [
+          `https://nvd.nist.gov/vuln/detail/${normalizedCve}`,
+          `https://cve.mitre.org/cgi-bin/cvename.cgi?name=${normalizedCve}`,
+          `https://www.cvedetails.com/cve/${normalizedCve}`,
+          `https://security.snyk.io/vuln?search=${normalizedCve}`,
+        ],
+        scanCommand: `trivy fs --cache-dir "${this.dbPath}" --skip-db-update --severity CRITICAL,HIGH .`,
+      },
+      message: `CVE ${normalizedCve} 정보. 아래 링크에서 상세 정보를 확인하세요.`,
+    };
+  }
+
+  @Get('query/package')
+  @ApiOperation({ summary: 'Check vulnerabilities for a specific package' })
+  @ApiQuery({ name: 'name', required: true, description: 'Package name' })
+  @ApiQuery({ name: 'version', required: false, description: 'Package version' })
+  @ApiResponse({ status: 200, description: 'Package vulnerability check result' })
+  async queryPackage(
+    @Query('name') packageName: string,
+    @Query('version') version?: string
+  ): Promise<{ packageName: string; version?: string; vulnerabilities: any[]; message: string }> {
+    if (!packageName) {
+      return { packageName: '', vulnerabilities: [], message: 'Package name required' };
+    }
+
+    try {
+      // Create a temporary package.json to scan
+      const tempDir = path.join(require('os').tmpdir(), `trivy-scan-${Date.now()}`);
+      fs.mkdirSync(tempDir, { recursive: true });
+
+      const packageJson = {
+        name: 'temp-scan',
+        version: '1.0.0',
+        dependencies: {
+          [packageName]: version || '*',
+        },
+      };
+
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(packageJson, null, 2));
+
+      // Run trivy fs scan with skip-db-update to prevent downloading
+      const result = await execAsync(
+        `trivy fs --cache-dir "${this.dbPath}" --skip-db-update --format json "${tempDir}"`,
+        { timeout: 30000 }
+      );
+
+      // Clean up
+      fs.rmSync(tempDir, { recursive: true, force: true });
+
+      const scanResult = JSON.parse(result.stdout);
+      const vulnerabilities = scanResult.Results?.[0]?.Vulnerabilities || [];
+
+      return {
+        packageName,
+        version,
+        vulnerabilities: vulnerabilities.slice(0, 20), // Limit to 20 results
+        message: vulnerabilities.length > 0
+          ? `${vulnerabilities.length}개의 취약점 발견`
+          : '취약점이 발견되지 않았습니다.',
+      };
+    } catch (error) {
+      return {
+        packageName,
+        version,
+        vulnerabilities: [],
+        message: `스캔 실패: ${error.message}`,
+      };
+    }
+  }
+
+  @Get('query/recent')
+  @ApiOperation({ summary: 'Get recent critical vulnerabilities' })
+  @ApiQuery({ name: 'severity', required: false, description: 'Minimum severity (CRITICAL, HIGH, MEDIUM, LOW)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of results (default: 10)' })
+  @ApiResponse({ status: 200, description: 'Recent vulnerabilities list' })
+  async getRecentVulnerabilities(
+    @Query('severity') severity?: string,
+    @Query('limit') limit?: string
+  ): Promise<{ vulnerabilities: any[]; message: string }> {
+    const maxLimit = Math.min(parseInt(limit || '10', 10), 50);
+    const severityFilter = (severity || 'CRITICAL,HIGH').toUpperCase();
+
+    try {
+      // Scan current project with skip-db-update to prevent downloading
+      const result = await execAsync(
+        `trivy fs --cache-dir "${this.dbPath}" --skip-db-update --format json --severity ${severityFilter} --skip-dirs node_modules .`,
+        { timeout: 60000, cwd: path.resolve(this.dbPath, '..') }
+      );
+
+      const scanResult = JSON.parse(result.stdout);
+      let allVulns: any[] = [];
+
+      for (const target of scanResult.Results || []) {
+        if (target.Vulnerabilities) {
+          allVulns = allVulns.concat(target.Vulnerabilities.map((v: any) => ({
+            ...v,
+            target: target.Target,
+            type: target.Type,
+          })));
+        }
+      }
+
+      // Sort by severity and limit
+      const severityOrder: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, UNKNOWN: 4 };
+      allVulns.sort((a, b) => (severityOrder[a.Severity] ?? 4) - (severityOrder[b.Severity] ?? 4));
+
+      return {
+        vulnerabilities: allVulns.slice(0, maxLimit),
+        message: `${allVulns.length}개 취약점 중 상위 ${Math.min(allVulns.length, maxLimit)}개 표시`,
+      };
+    } catch (error) {
+      return {
+        vulnerabilities: [],
+        message: `조회 실패: ${error.message}`,
+      };
     }
   }
 }
