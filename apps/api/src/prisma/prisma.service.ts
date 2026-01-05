@@ -1,10 +1,12 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaService
     extends PrismaClient
     implements OnModuleInit, OnModuleDestroy {
+    private readonly logger = new Logger(PrismaService.name);
+
     constructor() {
         super({
             log:
@@ -15,15 +17,25 @@ export class PrismaService
     }
 
     async onModuleInit() {
-        await this.$connect();
+        this.logger.log('Connecting to database...');
+        try {
+            await this.$connect();
+            this.logger.log('✅ Database connected successfully');
+        } catch (error) {
+            this.logger.error(`❌ Database connection failed: ${error.message}`, error.stack);
+            throw error;
+        }
     }
 
     async onModuleDestroy() {
+        this.logger.log('Disconnecting from database...');
         await this.$disconnect();
+        this.logger.log('Database disconnected');
     }
 
     async cleanDatabase() {
         if (process.env.NODE_ENV !== 'production') {
+            this.logger.warn('Cleaning database...');
             // Delete in order due to foreign key constraints
             await this.vulnerabilityComment.deleteMany();
             await this.scanVulnerability.deleteMany();
@@ -40,7 +52,7 @@ export class PrismaService
             await this.user.deleteMany();
             await this.organization.deleteMany();
             await this.auditLog.deleteMany();
+            this.logger.warn('Database cleaned');
         }
     }
 }
-

@@ -304,13 +304,27 @@ export class AuthService {
     }
 
     async validateUser(userId: string) {
-        return this.prisma.user.findUnique({
-            where: { id: userId },
-            include: {
-                roles: true,
-                organization: true,
-            },
-        });
+        this.logger.debug(`Validating user: ${userId}`);
+        try {
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+                include: {
+                    roles: true,
+                    organization: true,
+                },
+            });
+            
+            if (user) {
+                this.logger.debug(`User found: ${user.email}, active: ${user.isActive}`);
+            } else {
+                this.logger.warn(`User not found: ${userId}`);
+            }
+            
+            return user;
+        } catch (error) {
+            this.logger.error(`Error fetching user ${userId}: ${error.message}`, error.stack);
+            throw error;
+        }
     }
 
     async validateApiKey(tokenHash: string) {
