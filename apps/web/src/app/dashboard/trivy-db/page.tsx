@@ -145,6 +145,9 @@ export default function TrivyDbPage() {
   const [uploadStatus, setUploadStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadSpeed, setUploadSpeed] = useState<string>('');
+  const [uploadEta, setUploadEta] = useState<string>('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Query state
@@ -204,11 +207,19 @@ export default function TrivyDbPage() {
     }
   };
 
+  // Handle file selection (for preview before upload)
+  const handleFileSelect = (files: FileList) => {
+    setSelectedFiles(Array.from(files));
+    setUploadStatus(null);
+  };
+
   // Handle file upload with progress tracking
-  const handleFileUpload = async (files: FileList) => {
+  const handleFileUpload = async () => {
+    if (selectedFiles.length === 0) return;
+    
     const formData = new FormData();
     let totalSize = 0;
-    Array.from(files).forEach((file) => {
+    selectedFiles.forEach((file) => {
       formData.append('files', file);
       totalSize += file.size;
     });
@@ -216,19 +227,53 @@ export default function TrivyDbPage() {
     setIsUploading(true);
     setUploadProgress(0);
     setUploadStatus(null);
+    setUploadSpeed('');
+    setUploadEta('');
 
     // Use XMLHttpRequest for progress tracking
     const xhr = new XMLHttpRequest();
+    let startTime = Date.now();
+    let lastLoaded = 0;
+    let lastTime = startTime;
     
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
         const progress = Math.round((e.loaded / e.total) * 100);
         setUploadProgress(progress);
+        
+        // Calculate speed and ETA
+        const now = Date.now();
+        const timeDiff = (now - lastTime) / 1000; // seconds
+        if (timeDiff > 0.5) { // Update every 0.5 seconds
+          const bytesPerSec = (e.loaded - lastLoaded) / timeDiff;
+          const remaining = e.total - e.loaded;
+          const etaSeconds = remaining / bytesPerSec;
+          
+          // Format speed
+          if (bytesPerSec > 1024 * 1024) {
+            setUploadSpeed(`${(bytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`);
+          } else if (bytesPerSec > 1024) {
+            setUploadSpeed(`${(bytesPerSec / 1024).toFixed(1)} KB/s`);
+          } else {
+            setUploadSpeed(`${bytesPerSec.toFixed(0)} B/s`);
+          }
+          
+          // Format ETA
+          if (etaSeconds > 60) {
+            setUploadEta(`약 ${Math.ceil(etaSeconds / 60)}분 남음`);
+          } else if (etaSeconds > 0) {
+            setUploadEta(`약 ${Math.ceil(etaSeconds)}초 남음`);
+          }
+          
+          lastLoaded = e.loaded;
+          lastTime = now;
+        }
       }
     });
 
     xhr.addEventListener('load', () => {
       setIsUploading(false);
+      setSelectedFiles([]);
       try {
         const result = JSON.parse(xhr.responseText);
         setUploadStatus({
@@ -1168,7 +1213,7 @@ export default function TrivyDbPage() {
                 e.stopPropagation();
                 e.currentTarget.classList.remove('border-indigo-500', 'bg-indigo-500/10');
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  handleFileUpload(e.dataTransfer.files);
+                  handleFileSelect(e.dataTransfer.files);
                 }
               }}
             >
@@ -1178,7 +1223,7 @@ export default function TrivyDbPage() {
                 accept=".db,.json"
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {
-                    handleFileUpload(e.target.files);
+                    handleFileSelect(e.target.files);
                   }
                 }}
                 className="hidden"
@@ -1191,21 +1236,60 @@ export default function TrivyDbPage() {
               </label>
             </div>
 
+            {/* Selected Files Preview */}
+            {selectedFiles.length > 0 && !isUploading && (
+              <div className="mb-4 p-3 bg-slate-700/50 rounded-lg">
+                <p className="text-slate-400 text-sm mb-2">선택된 파일 ({selectedFiles.length}개):</p>
+                <div className="space-y-1">
+                  {selectedFiles.map((file, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-white">{file.name}</span>
+                      <span className="text-slate-400">{formatSize(file.size)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-600">
+                  <span className="text-slate-400 text-sm">총 크기:</span>
+                  <span className="text-indigo-400 font-medium">
+                    {formatSize(selectedFiles.reduce((acc, f) => acc + f.size, 0))}
+                  </span>
+                </div>
+                <button
+                  onClick={handleFileUpload}
+                  className="w-full mt-3 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  업로드 시작
+                </button>
+              </div>
+            )}
+
             {/* Upload Progress */}
             {isUploading && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-slate-300">업로드 중...</span>
-                  <span className="text-indigo-400 font-medium">{uploadProgress}%</span>
+              <div className="mb-4 p-4 bg-slate-700/30 rounded-lg">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-slate-300 flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    업로드 중...
+                  </span>
+                  <span className="text-indigo-400 font-bold text-lg">{uploadProgress}%</span>
                 </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-3 bg-slate-700 rounded-full overflow-hidden mb-2">
                   <div 
-                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-300 animate-pulse"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-slate-500 text-xs mt-1">
-                  대용량 파일은 시간이 걸릴 수 있습니다. 창을 닫지 마세요.
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">
+                    {uploadSpeed && `속도: ${uploadSpeed}`}
+                  </span>
+                  <span className="text-slate-400">
+                    {uploadEta && uploadEta}
+                  </span>
+                </div>
+                <p className="text-slate-500 text-xs mt-2 text-center">
+                  ⚠️ 대용량 파일은 시간이 걸릴 수 있습니다. 창을 닫지 마세요.
                 </p>
               </div>
             )}
@@ -1221,10 +1305,15 @@ export default function TrivyDbPage() {
                 onClick={() => {
                   setShowUploadModal(false);
                   setUploadStatus(null);
+                  setSelectedFiles([]);
+                  setUploadProgress(0);
+                  setUploadSpeed('');
+                  setUploadEta('');
                 }}
-                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                disabled={isUploading}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
               >
-                닫기
+                {isUploading ? '업로드 중...' : '닫기'}
               </button>
             </div>
           </div>
