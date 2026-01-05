@@ -47,7 +47,7 @@ export class StatsService {
         };
 
         for (const v of vulnsWithSeverity) {
-            const severity = v.vulnerability.severity.toLowerCase();
+            const severity = v.vulnerability?.severity?.toLowerCase() || 'unknown';
             if (severity === 'critical') severityCounts.critical++;
             else if (severity === 'high') severityCounts.high++;
             else if (severity === 'medium') severityCounts.medium++;
@@ -131,7 +131,7 @@ export class StatsService {
 
             const entry = byDate.get(dateKey)!;
             for (const sv of scan.vulnerabilities) {
-                const severity = sv.vulnerability.severity.toLowerCase();
+                const severity = sv.vulnerability?.severity?.toLowerCase() || 'unknown';
                 if (severity === 'critical') entry.critical++;
                 else if (severity === 'high') entry.high++;
                 else if (severity === 'medium') entry.medium++;

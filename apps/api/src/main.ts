@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { json, urlencoded } from 'express';
 
 async function bootstrap() {
@@ -22,6 +23,8 @@ async function bootstrap() {
             forbidNonWhitelisted: true,
         }),
     );
+    // Global Exception Filter
+    app.useGlobalFilters(new AllExceptionsFilter());
 
     // CORS
     app.enableCors({
