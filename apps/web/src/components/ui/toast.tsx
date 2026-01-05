@@ -1,219 +1,170 @@
 'use client';
 
-import * as React from 'react';
-import { createPortal } from 'react-dom';
-import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
+import { X, CheckCircle, AlertTriangle, Info, XCircle } from 'lucide-react';
 
-// ============================================
-// Toast Types
-// ============================================
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+type ToastType = 'success' | 'error' | 'warning' | 'info';
 
-export interface Toast {
+interface Toast {
     id: string;
     type: ToastType;
     title: string;
-    description?: string;
+    message?: string;
     duration?: number;
 }
 
-// ============================================
-// Toast Context
-// ============================================
-interface ToastContextType {
+interface ToastStore {
     toasts: Toast[];
     addToast: (toast: Omit<Toast, 'id'>) => void;
     removeToast: (id: string) => void;
 }
 
-const ToastContext = React.createContext<ToastContextType | null>(null);
+// Simple in-memory store
+let toasts: Toast[] = [];
+let listeners: ((toasts: Toast[]) => void)[] = [];
 
-export function useToast() {
-    const context = React.useContext(ToastContext);
-    if (!context) {
-        throw new Error('useToast must be used within a ToastProvider');
-    }
-    return context;
-}
+const notify = () => {
+    listeners.forEach(listener => listener(toasts));
+};
 
-// Helper functions for easier toast creation
-export function useToastHelpers() {
-    const { addToast } = useToast();
-
-    return {
-        success: (title: string, description?: string) =>
-            addToast({ type: 'success', title, description }),
-        error: (title: string, description?: string) =>
-            addToast({ type: 'error', title, description }),
-        warning: (title: string, description?: string) =>
-            addToast({ type: 'warning', title, description }),
-        info: (title: string, description?: string) =>
-            addToast({ type: 'info', title, description }),
-    };
-}
-
-// ============================================
-// Toast Provider
-// ============================================
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-    const [toasts, setToasts] = React.useState<Toast[]>([]);
-    const [mounted, setMounted] = React.useState(false);
-
-    React.useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    const addToast = React.useCallback((toast: Omit<Toast, 'id'>) => {
-        const id = Math.random().toString(36).substr(2, 9);
-        const newToast = { ...toast, id, duration: toast.duration ?? 5000 };
-
-        setToasts((prev) => [...prev, newToast]);
-
-        // Auto dismiss
-        if (newToast.duration > 0) {
+export const toast = {
+    show: (toast: Omit<Toast, 'id'>) => {
+        const id = Date.now().toString();
+        toasts = [...toasts, { ...toast, id }];
+        notify();
+        
+        // Auto remove after duration
+        const duration = toast.duration ?? 5000;
+        if (duration > 0) {
             setTimeout(() => {
-                setToasts((prev) => prev.filter((t) => t.id !== id));
-            }, newToast.duration);
+                toasts = toasts.filter(t => t.id !== id);
+                notify();
+            }, duration);
         }
-    }, []);
-
-    const removeToast = React.useCallback((id: string) => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, []);
-
-    return (
-        <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
-            {children}
-            {mounted && createPortal(
-                <ToastContainer toasts={toasts} onRemove={removeToast} />,
-                document.body
-            )}
-        </ToastContext.Provider>
-    );
-}
-
-// ============================================
-// Toast Container
-// ============================================
-function ToastContainer({
-    toasts,
-    onRemove
-}: {
-    toasts: Toast[];
-    onRemove: (id: string) => void
-}) {
-    if (toasts.length === 0) return null;
-
-    return (
-        <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full">
-            {toasts.map((toast) => (
-                <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
-            ))}
-        </div>
-    );
-}
-
-// ============================================
-// Toast Item
-// ============================================
-const typeStyles: Record<ToastType, { bg: string; icon: React.ReactNode }> = {
-    success: {
-        bg: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800',
-        icon: <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />,
     },
-    error: {
-        bg: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800',
-        icon: <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />,
+    success: (title: string, message?: string) => {
+        toast.show({ type: 'success', title, message });
     },
-    warning: {
-        bg: 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800',
-        icon: <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />,
+    error: (title: string, message?: string) => {
+        toast.show({ type: 'error', title, message });
     },
-    info: {
-        bg: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800',
-        icon: <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
+    warning: (title: string, message?: string) => {
+        toast.show({ type: 'warning', title, message });
+    },
+    info: (title: string, message?: string) => {
+        toast.show({ type: 'info', title, message });
+    },
+    remove: (id: string) => {
+        toasts = toasts.filter(t => t.id !== id);
+        notify();
     },
 };
 
-function ToastItem({
-    toast,
-    onRemove
-}: {
-    toast: Toast;
-    onRemove: (id: string) => void
-}) {
-    const style = typeStyles[toast.type];
+function getToastStyles(type: ToastType) {
+    switch (type) {
+        case 'success':
+            return {
+                bg: 'bg-green-50 dark:bg-green-900/20',
+                border: 'border-green-200 dark:border-green-800',
+                icon: <CheckCircle className="h-5 w-5 text-green-500" />,
+            };
+        case 'error':
+            return {
+                bg: 'bg-red-50 dark:bg-red-900/20',
+                border: 'border-red-200 dark:border-red-800',
+                icon: <XCircle className="h-5 w-5 text-red-500" />,
+            };
+        case 'warning':
+            return {
+                bg: 'bg-yellow-50 dark:bg-yellow-900/20',
+                border: 'border-yellow-200 dark:border-yellow-800',
+                icon: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
+            };
+        case 'info':
+            return {
+                bg: 'bg-blue-50 dark:bg-blue-900/20',
+                border: 'border-blue-200 dark:border-blue-800',
+                icon: <Info className="h-5 w-5 text-blue-500" />,
+            };
+    }
+}
 
+function ToastItem({ toast: t, onRemove }: { toast: Toast; onRemove: () => void }) {
+    const styles = getToastStyles(t.type);
+    
     return (
         <div
-            className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg animate-in slide-in-from-right fade-in duration-300 ${style.bg}`}
-            role="alert"
+            className={`
+                flex items-start gap-3 p-4 rounded-xl border shadow-lg
+                ${styles.bg} ${styles.border}
+                animate-in slide-in-from-right duration-300
+            `}
         >
-            <div className="flex-shrink-0">{style.icon}</div>
+            <div className="flex-shrink-0">{styles.icon}</div>
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 dark:text-white">
-                    {toast.title}
-                </p>
-                {toast.description && (
-                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                        {toast.description}
+                <p className="font-medium text-slate-900 dark:text-white">{t.title}</p>
+                {t.message && (
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                        {t.message}
                     </p>
                 )}
             </div>
             <button
-                onClick={() => onRemove(toast.id)}
-                className="flex-shrink-0 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                aria-label="Dismiss"
+                onClick={onRemove}
+                className="flex-shrink-0 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded"
             >
-                <X className="h-4 w-4 text-slate-400" />
+                <X className="h-4 w-4" />
             </button>
         </div>
     );
 }
 
-// ============================================
-// Standalone Toast (without provider)
-// ============================================
-export interface StandaloneToastProps {
-    type: ToastType;
-    title: string;
-    description?: string;
-    onClose?: () => void;
-}
+export function ToastContainer() {
+    const [currentToasts, setCurrentToasts] = useState<Toast[]>([]);
 
-export function StandaloneToast({
-    type,
-    title,
-    description,
-    onClose
-}: StandaloneToastProps) {
-    const style = typeStyles[type];
+    useEffect(() => {
+        const listener = (newToasts: Toast[]) => {
+            setCurrentToasts([...newToasts]);
+        };
+        listeners.push(listener);
+        return () => {
+            listeners = listeners.filter(l => l !== listener);
+        };
+    }, []);
+
+    if (currentToasts.length === 0) return null;
 
     return (
-        <div
-            className={`flex items-start gap-3 p-4 rounded-lg border ${style.bg}`}
-            role="alert"
-        >
-            <div className="flex-shrink-0">{style.icon}</div>
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 dark:text-white">
-                    {title}
-                </p>
-                {description && (
-                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                        {description}
-                    </p>
-                )}
-            </div>
-            {onClose && (
-                <button
-                    onClick={onClose}
-                    className="flex-shrink-0 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                    aria-label="Dismiss"
-                >
-                    <X className="h-4 w-4 text-slate-400" />
-                </button>
-            )}
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-3 max-w-md">
+            {currentToasts.map(t => (
+                <ToastItem
+                    key={t.id}
+                    toast={t}
+                    onRemove={() => toast.remove(t.id)}
+                />
+            ))}
         </div>
     );
 }
+
+// Hook for using toast
+export function useToast() {
+    return {
+        success: toast.success,
+        error: toast.error,
+        warning: toast.warning,
+        info: toast.info,
+        show: toast.show,
+    };
+}
+
+// ToastProvider wrapper - includes ToastContainer
+export function ToastProvider({ children }: { children: ReactNode }) {
+    return (
+        <>
+            {children}
+            <ToastContainer />
+        </>
+    );
+}
+
