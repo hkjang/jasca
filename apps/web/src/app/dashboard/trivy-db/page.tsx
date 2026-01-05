@@ -19,7 +19,13 @@ import {
   Calendar,
   CheckCircle2,
   XCircle,
-  FolderOpen
+  FolderOpen,
+  Upload,
+  Search,
+  BarChart3,
+  ExternalLink,
+  Copy,
+  Activity
 } from 'lucide-react';
 
 // Trivy DB Schema ERD definition
@@ -131,10 +137,13 @@ interface DbMetadata {
 export default function TrivyDbPage() {
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'erd' | 'types' | 'sources' | 'files'>('erd');
+  const [activeTab, setActiveTab] = useState<'erd' | 'files' | 'stats' | 'types' | 'sources'>('erd');
   const [svgContent, setSvgContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Live DB info state
   const [dbInfo, setDbInfo] = useState<{
@@ -144,8 +153,17 @@ export default function TrivyDbPage() {
     files: { name: string; size: number; lastModified: string }[];
     totalSize: number;
     location: string;
+    trivyVersion: string | null;
+    isHealthy: boolean;
   } | null>(null);
   const [isDbLoading, setIsDbLoading] = useState(true);
+
+  // Stats state
+  const [stats, setStats] = useState<{
+    sources: { name: string; count: number }[];
+    totalVulnerabilities: number;
+    lastUpdated: string | null;
+  } | null>(null);
 
   // Fetch live DB info from API
   const fetchDbInfo = async (showRefresh = false) => {
@@ -164,8 +182,50 @@ export default function TrivyDbPage() {
     }
   };
 
+  // Fetch stats
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/trivy-db/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (files: FileList) => {
+    const formData = new FormData();
+    Array.from(files).forEach((file) => {
+      formData.append('files', file);
+    });
+
+    try {
+      const res = await fetch('/api/trivy-db/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await res.json();
+      setUploadStatus({
+        success: result.success,
+        message: result.success 
+          ? `업로드 완료: ${result.uploaded.join(', ')}`
+          : `오류: ${result.errors.join(', ')}`,
+      });
+      if (result.success) {
+        fetchDbInfo(true);
+        fetchStats();
+      }
+    } catch (error) {
+      setUploadStatus({ success: false, message: '업로드 실패' });
+    }
+  };
+
   useEffect(() => {
     fetchDbInfo();
+    fetchStats();
   }, []);
 
   // Render Mermaid diagram
@@ -284,6 +344,13 @@ export default function TrivyDbPage() {
               GitHub
             </a>
             <button
+              onClick={() => setShowUploadModal(true)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              DB 업로드
+            </button>
+            <button
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg flex items-center gap-2 transition-colors"
               onClick={() => {
                 // Trigger download script info
@@ -357,8 +424,8 @@ export default function TrivyDbPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 mb-4">
-        {(['erd', 'files', 'types', 'sources'] as const).map((tab) => (
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {(['erd', 'files', 'stats', 'types', 'sources'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -370,6 +437,7 @@ export default function TrivyDbPage() {
           >
             {tab === 'erd' && 'ERD 다이어그램'}
             {tab === 'files' && 'DB 파일'}
+            {tab === 'stats' && '취약점 통계'}
             {tab === 'types' && '타입 정의'}
             {tab === 'sources' && '데이터 소스'}
           </button>
@@ -699,6 +767,180 @@ export default function TrivyDbPage() {
                 <p className="text-slate-500 text-sm truncate mt-1">{source.url}</p>
               </a>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stats Tab Content */}
+      {activeTab === 'stats' && (
+        <div className="space-y-6">
+          {/* Overview Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-br from-indigo-600/20 to-purple-600/20 backdrop-blur border border-indigo-500/30 rounded-xl p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-indigo-500/30 rounded-xl">
+                  <Activity className="w-8 h-8 text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm">총 취약점 수</p>
+                  <p className="text-3xl font-bold text-white">
+                    {stats?.totalVulnerabilities?.toLocaleString() ?? '---'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur border border-green-500/30 rounded-xl p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-500/30 rounded-xl">
+                  <Server className="w-8 h-8 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm">Trivy 버전</p>
+                  <p className="text-xl font-bold text-white">
+                    {dbInfo?.trivyVersion ?? 'N/A'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-orange-600/20 to-red-600/20 backdrop-blur border border-orange-500/30 rounded-xl p-6">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${dbInfo?.isHealthy ? 'bg-green-500/30' : 'bg-red-500/30'}`}>
+                  {dbInfo?.isHealthy ? (
+                    <CheckCircle2 className="w-8 h-8 text-green-400" />
+                  ) : (
+                    <XCircle className="w-8 h-8 text-red-400" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm">DB 상태</p>
+                  <p className={`text-xl font-bold ${dbInfo?.isHealthy ? 'text-green-400' : 'text-red-400'}`}>
+                    {dbInfo?.isHealthy ? '정상' : '문제 있음'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Source Distribution */}
+          <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-indigo-400" />
+              데이터 소스별 취약점 분포 (추정)
+            </h3>
+            <div className="space-y-4">
+              {stats?.sources?.map((source, index) => {
+                const maxCount = Math.max(...(stats.sources?.map(s => s.count) || [1]));
+                const percentage = maxCount > 0 ? (source.count / maxCount) * 100 : 0;
+                const colors = [
+                  'bg-indigo-500', 'bg-red-500', 'bg-blue-500', 'bg-orange-500',
+                  'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'
+                ];
+                return (
+                  <div key={index} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">{source.name}</span>
+                      <span className="text-slate-400">{source.count.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${colors[index % colors.length]} rounded-full transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-slate-500 text-xs mt-4">
+              * 통계는 DB 파일 크기를 기반으로 추정한 값입니다.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Upload className="w-5 h-5 text-green-400" />
+                Trivy DB 파일 업로드
+              </h3>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadStatus(null);
+                }}
+                className="text-slate-400 hover:text-white"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-slate-400 text-sm mb-4">
+              오프라인 환경에서 Trivy DB를 수동으로 업로드할 수 있습니다.
+              다음 파일들을 업로드하세요:
+            </p>
+            
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center gap-2 text-slate-300 text-sm">
+                <HardDrive className="w-4 h-4 text-indigo-400" />
+                <code>trivy.db</code> (필수)
+              </div>
+              <div className="flex items-center gap-2 text-slate-300 text-sm">
+                <HardDrive className="w-4 h-4 text-indigo-400" />
+                <code>metadata.json</code> (필수)
+              </div>
+              <div className="flex items-center gap-2 text-slate-300 text-sm">
+                <HardDrive className="w-4 h-4 text-orange-400" />
+                <code>trivy-java.db</code> (선택)
+              </div>
+              <div className="flex items-center gap-2 text-slate-300 text-sm">
+                <HardDrive className="w-4 h-4 text-orange-400" />
+                <code>java-metadata.json</code> (선택)
+              </div>
+            </div>
+
+            <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center mb-4 hover:border-indigo-500 transition-colors">
+              <input
+                type="file"
+                multiple
+                accept=".db,.json"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleFileUpload(e.target.files);
+                  }
+                }}
+                className="hidden"
+                id="db-upload"
+              />
+              <label htmlFor="db-upload" className="cursor-pointer">
+                <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <p className="text-slate-300">클릭하여 파일 선택</p>
+                <p className="text-slate-500 text-sm">또는 파일을 여기에 드래그</p>
+              </label>
+            </div>
+
+            {uploadStatus && (
+              <div className={`p-3 rounded-lg mb-4 ${uploadStatus.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                {uploadStatus.message}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadStatus(null);
+                }}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              >
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}
