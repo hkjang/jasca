@@ -14,6 +14,11 @@ import {
     Camera,
     AlertTriangle,
     RefreshCw,
+    X,
+    Eye,
+    EyeOff,
+    Copy,
+    Check,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -22,6 +27,477 @@ import {
     useNotificationSettings as useNotificationSettingsApi,
     useUpdateNotificationSettings,
 } from '@/lib/api-hooks';
+import { authApi } from '@/lib/auth-api';
+
+// Password Change Modal Component
+function PasswordChangeModal({
+    isOpen,
+    onClose,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+}) {
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showCurrent, setShowCurrent] = useState(false);
+    const [showNew, setShowNew] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (newPassword !== confirmPassword) {
+            setError('새 비밀번호가 일치하지 않습니다.');
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setError('비밀번호는 8자 이상이어야 합니다.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await authApi.changePassword(currentPassword, newPassword);
+            setSuccess(true);
+            setTimeout(() => {
+                onClose();
+                setSuccess(false);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+            }, 2000);
+        } catch (err: any) {
+            setError(err.message || '비밀번호 변경에 실패했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                        비밀번호 변경
+                    </h3>
+                    <button
+                        onClick={onClose}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                {success ? (
+                    <div className="flex flex-col items-center py-8">
+                        <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
+                        <p className="text-lg font-medium text-slate-900 dark:text-white">
+                            비밀번호가 변경되었습니다
+                        </p>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {error && (
+                            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+                                {error}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                현재 비밀번호
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showCurrent ? 'text' : 'password'}
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCurrent(!showCurrent)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                새 비밀번호
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showNew ? 'text' : 'password'}
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNew(!showNew)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                새 비밀번호 확인
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showConfirm ? 'text' : 'password'}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 pr-10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirm(!showConfirm)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                취소
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                변경
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// MFA Management Modal Component
+function MfaModal({
+    isOpen,
+    onClose,
+    isMfaEnabled,
+    onMfaChange,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    isMfaEnabled: boolean;
+    onMfaChange: () => void;
+}) {
+    const [step, setStep] = useState<'idle' | 'setup' | 'verify' | 'success' | 'disable'>('idle');
+    const [qrCodeUrl, setQrCodeUrl] = useState('');
+    const [secret, setSecret] = useState('');
+    const [code, setCode] = useState('');
+    const [backupCodes, setBackupCodes] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setStep('idle');
+            setCode('');
+            setError('');
+        }
+    }, [isOpen]);
+
+    const handleSetup = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const result = await authApi.setupMfa();
+            setQrCodeUrl(result.qrCodeUrl);
+            setSecret(result.secret);
+            setStep('setup');
+        } catch (err: any) {
+            setError(err.message || 'MFA 설정에 실패했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEnable = async () => {
+        if (code.length !== 6) {
+            setError('6자리 코드를 입력해주세요.');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        try {
+            const result = await authApi.enableMfa(code);
+            if (result.success) {
+                if (result.backupCodes) {
+                    setBackupCodes(result.backupCodes);
+                }
+                setStep('success');
+                onMfaChange();
+            } else {
+                setError(result.message || '코드가 올바르지 않습니다.');
+            }
+        } catch (err: any) {
+            setError(err.message || 'MFA 활성화에 실패했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDisable = async () => {
+        if (code.length !== 6) {
+            setError('6자리 코드를 입력해주세요.');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        try {
+            const result = await authApi.disableMfa(code);
+            if (result.success) {
+                onMfaChange();
+                onClose();
+            } else {
+                setError(result.message || '코드가 올바르지 않습니다.');
+            }
+        } catch (err: any) {
+            setError(err.message || 'MFA 비활성화에 실패했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const copySecret = () => {
+        navigator.clipboard.writeText(secret);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                        2단계 인증 (MFA) 관리
+                    </h3>
+                    <button
+                        onClick={onClose}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+                        {error}
+                    </div>
+                )}
+
+                {step === 'idle' && !isMfaEnabled && (
+                    <div className="text-center py-4">
+                        <Shield className="h-16 w-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                        <p className="text-slate-600 dark:text-slate-400 mb-6">
+                            2단계 인증을 활성화하면 로그인 시 추가 보안 코드가 필요합니다.
+                        </p>
+                        <button
+                            onClick={handleSetup}
+                            disabled={loading}
+                            className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                            2단계 인증 설정하기
+                        </button>
+                    </div>
+                )}
+
+                {step === 'idle' && isMfaEnabled && (
+                    <div className="text-center py-4">
+                        <div className="flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                                <Shield className="h-8 w-8 text-green-600" />
+                            </div>
+                        </div>
+                        <p className="text-green-600 font-medium mb-2">2단계 인증이 활성화되어 있습니다</p>
+                        <p className="text-slate-500 text-sm mb-6">
+                            비활성화하려면 인증 앱의 코드를 입력하세요.
+                        </p>
+                        <button
+                            onClick={() => setStep('disable')}
+                            className="w-full px-4 py-2 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                            2단계 인증 비활성화
+                        </button>
+                    </div>
+                )}
+
+                {step === 'setup' && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                            Google Authenticator 또는 다른 TOTP 앱으로 아래 QR 코드를 스캔하세요.
+                        </p>
+                        
+                        {qrCodeUrl && (
+                            <div className="flex justify-center p-4 bg-white rounded-lg">
+                                <img src={qrCodeUrl} alt="MFA QR Code" className="w-48 h-48" />
+                            </div>
+                        )}
+
+                        <div className="text-center">
+                            <p className="text-xs text-slate-500 mb-1">또는 수동으로 입력:</p>
+                            <div className="flex items-center justify-center gap-2">
+                                <code className="text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded font-mono">
+                                    {secret}
+                                </code>
+                                <button
+                                    onClick={copySecret}
+                                    className="text-slate-400 hover:text-slate-600"
+                                >
+                                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setStep('verify')}
+                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            다음
+                        </button>
+                    </div>
+                )}
+
+                {step === 'verify' && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                            인증 앱에 표시된 6자리 코드를 입력하세요.
+                        </p>
+                        
+                        <input
+                            type="text"
+                            value={code}
+                            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="000000"
+                            className="w-full text-center text-2xl tracking-widest bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            maxLength={6}
+                        />
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setStep('setup')}
+                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                이전
+                            </button>
+                            <button
+                                onClick={handleEnable}
+                                disabled={loading || code.length !== 6}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                활성화
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {step === 'disable' && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                            2단계 인증을 비활성화하려면 인증 앱의 코드를 입력하세요.
+                        </p>
+                        
+                        <input
+                            type="text"
+                            value={code}
+                            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="000000"
+                            className="w-full text-center text-2xl tracking-widest bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            maxLength={6}
+                        />
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setStep('idle')}
+                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleDisable}
+                                disabled={loading || code.length !== 6}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                            >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                비활성화
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {step === 'success' && (
+                    <div className="text-center py-4">
+                        <CheckCircle className="h-16 w-16 mx-auto text-green-500 mb-4" />
+                        <p className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                            2단계 인증이 활성화되었습니다
+                        </p>
+                        
+                        {backupCodes.length > 0 && (
+                            <div className="mt-4 text-left">
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                    백업 코드를 안전한 곳에 보관하세요:
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 p-3 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                                    {backupCodes.map((code, i) => (
+                                        <code key={i} className="text-sm font-mono text-center">
+                                            {code}
+                                        </code>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={onClose}
+                            className="mt-6 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            완료
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export default function ProfilePage() {
     const { user: authUser } = useAuthStore();
@@ -31,6 +507,8 @@ export default function ProfilePage() {
     const updateNotificationMutation = useUpdateNotificationSettings();
 
     const [saved, setSaved] = useState(false);
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+    const [mfaModalOpen, setMfaModalOpen] = useState(false);
 
     // Form states
     const [name, setName] = useState('');
@@ -220,10 +698,13 @@ export default function ProfilePage() {
                             <Key className="h-5 w-5 text-slate-400" />
                             <div>
                                 <p className="font-medium text-slate-900 dark:text-white">비밀번호 변경</p>
-                                <p className="text-sm text-slate-500">마지막 변경: 30일 전</p>
+                                <p className="text-sm text-slate-500">계정 비밀번호를 변경합니다</p>
                             </div>
                         </div>
-                        <button className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <button 
+                            onClick={() => setPasswordModalOpen(true)}
+                            className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
                             변경
                         </button>
                     </div>
@@ -238,7 +719,10 @@ export default function ProfilePage() {
                                 </p>
                             </div>
                         </div>
-                        <button className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <button 
+                            onClick={() => setMfaModalOpen(true)}
+                            className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
                             관리
                         </button>
                     </div>
@@ -289,6 +773,18 @@ export default function ProfilePage() {
                     저장되었습니다
                 </div>
             )}
+
+            {/* Modals */}
+            <PasswordChangeModal
+                isOpen={passwordModalOpen}
+                onClose={() => setPasswordModalOpen(false)}
+            />
+            <MfaModal
+                isOpen={mfaModalOpen}
+                onClose={() => setMfaModalOpen(false)}
+                isMfaEnabled={profile?.mfaEnabled ?? false}
+                onMfaChange={() => refetch()}
+            />
         </div>
     );
 }

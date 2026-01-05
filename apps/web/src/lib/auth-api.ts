@@ -225,6 +225,80 @@ class AuthApi {
 
         return response.json();
     }
+
+    // ==================== MFA ====================
+
+    async getMfaStatus(): Promise<{ enabled: boolean }> {
+        const response = await fetch(`${API_BASE}/auth/mfa/status`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to get MFA status');
+        }
+
+        return response.json();
+    }
+
+    async setupMfa(): Promise<{ secret: string; qrCodeUrl: string }> {
+        const response = await fetch(`${API_BASE}/auth/mfa/setup`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to setup MFA');
+        }
+
+        return response.json();
+    }
+
+    async enableMfa(code: string): Promise<{ success: boolean; message: string; backupCodes?: string[] }> {
+        const response = await fetch(`${API_BASE}/auth/mfa/enable`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ code }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to enable MFA');
+        }
+
+        return response.json();
+    }
+
+    async disableMfa(code: string): Promise<{ success: boolean; message: string }> {
+        const response = await fetch(`${API_BASE}/auth/mfa/disable`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ code }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to disable MFA');
+        }
+
+        return response.json();
+    }
+
+    async regenerateBackupCodes(code: string): Promise<{ success: boolean; backupCodes: string[] }> {
+        const response = await fetch(`${API_BASE}/auth/mfa/backup-codes`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ code }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to regenerate backup codes');
+        }
+
+        return response.json();
+    }
 }
 
 export const authApi = new AuthApi();
