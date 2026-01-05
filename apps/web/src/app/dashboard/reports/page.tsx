@@ -15,6 +15,9 @@ import {
     Eye,
     ChevronLeft,
     ChevronRight,
+    CheckSquare,
+    Square,
+    MinusSquare,
 } from 'lucide-react';
 import { useReports, useCreateReport, useDeleteReport, useUpdateReport, type Report, type ReportFilters as FiltersType } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
@@ -24,6 +27,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { ReportStatistics } from '@/components/reports/report-statistics';
 import { ReportFilters } from '@/components/reports/report-filters';
 import { ReportPreviewModal } from '@/components/reports/report-preview-modal';
+import { Clock, Repeat } from 'lucide-react';
 
 const reportTypes = [
     { id: 'vulnerability_summary', name: '취약점 요약', description: '프로젝트별 취약점 현황 요약' },
@@ -88,11 +92,22 @@ export default function ReportsPage() {
     const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv' | 'xlsx'>('pdf');
     const [reportName, setReportName] = useState('');
 
+    // Schedule state
+    const [enableSchedule, setEnableSchedule] = useState(false);
+    const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+    const [scheduleTime, setScheduleTime] = useState('09:00');
+    const [scheduleDay, setScheduleDay] = useState<number>(1); // Day of week (1-7) or day of month (1-31)
+
     const [editingReport, setEditingReport] = useState<Report | null>(null);
     const [editName, setEditName] = useState('');
     const [editFormat, setEditFormat] = useState<'pdf' | 'csv' | 'xlsx'>('pdf');
 
     const [previewReport, setPreviewReport] = useState<Report | null>(null);
+
+    // Batch selection state
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+    const [isBatchDownloading, setIsBatchDownloading] = useState(false);
 
     // AI Execution
     const {
@@ -152,14 +167,25 @@ export default function ReportsPage() {
     const handleCreate = async () => {
         if (!selectedType || !reportName) return;
         try {
+            const scheduleConfig = enableSchedule ? {
+                schedule: {
+                    enabled: true,
+                    frequency: scheduleFrequency,
+                    time: scheduleTime,
+                    day: scheduleDay,
+                }
+            } : {};
+
             await createMutation.mutateAsync({
                 name: reportName,
                 type: selectedType,
                 format: selectedFormat,
+                parameters: scheduleConfig,
             });
             setShowCreateForm(false);
             setSelectedType('');
             setReportName('');
+            setEnableSchedule(false);
         } catch (err) {
             console.error('Failed to create report:', err);
         }
@@ -194,6 +220,75 @@ export default function ReportsPage() {
             console.error('Failed to update report:', err);
         }
     };
+
+    // Batch selection handlers
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const toggleAllSelection = () => {
+        if (selectedIds.size === reports.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(reports.map(r => r.id)));
+        }
+    };
+
+    const handleBatchDelete = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`선택한 ${selectedIds.size}개의 리포트를 삭제하시겠습니까?`)) return;
+
+        setIsBatchDeleting(true);
+        try {
+            for (const id of selectedIds) {
+                await deleteMutation.mutateAsync(id);
+            }
+            setSelectedIds(new Set());
+        } catch (err) {
+            console.error('Failed to batch delete reports:', err);
+            alert('일부 리포트 삭제에 실패했습니다.');
+        } finally {
+            setIsBatchDeleting(false);
+        }
+    };
+
+    const handleBatchDownload = async () => {
+        if (selectedIds.size === 0) return;
+
+        const downloadableReports = reports.filter(
+            r => selectedIds.has(r.id) && r.status === 'completed' && r.downloadUrl
+        );
+
+        if (downloadableReports.length === 0) {
+            alert('다운로드 가능한 리포트가 없습니다.');
+            return;
+        }
+
+        setIsBatchDownloading(true);
+        try {
+            for (const report of downloadableReports) {
+                await handleDownload(report);
+                // Small delay between downloads
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        } catch (err) {
+            console.error('Failed to batch download:', err);
+        } finally {
+            setIsBatchDownloading(false);
+        }
+    };
+
+    const selectedCount = selectedIds.size;
+    const allSelected = reports.length > 0 && selectedIds.size === reports.length;
+    const someSelected = selectedIds.size > 0 && selectedIds.size < reports.length;
 
     if (isLoading && !reportsData) {
         return (
@@ -305,6 +400,103 @@ export default function ReportsPage() {
                                 ))}
                             </div>
                         </div>
+
+                        {/* Schedule Options */}
+                        <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <Repeat className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                                    <span className="font-medium text-slate-900 dark:text-white">정기 생성 스케줄</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setEnableSchedule(!enableSchedule)}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enableSchedule ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enableSchedule ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+                            
+                            {enableSchedule && (
+                                <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                            반복 주기
+                                        </label>
+                                        <div className="flex gap-3">
+                                            {(['daily', 'weekly', 'monthly'] as const).map((freq) => (
+                                                <button
+                                                    key={freq}
+                                                    type="button"
+                                                    onClick={() => setScheduleFrequency(freq)}
+                                                    className={`px-4 py-2 rounded-lg border transition-colors ${scheduleFrequency === freq
+                                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                                        }`}
+                                                >
+                                                    {freq === 'daily' ? '매일' : freq === 'weekly' ? '매주' : '매월'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {scheduleFrequency === 'weekly' && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                                    요일
+                                                </label>
+                                                <select
+                                                    value={scheduleDay}
+                                                    onChange={(e) => setScheduleDay(parseInt(e.target.value))}
+                                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                                >
+                                                    <option value={1}>월요일</option>
+                                                    <option value={2}>화요일</option>
+                                                    <option value={3}>수요일</option>
+                                                    <option value={4}>목요일</option>
+                                                    <option value={5}>금요일</option>
+                                                    <option value={6}>토요일</option>
+                                                    <option value={0}>일요일</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                        {scheduleFrequency === 'monthly' && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                                    일
+                                                </label>
+                                                <select
+                                                    value={scheduleDay}
+                                                    onChange={(e) => setScheduleDay(parseInt(e.target.value))}
+                                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                                >
+                                                    {Array.from({ length: 28 }, (_, i) => (
+                                                        <option key={i + 1} value={i + 1}>{i + 1}일</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className={scheduleFrequency === 'daily' ? 'col-span-2' : ''}>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                                <Clock className="h-4 w-4 inline mr-1" />
+                                                시간
+                                            </label>
+                                            <input
+                                                type="time"
+                                                value={scheduleTime}
+                                                onChange={(e) => setScheduleTime(e.target.value)}
+                                                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        ℹ️ 스케줄이 설정되면 지정된 시간에 자동으로 리포트가 생성됩니다.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
                         <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
                             <button
                                 onClick={() => setShowCreateForm(false)}
@@ -414,10 +606,65 @@ export default function ReportsPage() {
                 </div>
             ) : (
                 <>
+                    {/* Batch Action Toolbar */}
+                    {selectedCount > 0 && (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center justify-between">
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                                {selectedCount}개 선택됨
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleBatchDownload}
+                                    disabled={isBatchDownloading}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
+                                >
+                                    {isBatchDownloading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Download className="h-4 w-4" />
+                                    )}
+                                    다운로드
+                                </button>
+                                <button
+                                    onClick={handleBatchDelete}
+                                    disabled={isBatchDeleting}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-red-700 dark:text-red-300 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                                >
+                                    {isBatchDeleting ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+                                    삭제
+                                </button>
+                                <button
+                                    onClick={() => setSelectedIds(new Set())}
+                                    className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                                >
+                                    선택 해제
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                         <table className="w-full">
                             <thead className="bg-slate-50 dark:bg-slate-700/50">
                                 <tr>
+                                    <th className="px-4 py-3 w-12">
+                                        <button
+                                            onClick={toggleAllSelection}
+                                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
+                                        >
+                                            {allSelected ? (
+                                                <CheckSquare className="h-5 w-5 text-blue-600" />
+                                            ) : someSelected ? (
+                                                <MinusSquare className="h-5 w-5 text-blue-600" />
+                                            ) : (
+                                                <Square className="h-5 w-5 text-slate-400" />
+                                            )}
+                                        </button>
+                                    </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                         리포트
                                     </th>
@@ -435,7 +682,19 @@ export default function ReportsPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                 {reports.map((report) => (
-                                    <tr key={report.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                    <tr key={report.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${selectedIds.has(report.id) ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}>
+                                        <td className="px-4 py-4 w-12">
+                                            <button
+                                                onClick={() => toggleSelection(report.id)}
+                                                className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
+                                            >
+                                                {selectedIds.has(report.id) ? (
+                                                    <CheckSquare className="h-5 w-5 text-blue-600" />
+                                                ) : (
+                                                    <Square className="h-5 w-5 text-slate-400" />
+                                                )}
+                                            </button>
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${report.format === 'pdf' ? 'bg-red-100 dark:bg-red-900/30' : report.format === 'csv' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
