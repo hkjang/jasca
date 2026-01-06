@@ -606,9 +606,11 @@ export interface Policy {
 export interface PolicyRule {
     id: string;
     ruleType: string;
+    operator?: string;
     condition: string;
     value: string;
     action: string;
+    sendNotification?: boolean;
 }
 
 export function usePolicies(organizationId?: string, projectId?: string) {

@@ -37,6 +37,7 @@ import {
     Info,
     Bell,
     BellOff,
+    Settings,
 } from 'lucide-react';
 import {
     usePolicies,
@@ -512,6 +513,50 @@ export default function AdminPoliciesPage() {
                                     <span className="font-medium text-blue-900 dark:text-blue-300">프로젝트 (Project)</span>
                                 </div>
                                 <p className="text-sm text-blue-700 dark:text-blue-400">특정 프로젝트에만 적용됩니다. 가장 구체적인 범위입니다.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Notification Integration */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Bell className="h-5 w-5 text-amber-600" />
+                            알림 연동
+                        </h2>
+                        <div className="space-y-4">
+                            <p className="text-slate-600 dark:text-slate-400">
+                                정책 규칙에 알림을 활성화하면, 해당 규칙이 위반될 때 설정된 채널(Slack, Email, Webhook 등)로 알림이 발송됩니다.
+                            </p>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                                    <h4 className="font-medium text-amber-900 dark:text-amber-300 mb-2 flex items-center gap-2">
+                                        <Bell className="h-4 w-4" />
+                                        규칙별 알림 설정
+                                    </h4>
+                                    <ul className="text-sm text-amber-700 dark:text-amber-400 space-y-1">
+                                        <li>• 규칙 추가 시 🔔 버튼으로 알림 활성화</li>
+                                        <li>• BLOCK, WARN 액션에 권장</li>
+                                        <li>• 규칙별로 개별 설정 가능</li>
+                                    </ul>
+                                </div>
+                                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                                    <h4 className="font-medium text-slate-900 dark:text-slate-300 mb-2">알림 채널 설정</h4>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                                        알림을 받으려면 먼저 알림 채널을 설정해야 합니다.
+                                    </p>
+                                    <a
+                                        href="/admin/notification-settings"
+                                        className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                                    >
+                                        <Settings className="h-4 w-4" />
+                                        알림 설정 바로가기
+                                    </a>
+                                </div>
+                            </div>
+                            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <p className="text-sm text-blue-700 dark:text-blue-400">
+                                    <strong>💡 팁:</strong> 알림 설정에서 "정책 위반" 이벤트를 활성화하면 모든 정책 위반 알림을 받을 수 있습니다.
+                                </p>
                             </div>
                         </div>
                     </div>

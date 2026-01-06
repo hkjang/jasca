@@ -31,13 +31,14 @@ import {
 } from '@/lib/api-hooks';
 
 const eventTypes = [
-    { id: 'NEW_CRITICAL_VULN', label: 'Critical 취약점 발견' },
-    { id: 'NEW_HIGH_VULN', label: 'High 취약점 발견' },
-    { id: 'SCAN_COMPLETED', label: '스캔 완료' },
-    { id: 'POLICY_VIOLATION', label: '정책 위반' },
-    { id: 'EXCEPTION_REQUESTED', label: '예외 요청' },
-    { id: 'EXCEPTION_APPROVED', label: '예외 승인' },
-    { id: 'EXCEPTION_EXPIRING', label: '예외 만료 임박' },
+    { id: 'NEW_CRITICAL_VULN', label: 'Critical 취약점 발견', category: '취약점' },
+    { id: 'NEW_HIGH_VULN', label: 'High 취약점 발견', category: '취약점' },
+    { id: 'SCAN_COMPLETED', label: '스캔 완료', category: '스캔' },
+    { id: 'POLICY_VIOLATION', label: '정책 위반 (차단/경고)', category: '정책' },
+    { id: 'POLICY_BLOCK', label: '정책 차단 발생', category: '정책' },
+    { id: 'EXCEPTION_REQUESTED', label: '예외 요청', category: '예외' },
+    { id: 'EXCEPTION_APPROVED', label: '예외 승인', category: '예외' },
+    { id: 'EXCEPTION_EXPIRING', label: '예외 만료 임박', category: '예외' },
 ];
 
 function getChannelIcon(type: string) {
@@ -240,12 +241,32 @@ export default function NotificationSettingsPage() {
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                     <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                         <h4 className="font-medium text-blue-900 dark:text-blue-200">알림 채널 설정</h4>
                         <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                             이메일, Slack, Mattermost, Webhook을 통해 보안 이벤트 알림을 받을 수 있습니다.
                             채널을 추가한 후 테스트 버튼으로 연결을 확인하세요.
                         </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Policy Integration Info */}
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                    <Settings className="h-5 w-5 text-amber-600 mt-0.5" />
+                    <div className="flex-1">
+                        <h4 className="font-medium text-amber-900 dark:text-amber-200">정책 연동</h4>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                            정책 규칙에서 알림을 활성화하면 정책 위반 시 이 채널로 알림이 발송됩니다.
+                            "정책 위반" 이벤트를 활성화하여 정책 알림을 받으세요.
+                        </p>
+                        <a
+                            href="/admin/policies"
+                            className="inline-flex items-center gap-1 text-sm text-amber-700 dark:text-amber-400 hover:underline mt-2"
+                        >
+                            정책 관리 바로가기 →
+                        </a>
                     </div>
                 </div>
             </div>
