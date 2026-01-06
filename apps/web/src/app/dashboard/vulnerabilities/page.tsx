@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     AlertTriangle,
     Shield,
+    ShieldCheck,
     CheckCircle,
     Clock,
     XCircle,
@@ -45,7 +46,7 @@ import {
     Area,
     XAxis,
 } from 'recharts';
-import { useVulnerabilities, useUpdateVulnerabilityStatus, Vulnerability, useStatsTrend } from '@/lib/api-hooks';
+import { useVulnerabilities, useUpdateVulnerabilityStatus, Vulnerability, useStatsTrend, useExceptions } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
@@ -344,7 +345,25 @@ export default function VulnerabilitiesPage() {
 
     const { data, isLoading, error, refetch } = useVulnerabilities(filters);
     const { data: trendData } = useStatsTrend(undefined, 7);
+    const { data: exceptionsData } = useExceptions('approved');
     const updateStatus = useUpdateVulnerabilityStatus();
+    
+    // Build exception map (CVE ID -> Exception)
+    const exceptionMap = React.useMemo(() => {
+        const map = new Map<string, any>();
+        if (exceptionsData) {
+            exceptionsData.forEach(e => {
+                if (e.vulnerabilityId) {
+                    map.set(e.vulnerabilityId, e);
+                }
+                // Also map by CVE ID from vulnerability object
+                if (e.vulnerability?.cveId) {
+                    map.set(e.vulnerability.cveId, e);
+                }
+            });
+        }
+        return map;
+    }, [exceptionsData]);
 
     // AI
     const { execute: executePriorityReorder, isLoading: aiLoading, result: aiResult, previousResults: aiPreviousResults, estimateTokens, cancel: cancelAi, progress: aiProgress } = useAiExecution('vuln.priorityReorder');
@@ -698,7 +717,18 @@ export default function VulnerabilitiesPage() {
                                     <tr key={v.id} onClick={() => router.push(`/dashboard/vulnerabilities/${v.id}`)} className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer ${selectedIds.has(v.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${focusedIndex === idx ? 'ring-2 ring-inset ring-blue-500' : ''}`}>
                                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}><button onClick={() => toggleSelect(v.id)} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600">{selectedIds.has(v.id) ? <CheckSquare className="h-5 w-5 text-blue-600" /> : <Square className="h-5 w-5 text-slate-400" />}</button></td>
                                         <td className="px-2 py-3" onClick={e => e.stopPropagation()}><button onClick={() => toggleExpand(v.id)} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"><ChevronRight className={`h-4 w-4 transition-transform ${expandedRows.has(v.id) ? 'rotate-90' : ''}`} /></button></td>
-                                        <td className="px-4 py-3"><span className="text-blue-600 font-medium">{v.cveId}</span>{v.title && <p className="text-xs text-slate-500 truncate max-w-[200px]">{v.title}</p>}</td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-blue-600 font-medium">{v.cveId}</span>
+                                                {exceptionMap.has(v.cveId) && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full" title={`예외 승인됨: ${exceptionMap.get(v.cveId)?.reason || ''}`}>
+                                                        <ShieldCheck className="h-3 w-3" />
+                                                        예외
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {v.title && <p className="text-xs text-slate-500 truncate max-w-[200px]">{v.title}</p>}
+                                        </td>
                                         <td className="px-4 py-3"><div className="flex items-center gap-2"><Package className="h-4 w-4 text-slate-400" /><span className="text-slate-900 dark:text-white">{v.pkgName}</span></div></td>
                                         <td className="px-4 py-3">{getSeverityBadge(v.severity)}</td>
                                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>

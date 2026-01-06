@@ -453,7 +453,29 @@ export function useVulnerabilities(filters?: {
 export function useVulnerability(id: string) {
     return useQuery<Vulnerability>({
         queryKey: ['vulnerability', id],
-        queryFn: () => authFetch(`${API_BASE}/vulnerabilities/${id}`),
+        queryFn: async () => {
+            const item = await authFetch(`${API_BASE}/vulnerabilities/${id}`);
+            
+            // Transform API response: flatten vulnerability relation data
+            return {
+                id: item.id,
+                // Map from nested vulnerability object
+                cveId: item.vulnerability?.cveId || item.cveId || 'Unknown',
+                severity: item.vulnerability?.severity || item.severity || 'UNKNOWN',
+                title: item.vulnerability?.title || item.title || '',
+                description: item.vulnerability?.description || item.description || '',
+                // Direct fields from scanVulnerability
+                pkgName: item.pkgName || '',
+                installedVersion: item.pkgVersion || item.installedVersion || '',
+                fixedVersion: item.fixedVersion || '',
+                status: item.status || 'OPEN',
+                assigneeId: item.assigneeId,
+                assignee: item.assignee,
+                scanResult: item.scanResult,
+                createdAt: item.createdAt,
+                updatedAt: item.updatedAt,
+            };
+        },
         enabled: !!id,
     });
 }
@@ -466,8 +488,39 @@ export function useUpdateVulnerabilityStatus() {
                 method: 'PUT',
                 body: JSON.stringify({ status }),
             }),
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['vulnerabilities'] });
+            queryClient.invalidateQueries({ queryKey: ['vulnerability', variables.id] });
+            queryClient.invalidateQueries({ queryKey: ['vulnerability-history', variables.id] });
+        },
+    });
+}
+
+export function useAssignVulnerability() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, assigneeId }: { id: string; assigneeId: string | null }) =>
+            authFetch(`${API_BASE}/vulnerabilities/${id}/assign`, {
+                method: 'PUT',
+                body: JSON.stringify({ assigneeId }),
+            }),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['vulnerabilities'] });
+            queryClient.invalidateQueries({ queryKey: ['vulnerability', variables.id] });
+        },
+    });
+}
+
+export function useAddVulnerabilityComment() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, content }: { id: string; content: string }) =>
+            authFetch(`${API_BASE}/vulnerabilities/${id}/comments`, {
+                method: 'POST',
+                body: JSON.stringify({ content }),
+            }),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['vulnerability-history', variables.id] });
         },
     });
 }
@@ -867,19 +920,22 @@ export function useDeleteUser() {
 
 export interface Exception {
     id: string;
+    policyId: string;
     vulnerabilityId: string;
     vulnerability?: {
         cveId: string;
         severity: string;
     };
-    projectId: string;
+    projectId?: string;
     project?: { name: string };
     requestedBy: string;
+    requestedById: string;
     requestedAt: string;
     reason: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
     expiresAt: string;
     approvedBy?: string;
+    approvedById?: string;
     approvedAt?: string;
     rejectedBy?: string;
     rejectedAt?: string;
@@ -891,8 +947,36 @@ export function useExceptions(status?: string) {
         queryKey: ['exceptions', status],
         queryFn: () => {
             const params = new URLSearchParams();
-            if (status && status !== 'all') params.set('status', status.toUpperCase());
-            return authFetch(`${API_BASE}/policies/exceptions?${params.toString()}`);
+            if (status && status !== 'all') params.set('status', status);
+            return authFetch(`${API_BASE}/exceptions?${params.toString()}`);
+        },
+    });
+}
+
+export function useMyExceptions() {
+    return useQuery<Exception[]>({
+        queryKey: ['my-exceptions'],
+        queryFn: () => authFetch(`${API_BASE}/exceptions/my`),
+    });
+}
+
+export function useCreateException() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: {
+            cveId?: string;
+            scanVulnerabilityId?: string;
+            reason: string;
+            expiresAt?: string;
+            exceptionType?: string;
+        }) =>
+            authFetch(`${API_BASE}/exceptions`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['exceptions'] });
+            queryClient.invalidateQueries({ queryKey: ['my-exceptions'] });
         },
     });
 }
@@ -901,7 +985,7 @@ export function useApproveException() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (id: string) =>
-            authFetch(`${API_BASE}/policies/exceptions/${id}/approve`, { method: 'POST' }),
+            authFetch(`${API_BASE}/exceptions/${id}/approve`, { method: 'PUT' }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['exceptions'] });
         },
@@ -911,9 +995,9 @@ export function useApproveException() {
 export function useRejectException() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-            authFetch(`${API_BASE}/policies/exceptions/${id}/reject`, {
-                method: 'POST',
+        mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+            authFetch(`${API_BASE}/exceptions/${id}/reject`, {
+                method: 'PUT',
                 body: JSON.stringify({ reason }),
             }),
         onSuccess: () => {
@@ -1538,4 +1622,3 @@ export function useUpdateNotificationSettings() {
         },
     });
 }
-

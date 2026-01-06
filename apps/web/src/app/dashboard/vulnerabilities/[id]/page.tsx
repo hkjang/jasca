@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -20,8 +20,11 @@ import {
     XCircle,
     ChevronDown,
     ChevronUp,
+    X,
+    UserPlus,
+    FileWarning,
 } from 'lucide-react';
-import { useVulnerability, useVulnerabilityHistory } from '@/lib/api-hooks';
+import { useVulnerability, useVulnerabilityHistory, useUpdateVulnerabilityStatus, useAssignVulnerability, useUsers, useCreateException, useExceptions } from '@/lib/api-hooks';
 import { AiButton, AiButtonGroup, AiResultPanel } from '@/components/ai';
 import { useAiExecution, useVulnerabilityAiContext } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
@@ -88,8 +91,36 @@ export default function VulnerabilityDetailPage() {
 
     const { data: vuln, isLoading, error, refetch } = useVulnerability(vulnId);
     const { data: historyData, isLoading: historyLoading } = useVulnerabilityHistory(vulnId);
+    const { data: users } = useUsers();
+    const { data: exceptionsData } = useExceptions('approved');
+    const updateStatus = useUpdateVulnerabilityStatus();
+    const assignVuln = useAssignVulnerability();
+    const createException = useCreateException();
+    
+    // Check if this vulnerability has an approved exception
+    const vulnException = React.useMemo(() => {
+        if (!exceptionsData || !vuln) return null;
+        return exceptionsData.find(e => 
+            e.vulnerabilityId === vuln.cveId || 
+            e.vulnerability?.cveId === vuln.cveId ||
+            e.vulnerabilityId === vulnId
+        );
+    }, [exceptionsData, vuln, vulnId]);
+    
     const [showAiGuide, setShowAiGuide] = useState(true);
     const [showHistory, setShowHistory] = useState(false);
+    
+    // Action modal states
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [showExceptionModal, setShowExceptionModal] = useState(false);
+    const [selectedStatus, setSelectedStatus] = useState('');
+    const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null);
+    
+    // Exception request form states
+    const [exceptionReason, setExceptionReason] = useState('false_positive');
+    const [exceptionDescription, setExceptionDescription] = useState('');
+    const [exceptionExpiry, setExceptionExpiry] = useState('');
 
     // AI Execution for Action Guide
     const collectVulnContext = useVulnerabilityAiContext();
@@ -172,9 +203,27 @@ export default function VulnerabilityDetailPage() {
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{vuln.cveId}</h1>
                         {getSeverityBadge(vuln.severity)}
                         {getStatusBadge(vuln.status)}
+                        {vulnException && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full border border-green-200 dark:border-green-800">
+                                <Shield className="h-4 w-4" />
+                                예외 승인됨
+                            </span>
+                        )}
                     </div>
                     {vuln.title && (
                         <p className="text-slate-500 mt-1">{vuln.title}</p>
+                    )}
+                    {vulnException && (
+                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg">
+                            <p className="text-sm text-green-700 dark:text-green-300">
+                                <strong>예외 사유:</strong> {vulnException.reason}
+                            </p>
+                            {vulnException.expiresAt && (
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                    만료일: {new Date(vulnException.expiresAt).toLocaleDateString('ko-KR')}
+                                </p>
+                            )}
+                        </div>
                     )}
                 </div>
                 <AiButtonGroup>
@@ -394,18 +443,236 @@ export default function VulnerabilityDetailPage() {
                     {/* Actions */}
                     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-3">
                         <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase">작업</h3>
-                        <button className="w-full px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <button 
+                            onClick={() => { setSelectedStatus(vuln.status); setShowStatusModal(true); }}
+                            className="w-full px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
                             상태 변경
                         </button>
-                        <button className="w-full px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                        <button 
+                            onClick={() => { setSelectedAssignee(vuln.assigneeId || null); setShowAssignModal(true); }}
+                            className="w-full px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <UserPlus className="h-4 w-4" />
                             담당자 할당
                         </button>
-                        <button className="w-full px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                        <button 
+                            onClick={() => setShowExceptionModal(true)}
+                            className="w-full px-4 py-2 text-sm border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <FileWarning className="h-4 w-4" />
                             예외 요청
                         </button>
                     </div>
                 </div>
             </div>
+
+            {/* Status Change Modal */}
+            {showStatusModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowStatusModal(false)}>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">상태 변경</h3>
+                            <button onClick={() => setShowStatusModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-2 mb-6">
+                            {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'WONT_FIX', 'FALSE_POSITIVE'].map(status => (
+                                <button
+                                    key={status}
+                                    onClick={() => setSelectedStatus(status)}
+                                    className={`w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
+                                        selectedStatus === status 
+                                            ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500' 
+                                            : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    }`}
+                                >
+                                    {status === 'OPEN' && '미해결 (OPEN)'}
+                                    {status === 'IN_PROGRESS' && '진행 중 (IN_PROGRESS)'}
+                                    {status === 'RESOLVED' && '해결됨 (RESOLVED)'}
+                                    {status === 'WONT_FIX' && '수정 안함 (WONT_FIX)'}
+                                    {status === 'FALSE_POSITIVE' && '오탐 (FALSE_POSITIVE)'}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowStatusModal(false)}
+                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await updateStatus.mutateAsync({ id: vulnId, status: selectedStatus });
+                                    setShowStatusModal(false);
+                                }}
+                                disabled={updateStatus.isPending || selectedStatus === vuln.status}
+                                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {updateStatus.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                                변경
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Assign User Modal */}
+            {showAssignModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowAssignModal(false)}>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">담당자 할당</h3>
+                            <button onClick={() => setShowAssignModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                            <button
+                                onClick={() => setSelectedAssignee(null)}
+                                className={`w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
+                                    selectedAssignee === null 
+                                        ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500' 
+                                        : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                <span className="text-slate-500">할당 해제</span>
+                            </button>
+                            {users?.map(user => (
+                                <button
+                                    key={user.id}
+                                    onClick={() => setSelectedAssignee(user.id)}
+                                    className={`w-full px-4 py-3 rounded-lg text-left text-sm transition-colors ${
+                                        selectedAssignee === user.id 
+                                            ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500' 
+                                            : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                            <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-slate-900 dark:text-white">{user.name}</p>
+                                            <p className="text-xs text-slate-500">{user.email}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowAssignModal(false)}
+                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await assignVuln.mutateAsync({ id: vulnId, assigneeId: selectedAssignee });
+                                    setShowAssignModal(false);
+                                }}
+                                disabled={assignVuln.isPending}
+                                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {assignVuln.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                                할당
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Exception Request Modal */}
+            {showExceptionModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowExceptionModal(false)}>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 max-w-lg w-full mx-4" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">예외 요청</h3>
+                            <button onClick={() => setShowExceptionModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-4">
+                            <p className="text-sm text-orange-700 dark:text-orange-300">
+                                <strong>{vuln.cveId}</strong>에 대해 예외 처리를 요청합니다. 보안팀의 승인이 필요합니다.
+                            </p>
+                        </div>
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">예외 사유</label>
+                                <select 
+                                    value={exceptionReason}
+                                    onChange={(e) => setExceptionReason(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                >
+                                    <option value="false_positive">오탐 (False Positive)</option>
+                                    <option value="accepted_risk">위험 수용 (Accepted Risk)</option>
+                                    <option value="compensating_control">보상 조치 적용됨</option>
+                                    <option value="not_applicable">해당 없음</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">상세 설명 *</label>
+                                <textarea
+                                    rows={3}
+                                    value={exceptionDescription}
+                                    onChange={(e) => setExceptionDescription(e.target.value)}
+                                    placeholder="예외 요청에 대한 상세 설명을 입력하세요..."
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">만료일</label>
+                                <input
+                                    type="date"
+                                    value={exceptionExpiry}
+                                    onChange={(e) => setExceptionExpiry(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowExceptionModal(false)}
+                                className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!exceptionDescription.trim()) {
+                                        alert('상세 설명을 입력해주세요.');
+                                        return;
+                                    }
+                                    try {
+                                        await createException.mutateAsync({
+                                            cveId: vuln.cveId,
+                                            scanVulnerabilityId: vulnId,
+                                            reason: `[${exceptionReason}] ${exceptionDescription}`,
+                                            expiresAt: exceptionExpiry || undefined,
+                                            exceptionType: 'CVE',
+                                        });
+                                        alert('예외 요청이 제출되었습니다. 관리자 > 예외 승인 메뉴에서 확인할 수 있습니다.');
+                                        setShowExceptionModal(false);
+                                        setExceptionDescription('');
+                                        setExceptionExpiry('');
+                                    } catch (error) {
+                                        alert('예외 요청 제출에 실패했습니다.');
+                                    }
+                                }}
+                                disabled={createException.isPending || !exceptionDescription.trim()}
+                                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {createException.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                                요청 제출
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* AI Result Panel - Action Guide */}
             <AiResultPanel

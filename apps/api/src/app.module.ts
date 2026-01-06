@@ -24,6 +24,7 @@ import { OperationsModule } from './modules/operations/operations.module';
 import { InfrastructureModule } from './modules/infrastructure/infrastructure.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { TrivyDbModule } from './modules/trivy-db/trivy-db.module';
+import { ExceptionsModule } from './modules/exceptions/exceptions.module';
 
 @Module({
     imports: [
@@ -55,6 +56,7 @@ import { TrivyDbModule } from './modules/trivy-db/trivy-db.module';
         OperationsModule,
         SettingsModule,
         TrivyDbModule,
+        ExceptionsModule,
     ],
 })
 export class AppModule { }
