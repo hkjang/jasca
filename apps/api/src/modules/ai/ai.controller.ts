@@ -207,6 +207,155 @@ export class AiController {
     }
 
     /**
+     * Diagnose AI connection - detailed debugging info
+     */
+    @Get('diagnose')
+    @Roles(Role.SYSTEM_ADMIN, Role.ORG_ADMIN)
+    async diagnoseConnection() {
+        const startTime = Date.now();
+        
+        // Get current settings
+        const settings = await this.aiService.getPublicSettings();
+        
+        if (!settings) {
+            return {
+                success: false,
+                message: 'AI settings not configured',
+                settings: null,
+                connection: null,
+                recentErrors: [],
+            };
+        }
+
+        // Test connection with timing
+        let connectionResult: { success: boolean; message: string; responseTimeMs?: number; version?: string; modelCount?: number } = {
+            success: false,
+            message: 'Connection test not performed',
+        };
+
+        try {
+            const connStart = Date.now();
+            const testResult = await this.testConnectionWithDetails(settings);
+            connectionResult = {
+                ...testResult,
+                responseTimeMs: Date.now() - connStart,
+            };
+        } catch (error) {
+            connectionResult = {
+                success: false,
+                message: error instanceof Error ? error.message : 'Connection failed',
+                responseTimeMs: Date.now() - startTime,
+            };
+        }
+
+        // Get recent errors from execution history
+        const history = await this.aiService.getExecutionHistory({
+            status: 'ERROR',
+            limit: 5,
+        });
+
+        const recentErrors = history.results.map(exec => ({
+            action: exec.action,
+            error: exec.error,
+            timestamp: exec.createdAt,
+            durationMs: exec.durationMs,
+        }));
+
+        return {
+            success: connectionResult.success,
+            message: connectionResult.message,
+            settings: {
+                provider: settings.provider,
+                apiUrl: settings.apiUrl,
+                model: settings.model,
+                timeout: settings.timeout,
+                enabled: settings.enabled,
+            },
+            connection: {
+                status: connectionResult.success ? 'connected' : 'disconnected',
+                responseTimeMs: connectionResult.responseTimeMs,
+                version: connectionResult.version,
+                modelCount: connectionResult.modelCount,
+            },
+            recentErrors,
+            diagnosedAt: new Date().toISOString(),
+        };
+    }
+
+    private async testConnectionWithDetails(settings: { provider: string; apiUrl: string; apiKey?: string }): Promise<{
+        success: boolean;
+        message: string;
+        version?: string;
+        modelCount?: number;
+    }> {
+        switch (settings.provider) {
+            case 'ollama':
+                return await this.testOllamaConnectionDetailed(settings.apiUrl);
+            case 'vllm':
+                return await this.testVllmConnection(settings.apiUrl, settings.apiKey);
+            case 'openai':
+                return await this.testOpenAiConnection(settings.apiUrl, settings.apiKey);
+            case 'anthropic':
+                return await this.testAnthropicConnection(settings.apiUrl, settings.apiKey);
+            default:
+                return await this.testCustomConnection(settings.apiUrl, settings.apiKey);
+        }
+    }
+
+    private async testOllamaConnectionDetailed(apiUrl: string): Promise<{
+        success: boolean;
+        message: string;
+        version?: string;
+        modelCount?: number;
+    }> {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        try {
+            // Get version info
+            let version: string | undefined;
+            try {
+                const versionResponse = await fetch(`${apiUrl}/api/version`, {
+                    method: 'GET',
+                    signal: controller.signal,
+                });
+                if (versionResponse.ok) {
+                    const versionData = await versionResponse.json() as { version?: string };
+                    version = versionData.version;
+                }
+            } catch {
+                // Version endpoint may not exist in older versions
+            }
+
+            // Get models
+            const response = await fetch(`${apiUrl}/api/tags`, {
+                method: 'GET',
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                return { success: false, message: `Ollama server returned ${response.status}` };
+            }
+
+            const data = await response.json() as OllamaListResponse;
+            return {
+                success: true,
+                message: `Connected to Ollama${version ? ` v${version}` : ''}. ${data.models.length} model(s) available.`,
+                version,
+                modelCount: data.models.length,
+            };
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === 'AbortError') {
+                return { success: false, message: 'Connection timed out after 10 seconds' };
+            }
+            return { success: false, message: error instanceof Error ? error.message : 'Connection failed' };
+        }
+    }
+
+    /**
      * Get available models from Ollama server
      */
     @Get('ollama/models')

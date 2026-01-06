@@ -54,6 +54,7 @@ export class AiService {
         apiKey?: string;
         model: string;
         enabled: boolean;
+        timeout: number;
     } | null> {
         try {
             const settings = await this.prisma.systemSettings.findUnique({
@@ -69,11 +70,27 @@ export class AiService {
                 // Use summaryModel or remediationModel field from settings
                 model: (value.summaryModel as string) || (value.model as string) || 'llama3.2',
                 enabled: (value.enableAutoSummary as boolean) ?? (value.enabled as boolean) ?? true,
+                // Timeout in seconds, default 60s
+                timeout: (value.timeout as number) || 60,
             };
         } catch (error) {
             this.logger.warn('Failed to fetch AI settings:', error);
             return null;
         }
+    }
+
+    /**
+     * Get AI settings for public access (without sensitive data like API key)
+     */
+    async getPublicSettings(): Promise<{
+        provider: string;
+        apiUrl: string;
+        apiKey?: string;
+        model: string;
+        enabled: boolean;
+        timeout: number;
+    } | null> {
+        return this.getAiSettings();
     }
 
     /**
@@ -350,12 +367,14 @@ export class AiService {
      * Call AI provider (Ollama, vLLM, OpenAI, etc.)
      */
     private async callAiProvider(
-        settings: { provider: string; apiUrl: string; apiKey?: string; model: string },
+        settings: { provider: string; apiUrl: string; apiKey?: string; model: string; timeout?: number },
         prompt: string,
     ): Promise<{ content: string; model: string }> {
         const controller = new AbortController();
-        // Reduced timeout to 30s to prevent socket hang up
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        // Use configurable timeout from settings (default: 60s)
+        const timeoutSeconds = settings.timeout || 60;
+        const timeoutMs = timeoutSeconds * 1000;
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
             switch (settings.provider) {
@@ -372,7 +391,7 @@ export class AiService {
             }
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
-                throw new Error('AI provider request timed out after 30 seconds');
+                throw new Error(`AI provider request timed out after ${timeoutSeconds} seconds`);
             }
             throw error;
         } finally {

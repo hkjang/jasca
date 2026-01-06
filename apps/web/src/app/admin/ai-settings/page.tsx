@@ -18,6 +18,9 @@ import {
     BarChart3,
     Play,
     Cpu,
+    Timer,
+    Stethoscope,
+    AlertCircle,
 } from 'lucide-react';
 import { useAiSettings, useUpdateSettings, type AiSettings } from '@/lib/api-hooks';
 import { useAuthStore } from '@/stores/auth-store';
@@ -30,6 +33,7 @@ const defaultConfig: AiSettings = {
     remediationModel: 'gpt-4-turbo',
     maxTokens: 1024,
     temperature: 0.7,
+    timeout: 60,
     enableAutoSummary: true,
     enableRemediationGuide: true,
 };
@@ -108,6 +112,33 @@ export default function AiSettingsPage() {
     const [quickTestPrompt, setQuickTestPrompt] = useState('안녕하세요. 이 취약점의 간단한 요약을 제공해주세요.');
     const [quickTestResult, setQuickTestResult] = useState<string | null>(null);
     const [quickTesting, setQuickTesting] = useState(false);
+
+    // Connection diagnostics
+    const [diagnosing, setDiagnosing] = useState(false);
+    const [diagnosisResult, setDiagnosisResult] = useState<{
+        success: boolean;
+        message: string;
+        settings?: {
+            provider: string;
+            apiUrl: string;
+            model: string;
+            timeout: number;
+            enabled: boolean;
+        };
+        connection?: {
+            status: string;
+            responseTimeMs?: number;
+            version?: string;
+            modelCount?: number;
+        };
+        recentErrors?: Array<{
+            action: string;
+            error?: string;
+            timestamp: string;
+            durationMs: number;
+        }>;
+        diagnosedAt?: string;
+    } | null>(null);
 
     useEffect(() => {
         if (settings) {
@@ -223,6 +254,33 @@ export default function AiSettingsPage() {
             setQuickTestResult(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
         } finally {
             setQuickTesting(false);
+        }
+    };
+
+    const handleDiagnose = async () => {
+        setDiagnosing(true);
+        setDiagnosisResult(null);
+
+        try {
+            const token = useAuthStore.getState().accessToken;
+            const response = await fetch('/api/ai/diagnose', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                credentials: 'include',
+            });
+
+            const result = await response.json();
+            setDiagnosisResult(result);
+        } catch (err) {
+            setDiagnosisResult({
+                success: false,
+                message: err instanceof Error ? err.message : '진단 실패',
+            });
+        } finally {
+            setDiagnosing(false);
         }
     };
 
@@ -507,6 +565,106 @@ export default function AiSettingsPage() {
                                 {testResult.message}
                             </div>
                         )}
+
+                        {/* Connection Diagnostics Panel */}
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <Stethoscope className="h-5 w-5 text-slate-500" />
+                                    <h4 className="font-medium text-slate-900 dark:text-white">연결 진단</h4>
+                                </div>
+                                <button
+                                    onClick={handleDiagnose}
+                                    disabled={diagnosing}
+                                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                                >
+                                    {diagnosing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Stethoscope className="h-4 w-4" />}
+                                    진단 실행
+                                </button>
+                            </div>
+
+                            {diagnosisResult && (
+                                <div className="space-y-3">
+                                    {/* Connection Status */}
+                                    <div className={`rounded-lg p-4 ${diagnosisResult.success
+                                        ? 'bg-green-50 dark:bg-green-900/20'
+                                        : 'bg-red-50 dark:bg-red-900/20'
+                                        }`}>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {diagnosisResult.success
+                                                    ? <CheckCircle className="h-5 w-5 text-green-600" />
+                                                    : <AlertCircle className="h-5 w-5 text-red-600" />}
+                                                <span className={diagnosisResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
+                                                    {diagnosisResult.message}
+                                                </span>
+                                            </div>
+                                            {diagnosisResult.connection?.responseTimeMs && (
+                                                <span className="text-sm text-slate-500">
+                                                    응답 시간: {diagnosisResult.connection.responseTimeMs}ms
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Settings Info */}
+                                    {diagnosisResult.settings && (
+                                        <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
+                                            <h5 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">현재 설정</h5>
+                                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                                <div className="text-slate-500">제공자:</div>
+                                                <div className="text-slate-900 dark:text-white capitalize">{diagnosisResult.settings.provider}</div>
+                                                <div className="text-slate-500">모델:</div>
+                                                <div className="text-slate-900 dark:text-white">{diagnosisResult.settings.model}</div>
+                                                <div className="text-slate-500">타임아웃:</div>
+                                                <div className="text-slate-900 dark:text-white">{diagnosisResult.settings.timeout}초</div>
+                                                {diagnosisResult.connection?.modelCount !== undefined && (
+                                                    <>
+                                                        <div className="text-slate-500">사용 가능한 모델:</div>
+                                                        <div className="text-slate-900 dark:text-white">{diagnosisResult.connection.modelCount}개</div>
+                                                    </>
+                                                )}
+                                                {diagnosisResult.connection?.version && (
+                                                    <>
+                                                        <div className="text-slate-500">서버 버전:</div>
+                                                        <div className="text-slate-900 dark:text-white">{diagnosisResult.connection.version}</div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Recent Errors */}
+                                    {diagnosisResult.recentErrors && diagnosisResult.recentErrors.length > 0 && (
+                                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
+                                            <h5 className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-2">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                최근 오류 ({diagnosisResult.recentErrors.length}건)
+                                            </h5>
+                                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                                {diagnosisResult.recentErrors.map((error, idx) => (
+                                                    <div key={idx} className="text-sm p-2 bg-amber-100 dark:bg-amber-900/30 rounded">
+                                                        <div className="flex justify-between">
+                                                            <span className="font-mono text-amber-800 dark:text-amber-300">{error.action}</span>
+                                                            <span className="text-amber-600 dark:text-amber-400">{error.durationMs}ms</span>
+                                                        </div>
+                                                        {error.error && (
+                                                            <p className="text-amber-700 dark:text-amber-300 mt-1 text-xs">{error.error}</p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {diagnosisResult.diagnosedAt && (
+                                        <p className="text-xs text-slate-400 text-right">
+                                            진단 시간: {new Date(diagnosisResult.diagnosedAt).toLocaleString('ko-KR')}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -640,6 +798,42 @@ export default function AiSettingsPage() {
                                 />
                                 <p className="text-xs text-slate-500 mt-1">창의성 수준 (0=결정적, 1=창의적)</p>
                             </div>
+                        </div>
+
+                        {/* Timeout Configuration */}
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Timer className="h-5 w-5 text-slate-500" />
+                                <h4 className="font-medium text-slate-900 dark:text-white">요청 타임아웃</h4>
+                            </div>
+                            <p className="text-sm text-slate-500 mb-4">
+                                AI 제공자로부터 응답을 기다리는 최대 시간입니다. 로컬 LLM이나 큰 모델을 사용할 경우 더 긴 시간이 필요할 수 있습니다.
+                            </p>
+                            <div className="flex items-center gap-4">
+                                <input
+                                    type="range"
+                                    min="30"
+                                    max="300"
+                                    step="10"
+                                    value={config.timeout || 60}
+                                    onChange={(e) => setConfig(prev => ({ ...prev, timeout: parseInt(e.target.value) }))}
+                                    className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-red-600"
+                                />
+                                <div className="flex items-center gap-2 min-w-[100px]">
+                                    <input
+                                        type="number"
+                                        min="30"
+                                        max="300"
+                                        value={config.timeout || 60}
+                                        onChange={(e) => setConfig(prev => ({ ...prev, timeout: parseInt(e.target.value) || 60 }))}
+                                        className="w-20 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1 text-slate-900 dark:text-white text-center"
+                                    />
+                                    <span className="text-sm text-slate-500">초</span>
+                                </div>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-2">
+                                권장: Ollama/vLLM - 120초, OpenAI/Anthropic - 60초
+                            </p>
                         </div>
 
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-4">

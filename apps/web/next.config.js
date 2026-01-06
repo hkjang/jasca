@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: 'standalone',
+    // Increase HTTP agent timeout for long-running AI requests
+    httpAgentOptions: {
+        keepAlive: true,
+    },
+    // Experimental: increase proxy timeout
+    experimental: {
+        proxyTimeout: 300000, // 5 minutes in milliseconds
+    },
     webpack: (config, { isServer }) => {
         // Ignore Windows system files that cause Watchpack EINVAL errors
         config.watchOptions = {

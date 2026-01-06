@@ -1214,6 +1214,77 @@ export function useDeleteNotificationRule() {
     });
 }
 
+// Notification Channel Statistics
+export interface NotificationChannelStats {
+    total: number;
+    active: number;
+    inactive: number;
+    totalRules: number;
+    byType: Record<string, number>;
+    recentNotifications: number;
+}
+
+export function useNotificationChannelStats() {
+    const { data: channels } = useNotificationChannels();
+    
+    const stats: NotificationChannelStats = {
+        total: channels?.length || 0,
+        active: channels?.filter(c => c.isActive).length || 0,
+        inactive: channels?.filter(c => !c.isActive).length || 0,
+        totalRules: channels?.reduce((sum, c) => sum + (c.rules?.length || 0), 0) || 0,
+        byType: channels?.reduce((acc, c) => {
+            acc[c.type] = (acc[c.type] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>) || {},
+        recentNotifications: 0,
+    };
+    
+    return { data: stats };
+}
+
+// Clone Notification Channel
+export function useCloneNotificationChannel() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ channelId, newName }: { channelId: string; newName: string }) => {
+            const channel = await authFetch(`${API_BASE}/notification-channels/${channelId}`);
+            return authFetch(`${API_BASE}/notification-channels`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: newName,
+                    type: channel.type,
+                    config: channel.config,
+                    isActive: false,
+                }),
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+// Bulk update channel status
+export function useBulkUpdateChannelStatus() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ channelIds, isActive }: { channelIds: string[]; isActive: boolean }) => {
+            const results = await Promise.all(
+                channelIds.map(id =>
+                    authFetch(`${API_BASE}/notification-channels/${id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ isActive }),
+                    })
+                )
+            );
+            return results;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
 // ============ Stats API ============
 
 export interface StatsOverview {
@@ -1682,6 +1753,7 @@ export interface AiSettings {
     remediationModel: string;
     maxTokens: number;
     temperature: number;
+    timeout: number;  // Request timeout in seconds (default: 60)
     enableAutoSummary: boolean;
     enableRemediationGuide: boolean;
 }
