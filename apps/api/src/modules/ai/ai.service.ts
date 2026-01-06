@@ -248,7 +248,8 @@ export class AiService {
         prompt: string,
     ): Promise<{ content: string; model: string }> {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+        // Reduced timeout to 30s to prevent socket hang up
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         try {
             switch (settings.provider) {
@@ -258,12 +259,58 @@ export class AiService {
                     return await this.callVllm(settings.apiUrl, settings.model, prompt, settings.apiKey, controller.signal);
                 case 'openai':
                     return await this.callOpenAi(settings.apiUrl, settings.model, prompt, settings.apiKey!, controller.signal);
+                case 'anthropic':
+                    return await this.callAnthropic(settings.apiUrl, settings.model, prompt, settings.apiKey!, controller.signal);
                 default:
                     throw new Error(`Unsupported AI provider: ${settings.provider}`);
             }
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error('AI provider request timed out after 30 seconds');
+            }
+            throw error;
         } finally {
             clearTimeout(timeoutId);
         }
+    }
+
+    /**
+     * Call Anthropic API
+     */
+    private async callAnthropic(
+        apiUrl: string,
+        model: string,
+        prompt: string,
+        apiKey: string,
+        signal: AbortSignal,
+    ): Promise<{ content: string; model: string }> {
+        const response = await fetch(`${apiUrl}/v1/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+                model,
+                max_tokens: 2048,
+                messages: [
+                    { role: 'user', content: prompt },
+                ],
+            }),
+            signal,
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json() as { content: Array<{ text: string }>; model: string };
+        return {
+            content: data.content[0]?.text || '',
+            model: data.model || model,
+        };
     }
 
     /**
@@ -432,8 +479,8 @@ export class AiService {
         action: AiActionType,
         context: Record<string, unknown>,
     ): Promise<string> {
-        // Simulate processing delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Short delay for mock response
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         switch (action) {
             case 'dashboard.summary':
