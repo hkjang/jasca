@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import {
     BarChart,
     Bar,
@@ -48,6 +48,8 @@ import { useAiStore } from '@/stores/ai-store';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { QuickActions, QuickActionsFAB } from '@/components/quick-actions';
 import { NotificationCenter } from '@/components/notification-center';
+import { DashboardSettingsButton } from '@/components/dashboard-settings';
+import { useChartView, useTrendPeriod, useWidgetVisibility } from '@/stores/preferences-store';
 
 const SEVERITY_COLORS = {
     Critical: '#dc2626',
@@ -67,8 +69,9 @@ function formatDaysAgo(dateString: string) {
 
 export default function DashboardPage() {
     const router = useRouter();
-    const [chartView, setChartView] = useState<'severity' | 'status'>('severity');
-    const [trendPeriod, setTrendPeriod] = useState<7 | 14 | 30>(7);
+    const [chartView, setChartView] = useChartView();
+    const [trendPeriod, setTrendPeriod] = useTrendPeriod();
+    const { visibility: widgetVisibility } = useWidgetVisibility();
 
     // Fetch real data from API
     const { data: overview, isLoading: overviewLoading, error: overviewError, refetch: refetchOverview } = useStatsOverview();
@@ -232,6 +235,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                     <QuickActions className="hidden md:flex" />
                     <NotificationCenter />
+                    <DashboardSettingsButton />
                     <ThemeToggle />
                     <AiButton
                         action="dashboard.summary"
@@ -247,8 +251,10 @@ export default function DashboardPage() {
             </div>
 
             {/* Risk Score + Stats Cards */}
+            {(widgetVisibility.riskScore || widgetVisibility.statsCards) && (
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
                 {/* Risk Score Card */}
+                {widgetVisibility.riskScore && (
                 <Card className="p-6 flex flex-col items-center justify-center">
                     <div className="relative w-24 h-24">
                         <svg className="w-full h-full transform -rotate-90">
@@ -282,8 +288,11 @@ export default function DashboardPage() {
                     </div>
                     <p className="text-xs text-slate-500 mt-1">위험도</p>
                 </Card>
+                )}
 
                 {/* Stats Cards */}
+                {widgetVisibility.statsCards && (
+                <>
                 <StatCard
                     title="Critical"
                     value={overview?.bySeverity.critical || 0}
@@ -312,9 +321,13 @@ export default function DashboardPage() {
                     color="blue"
                     onClick={() => handleStatusClick('IN_PROGRESS')}
                 />
+                </>
+                )}
             </div>
+            )}
 
             {/* Summary Stats */}
+            {widgetVisibility.summaryStats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/dashboard/vulnerabilities')}>
                     <div className="flex items-center gap-3">
@@ -361,10 +374,13 @@ export default function DashboardPage() {
                     </div>
                 </Card>
             </div>
+            )}
 
             {/* Charts Row */}
+            {(widgetVisibility.distributionChart || widgetVisibility.trendChart) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Distribution Chart */}
+                {widgetVisibility.distributionChart && (
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="flex items-center gap-2">
@@ -440,8 +456,10 @@ export default function DashboardPage() {
                         )}
                     </CardContent>
                 </Card>
+                )}
 
                 {/* Trend Chart */}
+                {widgetVisibility.trendChart && (
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="flex items-center gap-2">
@@ -497,11 +515,15 @@ export default function DashboardPage() {
                         </div>
                     </CardContent>
                 </Card>
+                )}
             </div>
+            )}
 
             {/* Bottom Section */}
+            {(widgetVisibility.projectsChart || widgetVisibility.criticalList) && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Projects Bar Chart */}
+                {widgetVisibility.projectsChart && (
                 <div className="lg:col-span-2">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
@@ -549,8 +571,10 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card>
                 </div>
+                )}
 
                 {/* Recent Critical */}
+                {widgetVisibility.criticalList && (
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="flex items-center gap-2 text-base">
@@ -598,9 +622,12 @@ export default function DashboardPage() {
                         )}
                     </CardContent>
                 </Card>
+                )}
             </div>
+            )}
 
             {/* Quick Links */}
+            {widgetVisibility.quickLinks && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <button
                     onClick={() => router.push('/dashboard/scans/new')}
@@ -654,6 +681,7 @@ export default function DashboardPage() {
                     </div>
                 </button>
             </div>
+            )}
 
             {/* AI Result Panel */}
             <AiResultPanel

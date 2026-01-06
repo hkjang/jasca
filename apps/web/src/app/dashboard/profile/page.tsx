@@ -19,6 +19,11 @@ import {
     EyeOff,
     Copy,
     Check,
+    Monitor,
+    Calendar,
+    Clock,
+    Move,
+    Minimize2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import {
@@ -28,6 +33,11 @@ import {
     useUpdateNotificationSettings,
 } from '@/lib/api-hooks';
 import { authApi } from '@/lib/auth-api';
+import {
+    usePreferencesStore,
+    DateFormat,
+    TimeFormat,
+} from '@/stores/preferences-store';
 
 // Password Change Modal Component
 function PasswordChangeModal({
@@ -499,6 +509,176 @@ function MfaModal({
     );
 }
 
+// Display Preferences Card Component
+function DisplayPreferencesCard() {
+    const dateFormat = usePreferencesStore((state) => state.display.dateFormat);
+    const timeFormat = usePreferencesStore((state) => state.display.timeFormat);
+    const itemsPerPage = usePreferencesStore((state) => state.display.itemsPerPage);
+    const reducedMotion = usePreferencesStore((state) => state.display.reducedMotion);
+    const compactMode = usePreferencesStore((state) => state.display.compactMode);
+
+    const setDateFormat = usePreferencesStore((state) => state.setDateFormat);
+    const setTimeFormat = usePreferencesStore((state) => state.setTimeFormat);
+    const setItemsPerPage = usePreferencesStore((state) => state.setItemsPerPage);
+    const setReducedMotion = usePreferencesStore((state) => state.setReducedMotion);
+    const setCompactMode = usePreferencesStore((state) => state.setCompactMode);
+
+    const dateFormatOptions: { value: DateFormat; label: string; example: string }[] = [
+        { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD', example: '2026-01-07' },
+        { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY', example: '01/07/2026' },
+        { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY', example: '07/01/2026' },
+        { value: 'relative', label: '상대적', example: '2일 전' },
+    ];
+
+    const timeFormatOptions: { value: TimeFormat; label: string; example: string }[] = [
+        { value: '24h', label: '24시간', example: '14:30' },
+        { value: '12h', label: '12시간', example: '오후 2:30' },
+    ];
+
+    const itemsPerPageOptions = [10, 20, 30, 50, 100];
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                <Monitor className="h-5 w-5" />
+                화면 설정
+            </h3>
+
+            <div className="space-y-6">
+                {/* Date Format */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        날짜 형식
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {dateFormatOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                onClick={() => setDateFormat(option.value)}
+                                className={`p-3 rounded-lg border text-left transition-colors ${
+                                    dateFormat === option.value
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                <p className={`font-medium ${
+                                    dateFormat === option.value
+                                        ? 'text-blue-700 dark:text-blue-400'
+                                        : 'text-slate-900 dark:text-white'
+                                }`}>
+                                    {option.label}
+                                </p>
+                                <p className="text-xs text-slate-500">{option.example}</p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Time Format */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        시간 형식
+                    </label>
+                    <div className="flex gap-2">
+                        {timeFormatOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                onClick={() => setTimeFormat(option.value)}
+                                className={`flex-1 p-3 rounded-lg border text-center transition-colors ${
+                                    timeFormat === option.value
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                <p className={`font-medium ${
+                                    timeFormat === option.value
+                                        ? 'text-blue-700 dark:text-blue-400'
+                                        : 'text-slate-900 dark:text-white'
+                                }`}>
+                                    {option.label}
+                                </p>
+                                <p className="text-xs text-slate-500">{option.example}</p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Items Per Page */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        페이지 당 항목 수
+                    </label>
+                    <select
+                        value={itemsPerPage}
+                        onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        {itemsPerPageOptions.map((count) => (
+                            <option key={count} value={count}>
+                                {count}개
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Accessibility Options */}
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+                    <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
+                        접근성 옵션
+                    </h4>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between py-2">
+                            <div className="flex items-center gap-3">
+                                <Move className="h-4 w-4 text-slate-400" />
+                                <div>
+                                    <p className="font-medium text-slate-900 dark:text-white">모션 줄이기</p>
+                                    <p className="text-xs text-slate-500">애니메이션 효과를 줄입니다</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setReducedMotion(!reducedMotion)}
+                                className={`w-12 h-6 rounded-full transition-colors ${
+                                    reducedMotion ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+                                }`}
+                            >
+                                <span
+                                    className={`block w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
+                                        reducedMotion ? 'translate-x-6' : 'translate-x-0.5'
+                                    }`}
+                                />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between py-2">
+                            <div className="flex items-center gap-3">
+                                <Minimize2 className="h-4 w-4 text-slate-400" />
+                                <div>
+                                    <p className="font-medium text-slate-900 dark:text-white">컴팩트 모드</p>
+                                    <p className="text-xs text-slate-500">더 많은 정보를 화면에 표시합니다</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setCompactMode(!compactMode)}
+                                className={`w-12 h-6 rounded-full transition-colors ${
+                                    compactMode ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+                                }`}
+                            >
+                                <span
+                                    className={`block w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
+                                        compactMode ? 'translate-x-6' : 'translate-x-0.5'
+                                    }`}
+                                />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function ProfilePage() {
     const { user: authUser } = useAuthStore();
     const { data: profile, isLoading: profileLoading, error: profileError, refetch } = useProfile();
@@ -765,6 +945,9 @@ export default function ProfilePage() {
                     ))}
                 </div>
             </div>
+
+            {/* Display Preferences */}
+            <DisplayPreferencesCard />
 
             {/* Save Status */}
             {saved && (
