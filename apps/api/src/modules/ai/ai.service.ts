@@ -179,6 +179,80 @@ export class AiService {
             this.logger.warn('Failed to reset prompt:', error);
         }
     }
+
+    /**
+     * Get AI execution history
+     */
+    async getExecutionHistory(options: {
+        action?: string;
+        status?: string;
+        userId?: string;
+        limit?: number;
+        offset?: number;
+    } = {}) {
+        const where: any = {};
+        if (options.action) where.action = options.action;
+        if (options.status) where.status = options.status;
+        if (options.userId) where.userId = options.userId;
+
+        const [results, total] = await Promise.all([
+            this.prisma.aiExecution.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: options.limit || 50,
+                skip: options.offset || 0,
+            }),
+            this.prisma.aiExecution.count({ where }),
+        ]);
+
+        return { results, total };
+    }
+
+    /**
+     * Get AI usage statistics
+     */
+    async getExecutionStats(days = 7) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        const executions = await this.prisma.aiExecution.findMany({
+            where: {
+                createdAt: { gte: startDate },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        const byAction: Record<string, number> = {};
+        const byStatus: Record<string, number> = {};
+        const byDay: Record<string, number> = {};
+        let totalTokens = 0;
+        let totalDuration = 0;
+
+        for (const exec of executions) {
+            byAction[exec.action] = (byAction[exec.action] || 0) + 1;
+            byStatus[exec.status] = (byStatus[exec.status] || 0) + 1;
+            
+            const day = exec.createdAt.toISOString().split('T')[0];
+            byDay[day] = (byDay[day] || 0) + 1;
+
+            totalTokens += exec.inputTokens + exec.outputTokens;
+            totalDuration += exec.durationMs;
+        }
+
+        return {
+            total: executions.length,
+            totalTokens,
+            avgDuration: executions.length > 0 ? Math.round(totalDuration / executions.length) : 0,
+            successRate: executions.length > 0 
+                ? Math.round(((byStatus['SUCCESS'] || 0) / executions.length) * 100) 
+                : 0,
+            byAction,
+            byStatus,
+            trend: Object.entries(byDay)
+                .map(([date, count]) => ({ date, count }))
+                .sort((a, b) => a.date.localeCompare(b.date)),
+        };
+    }
     /**
      * Execute AI action with given context
      */
@@ -188,6 +262,7 @@ export class AiService {
         userId: string,
     ): Promise<AiExecutionResult> {
         this.logger.log(`Executing AI action: ${action} for user: ${userId}`);
+        const startTime = Date.now();
 
         // Get AI settings from database
         const aiSettings = await this.getAiSettings();
@@ -202,9 +277,13 @@ export class AiService {
 
         let content: string;
         let modelName: string;
+        let providerName: string = 'mock';
+        let status: 'SUCCESS' | 'ERROR' | 'TIMEOUT' = 'SUCCESS';
+        let errorMessage: string | undefined;
 
         // If AI settings exist and enabled, use real AI
         if (aiSettings?.enabled && aiSettings.apiUrl) {
+            providerName = aiSettings.provider;
             try {
                 const result = await this.callAiProvider(aiSettings, fullPrompt);
                 content = result.content;
@@ -214,6 +293,11 @@ export class AiService {
                 this.logger.error('AI call failed, falling back to mock:', error);
                 content = await this.generateMockResponse(action, context);
                 modelName = 'mock-model-v1 (fallback)';
+                status = 'ERROR';
+                errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                if (errorMessage.includes('timed out')) {
+                    status = 'TIMEOUT';
+                }
             }
         } else {
             // Fallback to mock response
@@ -224,9 +308,31 @@ export class AiService {
 
         // Estimate tokens
         const estimate = this.estimateTokens(action, context);
+        const durationMs = Date.now() - startTime;
+
+        // Log execution to database
+        try {
+            await this.prisma.aiExecution.create({
+                data: {
+                    userId,
+                    action,
+                    actionLabel: metadata?.label || action,
+                    provider: providerName,
+                    model: modelName,
+                    inputTokens: estimate.inputTokens,
+                    outputTokens: estimate.outputTokens,
+                    durationMs,
+                    status,
+                    error: errorMessage,
+                    result: content.substring(0, 5000), // Limit result size
+                },
+            });
+        } catch (dbError) {
+            this.logger.warn('Failed to log AI execution to database:', dbError);
+        }
 
         // Log the execution
-        this.logger.log(`AI execution completed. Model: ${modelName}, Input tokens: ${estimate.inputTokens}, Output tokens: ${estimate.outputTokens}`);
+        this.logger.log(`AI execution completed. Model: ${modelName}, Duration: ${durationMs}ms, Tokens: ${estimate.inputTokens}/${estimate.outputTokens}`);
 
         return {
             id: crypto.randomUUID(),

@@ -96,6 +96,34 @@ export class AiController {
     }
 
     /**
+     * Get AI execution history
+     */
+    @Get('history')
+    @Roles(Role.SYSTEM_ADMIN, Role.ORG_ADMIN)
+    async getHistory(
+        @Query('action') action?: string,
+        @Query('status') status?: string,
+        @Query('limit') limit?: string,
+        @Query('offset') offset?: string,
+    ) {
+        return this.aiService.getExecutionHistory({
+            action,
+            status,
+            limit: limit ? parseInt(limit, 10) : 50,
+            offset: offset ? parseInt(offset, 10) : 0,
+        });
+    }
+
+    /**
+     * Get AI usage statistics
+     */
+    @Get('stats')
+    @Roles(Role.SYSTEM_ADMIN, Role.ORG_ADMIN)
+    async getStats(@Query('days') days?: string) {
+        return this.aiService.getExecutionStats(days ? parseInt(days, 10) : 7);
+    }
+
+    /**
      * Estimate tokens for AI action
      */
     @Post('estimate')

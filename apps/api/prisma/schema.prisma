@@ -1081,3 +1081,42 @@ model SystemSettings {
   
   @@index([key])
 }
+
+// ============================================
+// AI Execution History Model
+// ============================================
+
+model AiExecution {
+  id            String   @id @default(uuid())
+  
+  userId        String?
+  action        String   // AI action type (e.g., 'dashboard.summary', 'vuln.actionGuide')
+  actionLabel   String?  // Human readable label
+  
+  provider      String?  // AI provider (openai, ollama, vllm, etc.)
+  model         String?  // Model used
+  
+  inputTokens   Int      @default(0)
+  outputTokens  Int      @default(0)
+  durationMs    Int      @default(0)
+  
+  status        AiExecutionStatus @default(SUCCESS)
+  error         String?
+  
+  // Context and result (optional, can be large)
+  context       Json?
+  result        String?  @db.Text
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum AiExecutionStatus {
+  SUCCESS
+  ERROR
+  TIMEOUT
+}

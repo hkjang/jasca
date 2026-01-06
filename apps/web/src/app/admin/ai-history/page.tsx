@@ -1,75 +1,49 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Brain,
-    Clock,
     Zap,
     BarChart3,
     Activity,
     Search,
-    Filter,
     RefreshCw,
-    Loader2,
     TrendingUp,
-    TrendingDown,
-    Calendar,
     ChevronLeft,
     ChevronRight,
-    FileText,
     Cpu,
     Timer,
     Hash,
     AlertTriangle,
     CheckCircle,
+    Loader2,
 } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
 
-// Mock data for AI execution history
 interface AiExecution {
     id: string;
     action: string;
-    actionLabel: string;
-    model: string;
+    actionLabel: string | null;
+    model: string | null;
+    provider: string | null;
     inputTokens: number;
     outputTokens: number;
     durationMs: number;
-    status: 'success' | 'error' | 'timeout';
-    userId: string;
-    userName: string;
+    status: 'SUCCESS' | 'ERROR' | 'TIMEOUT';
+    error: string | null;
+    userId: string | null;
     createdAt: string;
-    error?: string;
 }
 
-const mockExecutions: AiExecution[] = Array.from({ length: 50 }, (_, i) => {
-    const actions = [
-        { id: 'dashboard.summary', label: '대시보드 요약' },
-        { id: 'vuln.actionGuide', label: '취약점 조치 가이드' },
-        { id: 'project.analysis', label: '프로젝트 분석' },
-        { id: 'policy.interpretation', label: '정책 해석' },
-        { id: 'notification.summary', label: '알림 요약' },
-    ];
-    const action = actions[i % actions.length];
-    const statuses: Array<'success' | 'error' | 'timeout'> = ['success', 'success', 'success', 'success', 'error'];
-    const models = ['gpt-4', 'gpt-3.5-turbo', 'claude-3-sonnet', 'llama3.2'];
-    
-    const date = new Date();
-    date.setHours(date.getHours() - i);
-    
-    return {
-        id: `exec-${i}`,
-        action: action.id,
-        actionLabel: action.label,
-        model: models[i % models.length],
-        inputTokens: 200 + Math.floor(Math.random() * 800),
-        outputTokens: 100 + Math.floor(Math.random() * 400),
-        durationMs: 500 + Math.floor(Math.random() * 3000),
-        status: statuses[i % statuses.length],
-        userId: `user-${i % 5}`,
-        userName: ['김철수', '이영희', '박지훈', '최민수', '정수진'][i % 5],
-        createdAt: date.toISOString(),
-        error: statuses[i % statuses.length] === 'error' ? 'API rate limit exceeded' : undefined,
-    };
-});
+interface AiStats {
+    total: number;
+    totalTokens: number;
+    avgDuration: number;
+    successRate: number;
+    byAction: Record<string, number>;
+    byStatus: Record<string, number>;
+    trend: Array<{ date: string; count: number }>;
+}
 
 function formatDuration(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
@@ -86,6 +60,13 @@ function formatDate(dateString: string): string {
 }
 
 export default function AiHistoryPage() {
+    const { accessToken } = useAuthStore();
+    const [executions, setExecutions] = useState<AiExecution[]>([]);
+    const [stats, setStats] = useState<AiStats | null>(null);
+    const [total, setTotal] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [statsLoading, setStatsLoading] = useState(true);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAction, setSelectedAction] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
@@ -93,54 +74,82 @@ export default function AiHistoryPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const pageSize = 10;
 
+    useEffect(() => {
+        fetchStats();
+    }, []);
+
+    useEffect(() => {
+        fetchHistory();
+    }, [selectedAction, selectedStatus, currentPage]);
+
+    const fetchHistory = async () => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (selectedAction) params.set('action', selectedAction);
+            if (selectedStatus) params.set('status', selectedStatus);
+            params.set('limit', String(pageSize));
+            params.set('offset', String(currentPage * pageSize));
+
+            const response = await fetch(`/api/ai/history?${params}`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+            if (!response.ok) throw new Error('Failed to fetch history');
+            const data = await response.json();
+            setExecutions(data.results || []);
+            setTotal(data.total || 0);
+        } catch (err) {
+            console.error('Failed to fetch AI history:', err);
+            setExecutions([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchStats = async () => {
+        setStatsLoading(true);
+        try {
+            const response = await fetch('/api/ai/stats?days=30', {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+            if (!response.ok) throw new Error('Failed to fetch stats');
+            const data = await response.json();
+            setStats(data);
+        } catch (err) {
+            console.error('Failed to fetch AI stats:', err);
+        } finally {
+            setStatsLoading(false);
+        }
+    };
+
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await Promise.all([fetchHistory(), fetchStats()]);
         setIsRefreshing(false);
     };
 
-    // Calculate stats
-    const stats = useMemo(() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const todayExecutions = mockExecutions.filter(e => new Date(e.createdAt) >= today);
-        const successCount = mockExecutions.filter(e => e.status === 'success').length;
-        const totalTokens = mockExecutions.reduce((sum, e) => sum + e.inputTokens + e.outputTokens, 0);
-        const avgDuration = mockExecutions.reduce((sum, e) => sum + e.durationMs, 0) / mockExecutions.length;
-        
-        return {
-            totalCalls: mockExecutions.length,
-            todayCalls: todayExecutions.length,
-            successRate: Math.round((successCount / mockExecutions.length) * 100),
-            totalTokens,
-            avgDuration: Math.round(avgDuration),
-        };
-    }, []);
-
-    // Filter executions
+    // Filter executions by search
     const filteredExecutions = useMemo(() => {
-        return mockExecutions.filter(exec => {
-            const matchesSearch = !searchQuery || 
-                exec.actionLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                exec.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                exec.model.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesAction = !selectedAction || exec.action === selectedAction;
-            const matchesStatus = !selectedStatus || exec.status === selectedStatus;
-            return matchesSearch && matchesAction && matchesStatus;
-        });
-    }, [searchQuery, selectedAction, selectedStatus]);
+        if (!searchQuery) return executions;
+        return executions.filter(exec =>
+            (exec.actionLabel || exec.action).toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (exec.model || '').toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [executions, searchQuery]);
 
-    const paginatedExecutions = filteredExecutions.slice(
-        currentPage * pageSize,
-        (currentPage + 1) * pageSize
-    );
-    const totalPages = Math.ceil(filteredExecutions.length / pageSize);
+    const totalPages = Math.ceil(total / pageSize);
 
-    const uniqueActions = Array.from(new Set(mockExecutions.map(e => e.action))).map(action => ({
-        id: action,
-        label: mockExecutions.find(e => e.action === action)?.actionLabel || action,
-    }));
+    const uniqueActions = useMemo(() => {
+        if (!stats?.byAction) return [];
+        return Object.keys(stats.byAction).map(action => ({
+            id: action,
+            label: action.replace('.', ' - '),
+        }));
+    }, [stats]);
 
     return (
         <div className="space-y-6">
@@ -174,7 +183,9 @@ export default function AiHistoryPage() {
                         </div>
                         <div>
                             <p className="text-sm text-slate-500">총 호출</p>
-                            <p className="text-xl font-bold text-slate-900 dark:text-white">{stats.totalCalls}</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">
+                                {statsLoading ? '-' : stats?.total || 0}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -184,8 +195,10 @@ export default function AiHistoryPage() {
                             <TrendingUp className="h-5 w-5" />
                         </div>
                         <div>
-                            <p className="text-sm text-slate-500">오늘</p>
-                            <p className="text-xl font-bold text-slate-900 dark:text-white">{stats.todayCalls}</p>
+                            <p className="text-sm text-slate-500">성공</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">
+                                {statsLoading ? '-' : stats?.byStatus?.SUCCESS || 0}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -196,7 +209,9 @@ export default function AiHistoryPage() {
                         </div>
                         <div>
                             <p className="text-sm text-slate-500">성공률</p>
-                            <p className="text-xl font-bold text-slate-900 dark:text-white">{stats.successRate}%</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">
+                                {statsLoading ? '-' : `${stats?.successRate || 0}%`}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -207,7 +222,9 @@ export default function AiHistoryPage() {
                         </div>
                         <div>
                             <p className="text-sm text-slate-500">총 토큰</p>
-                            <p className="text-xl font-bold text-slate-900 dark:text-white">{(stats.totalTokens / 1000).toFixed(1)}K</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">
+                                {statsLoading ? '-' : `${((stats?.totalTokens || 0) / 1000).toFixed(1)}K`}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -218,39 +235,46 @@ export default function AiHistoryPage() {
                         </div>
                         <div>
                             <p className="text-sm text-slate-500">평균 응답</p>
-                            <p className="text-xl font-bold text-slate-900 dark:text-white">{formatDuration(stats.avgDuration)}</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">
+                                {statsLoading ? '-' : formatDuration(stats?.avgDuration || 0)}
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Usage by Action Chart (Simple bar representation) */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-blue-600" />
-                    액션별 사용량
-                </h3>
-                <div className="space-y-3">
-                    {uniqueActions.map(action => {
-                        const count = mockExecutions.filter(e => e.action === action.id).length;
-                        const percentage = (count / mockExecutions.length) * 100;
-                        return (
-                            <div key={action.id}>
-                                <div className="flex items-center justify-between text-sm mb-1">
-                                    <span className="text-slate-700 dark:text-slate-300">{action.label}</span>
-                                    <span className="text-slate-500">{count}회</span>
-                                </div>
-                                <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-500"
-                                        style={{ width: `${percentage}%` }}
-                                    />
-                                </div>
-                            </div>
-                        );
-                    })}
+            {/* Usage by Action Chart */}
+            {stats && Object.keys(stats.byAction).length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-blue-600" />
+                        액션별 사용량 (최근 30일)
+                    </h3>
+                    <div className="space-y-3">
+                        {Object.entries(stats.byAction)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 10)
+                            .map(([action, count]) => {
+                                const maxCount = Math.max(...Object.values(stats.byAction));
+                                const percentage = (count / maxCount) * 100;
+                                return (
+                                    <div key={action}>
+                                        <div className="flex items-center justify-between text-sm mb-1">
+                                            <span className="text-slate-700 dark:text-slate-300">{action}</span>
+                                            <span className="text-slate-500">{count}회</span>
+                                        </div>
+                                        <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-500"
+                                                style={{ width: `${percentage}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-4">
@@ -258,9 +282,9 @@ export default function AiHistoryPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="액션, 사용자, 모델 검색..."
+                        placeholder="액션, 모델 검색..."
                         value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
@@ -280,100 +304,105 @@ export default function AiHistoryPage() {
                     className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     <option value="">모든 상태</option>
-                    <option value="success">성공</option>
-                    <option value="error">오류</option>
-                    <option value="timeout">타임아웃</option>
+                    <option value="SUCCESS">성공</option>
+                    <option value="ERROR">오류</option>
+                    <option value="TIMEOUT">타임아웃</option>
                 </select>
             </div>
 
             {/* Execution History Table */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <table className="w-full">
-                    <thead className="bg-slate-50 dark:bg-slate-700/50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                상태
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                액션
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                모델
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                토큰
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                시간
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                사용자
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                일시
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {paginatedExecutions.length === 0 ? (
+                {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    </div>
+                ) : (
+                    <table className="w-full">
+                        <thead className="bg-slate-50 dark:bg-slate-700/50">
                             <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                                    실행 기록이 없습니다
-                                </td>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    상태
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    액션
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    모델
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    토큰
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    시간
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    일시
+                                </th>
                             </tr>
-                        ) : (
-                            paginatedExecutions.map((exec) => (
-                                <tr key={exec.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                    <td className="px-6 py-4">
-                                        {exec.status === 'success' ? (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400">
-                                                <CheckCircle className="h-3.5 w-3.5" />
-                                                성공
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400">
-                                                <AlertTriangle className="h-3.5 w-3.5" />
-                                                오류
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <p className="text-sm font-medium text-slate-900 dark:text-white">
-                                            {exec.actionLabel}
-                                        </p>
-                                        <p className="text-xs text-slate-500 font-mono">{exec.action}</p>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                                            <Cpu className="h-3 w-3" />
-                                            {exec.model}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                        <span className="text-green-600">{exec.inputTokens}</span>
-                                        {' / '}
-                                        <span className="text-blue-600">{exec.outputTokens}</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                        {formatDuration(exec.durationMs)}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                        {exec.userName}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-500">
-                                        {formatDate(exec.createdAt)}
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                            {filteredExecutions.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                                        실행 기록이 없습니다
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                            ) : (
+                                filteredExecutions.map((exec) => (
+                                    <tr key={exec.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            {exec.status === 'SUCCESS' ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400">
+                                                    <CheckCircle className="h-3.5 w-3.5" />
+                                                    성공
+                                                </span>
+                                            ) : exec.status === 'TIMEOUT' ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400">
+                                                    <Timer className="h-3.5 w-3.5" />
+                                                    타임아웃
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400">
+                                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                                    오류
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <p className="text-sm font-medium text-slate-900 dark:text-white">
+                                                {exec.actionLabel || exec.action}
+                                            </p>
+                                            <p className="text-xs text-slate-500 font-mono">{exec.action}</p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                                <Cpu className="h-3 w-3" />
+                                                {exec.model || '-'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                            <span className="text-green-600">{exec.inputTokens}</span>
+                                            {' / '}
+                                            <span className="text-blue-600">{exec.outputTokens}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                            {formatDuration(exec.durationMs)}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-500">
+                                            {formatDate(exec.createdAt)}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                )}
 
                 {/* Pagination */}
                 {totalPages > 1 && (
                     <div className="border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
                         <p className="text-sm text-slate-600 dark:text-slate-400">
-                            총 {filteredExecutions.length}개 중 {currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, filteredExecutions.length)}개 표시
+                            총 {total}개 중 {currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, total)}개 표시
                         </p>
                         <div className="flex items-center gap-2">
                             <button
