@@ -8,7 +8,6 @@ import {
     CheckCircle,
     AlertTriangle,
     Info,
-    Trash2,
     Check,
     RefreshCw,
     Settings,
@@ -19,8 +18,6 @@ import {
     FileWarning,
     Scan,
     Loader2,
-    Volume2,
-    VolumeX,
 } from 'lucide-react';
 import {
     useNotifications,
@@ -127,35 +124,12 @@ function formatTimestamp(timestamp: number | string) {
 export function NotificationCenter() {
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
-    const [useApi, setUseApi] = useState(true);
     const panelRef = useRef<HTMLDivElement>(null);
 
-    // API-based notifications
+    // API-based notifications only
     const { data: apiNotifications = [], isLoading, refetch } = useNotifications();
     const markReadMutation = useMarkNotificationRead();
     const markAllReadMutation = useMarkAllNotificationsRead();
-
-    // Fallback localStorage notifications
-    const [localNotifications, setLocalNotifications] = useState<LocalNotification[]>([]);
-
-    useEffect(() => {
-        // Load from localStorage as fallback
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try {
-                setLocalNotifications(JSON.parse(saved));
-            } catch (e) {
-                console.error('Failed to parse notifications from localStorage');
-            }
-        }
-
-        // Check if API is available
-        if (apiNotifications.length === 0 && !isLoading) {
-            setUseApi(false);
-        } else if (apiNotifications.length > 0) {
-            setUseApi(true);
-        }
-    }, [apiNotifications, isLoading]);
 
     // Close on click outside
     useEffect(() => {
@@ -171,62 +145,35 @@ export function NotificationCenter() {
         }
     }, [isOpen]);
 
-    // Combined notifications
-    const notifications = useApi
-        ? apiNotifications.map(n => ({
-            id: n.id,
-            type: n.type,
-            title: n.title,
-            message: n.message,
-            timestamp: new Date(n.createdAt).getTime(),
-            read: n.isRead,
-            link: undefined as string | undefined,
-        }))
-        : localNotifications;
+    // Map API notifications to display format
+    const notifications = apiNotifications.map(n => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        timestamp: new Date(n.createdAt).getTime(),
+        read: n.isRead,
+        link: undefined as string | undefined,
+    }));
 
     const unreadCount = notifications.filter(n => !n.read).length;
     const criticalCount = notifications.filter(n => !n.read && (n.type === 'critical_vuln' || n.type === 'error')).length;
 
     const markAsRead = useCallback(async (id: string) => {
-        if (useApi) {
-            try {
-                await markReadMutation.mutateAsync(id);
-            } catch (e) {
-                console.error('Failed to mark as read:', e);
-            }
-        } else {
-            const updated = localNotifications.map(n =>
-                n.id === id ? { ...n, read: true } : n
-            );
-            setLocalNotifications(updated);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        try {
+            await markReadMutation.mutateAsync(id);
+        } catch (e) {
+            console.error('Failed to mark as read:', e);
         }
-    }, [useApi, localNotifications, markReadMutation]);
+    }, [markReadMutation]);
 
     const markAllAsRead = useCallback(async () => {
-        if (useApi) {
-            try {
-                await markAllReadMutation.mutateAsync();
-            } catch (e) {
-                console.error('Failed to mark all as read:', e);
-            }
-        } else {
-            const updated = localNotifications.map(n => ({ ...n, read: true }));
-            setLocalNotifications(updated);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        try {
+            await markAllReadMutation.mutateAsync();
+        } catch (e) {
+            console.error('Failed to mark all as read:', e);
         }
-    }, [useApi, localNotifications, markAllReadMutation]);
-
-    const deleteNotification = useCallback((id: string) => {
-        const updated = localNotifications.filter(n => n.id !== id);
-        setLocalNotifications(updated);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    }, [localNotifications]);
-
-    const clearAll = useCallback(() => {
-        setLocalNotifications([]);
-        localStorage.removeItem(STORAGE_KEY);
-    }, []);
+    }, [markAllReadMutation]);
 
     const handleNotificationClick = useCallback(async (notification: typeof notifications[0]) => {
         await markAsRead(notification.id);
@@ -376,17 +323,6 @@ export function NotificationCenter() {
                                                 {notification.link && (
                                                     <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
                                                 )}
-                                                {!useApi && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            deleteNotification(notification.id);
-                                                        }}
-                                                        className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </button>
-                                                )}
                                             </div>
                                         </div>
                                     );
@@ -408,14 +344,6 @@ export function NotificationCenter() {
                                 모든 알림 보기
                                 <ChevronRight className="h-4 w-4" />
                             </button>
-                            {!useApi && notifications.length > 0 && (
-                                <button
-                                    onClick={clearAll}
-                                    className="text-sm text-slate-500 hover:text-red-600 dark:text-slate-400 transition-colors"
-                                >
-                                    모두 삭제
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
