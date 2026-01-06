@@ -10,6 +10,13 @@ import {
     Check,
     AlertCircle,
     Loader2,
+    Play,
+    Copy,
+    Download,
+    Upload,
+    Search,
+    FileCode,
+    Wand2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -29,6 +36,12 @@ export default function AiPromptsPage() {
     const [editedPrompts, setEditedPrompts] = useState<Record<string, string>>({});
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    
+    // Prompt testing
+    const [testingAction, setTestingAction] = useState<string | null>(null);
+    const [testResults, setTestResults] = useState<Record<string, string>>({});
+    const [testContext, setTestContext] = useState('{"vulnerabilities": [{"cveId": "CVE-2024-1234", "severity": "HIGH"}]}');
 
     useEffect(() => {
         fetchPrompts();
@@ -102,7 +115,6 @@ export default function AiPromptsPage() {
 
             if (!response.ok) throw new Error('Failed to reset prompt');
 
-            // Refresh to get default prompt
             await fetchPrompts();
             setEditedPrompts(prev => {
                 const newEdited = { ...prev };
@@ -118,6 +130,96 @@ export default function AiPromptsPage() {
         }
     };
 
+    const handleTest = async (action: string) => {
+        setTestingAction(action);
+        setTestResults(prev => ({ ...prev, [action]: '' }));
+
+        try {
+            let context = {};
+            try {
+                context = JSON.parse(testContext);
+            } catch {
+                context = { text: testContext };
+            }
+
+            const response = await fetch('/api/ai/execute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({ action, context }),
+            });
+
+            const result = await response.json();
+            setTestResults(prev => ({
+                ...prev,
+                [action]: result.content || result.message || 'No response',
+            }));
+        } catch (err) {
+            setTestResults(prev => ({
+                ...prev,
+                [action]: `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            }));
+        } finally {
+            setTestingAction(null);
+        }
+    };
+
+    const handleExportPrompts = () => {
+        const exportData: Record<string, string> = {};
+        Object.entries(prompts).forEach(([action, data]) => {
+            if (data.isCustom) {
+                exportData[action] = data.prompt;
+            }
+        });
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ai-prompts-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImportPrompts = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const importedPrompts = JSON.parse(text) as Record<string, string>;
+            
+            for (const [action, prompt] of Object.entries(importedPrompts)) {
+                if (prompts[action]) {
+                    await fetch(`/api/ai/prompts/${action}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                        body: JSON.stringify({ prompt }),
+                    });
+                }
+            }
+            
+            await fetchPrompts();
+            setSuccessMessage(`${Object.keys(importedPrompts).length}개 프롬프트를 불러왔습니다.`);
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err) {
+            setError('프롬프트 파일을 불러오는데 실패했습니다.');
+        }
+        
+        e.target.value = '';
+    };
+
+    const handleCopyPrompt = (prompt: string) => {
+        navigator.clipboard.writeText(prompt);
+        setSuccessMessage('프롬프트가 클립보드에 복사되었습니다.');
+        setTimeout(() => setSuccessMessage(null), 2000);
+    };
+
     const handlePromptChange = (action: string, value: string) => {
         setEditedPrompts(prev => ({ ...prev, [action]: value }));
     };
@@ -125,14 +227,6 @@ export default function AiPromptsPage() {
     const isEdited = (action: string) => {
         return editedPrompts[action] !== undefined && editedPrompts[action] !== prompts[action]?.prompt;
     };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
-            </div>
-        );
-    }
 
     const actionGroups: Record<string, string[]> = {
         '대시보드': ['dashboard.summary', 'dashboard.riskAnalysis'],
@@ -146,39 +240,134 @@ export default function AiPromptsPage() {
         '관리자': ['admin.permissionRecommendation', 'admin.complianceMapping'],
     };
 
+    const filteredGroups = Object.entries(actionGroups).reduce((acc, [group, actions]) => {
+        const filtered = actions.filter(action => {
+            const data = prompts[action];
+            if (!data) return false;
+            if (!searchQuery) return true;
+            return (
+                data.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                data.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                action.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        });
+        if (filtered.length > 0) {
+            acc[group] = filtered;
+        }
+        return acc;
+    }, {} as Record<string, string[]>);
+
+    const customCount = Object.values(prompts).filter(p => p.isCustom).length;
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+            </div>
+        );
+    }
+
     return (
-        <div className="p-6 max-w-5xl mx-auto">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-gradient-to-r from-violet-500 to-purple-500 rounded-xl">
-                    <Sparkles className="h-6 w-6 text-white" />
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-3 bg-gradient-to-r from-violet-500 to-purple-500 rounded-xl">
+                        <Sparkles className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">AI 프롬프트 관리</h1>
+                        <p className="text-sm text-slate-500">각 AI 기능별 프롬프트를 수정하고 관리합니다</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">AI 프롬프트 관리</h1>
-                    <p className="text-sm text-slate-500">각 AI 기능별 프롬프트를 수정하고 관리합니다</p>
+                <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+                        <Upload className="h-4 w-4" />
+                        불러오기
+                        <input type="file" accept=".json" onChange={handleImportPrompts} className="hidden" />
+                    </label>
+                    <button
+                        onClick={handleExportPrompts}
+                        disabled={customCount === 0}
+                        className="flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                    >
+                        <Download className="h-4 w-4" />
+                        내보내기 ({customCount})
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <p className="text-sm text-slate-500">총 프롬프트</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{Object.keys(prompts).length}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <p className="text-sm text-slate-500">커스텀 프롬프트</p>
+                    <p className="text-2xl font-bold text-violet-600">{customCount}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <p className="text-sm text-slate-500">기본값 사용</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{Object.keys(prompts).length - customCount}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <p className="text-sm text-slate-500">카테고리</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{Object.keys(actionGroups).length}</p>
                 </div>
             </div>
 
             {/* Success/Error Messages */}
             {successMessage && (
-                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-2 text-green-700 dark:text-green-400">
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-2 text-green-700 dark:text-green-400">
                     <Check className="h-4 w-4" />
                     {successMessage}
                 </div>
             )}
             {error && (
-                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-400">
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-400">
                     <AlertCircle className="h-4 w-4" />
                     {error}
                 </div>
             )}
 
+            {/* Search & Test Context */}
+            <div className="flex gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="프롬프트 검색..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    />
+                </div>
+            </div>
+
+            {/* Test Context Input */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <FileCode className="h-4 w-4 text-violet-600" />
+                    <span className="text-sm font-medium text-slate-900 dark:text-white">테스트 컨텍스트 (JSON)</span>
+                </div>
+                <textarea
+                    value={testContext}
+                    onChange={(e) => setTestContext(e.target.value)}
+                    rows={2}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    placeholder='{"key": "value"}'
+                />
+                <p className="text-xs text-slate-500 mt-1">프롬프트 테스트 시 사용될 컨텍스트 데이터</p>
+            </div>
+
             {/* Prompt Groups */}
             <div className="space-y-6">
-                {Object.entries(actionGroups).map(([groupName, actions]) => (
+                {Object.entries(filteredGroups).map(([groupName, actions]) => (
                     <div key={groupName} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                             <h2 className="font-semibold text-slate-900 dark:text-white">{groupName}</h2>
+                            <span className="text-xs text-slate-500">{actions.length}개 프롬프트</span>
                         </div>
                         <div className="divide-y divide-slate-200 dark:divide-slate-700">
                             {actions.map(action => {
@@ -188,6 +377,7 @@ export default function AiPromptsPage() {
                                 const isExpanded = expandedAction === action;
                                 const currentPrompt = editedPrompts[action] ?? data.prompt;
                                 const hasChanges = isEdited(action);
+                                const testResult = testResults[action];
 
                                 return (
                                     <div key={action} className="p-4">
@@ -221,19 +411,47 @@ export default function AiPromptsPage() {
                                         </button>
 
                                         {isExpanded && (
-                                            <div className="mt-4 space-y-3">
-                                                <textarea
-                                                    value={currentPrompt}
-                                                    onChange={e => handlePromptChange(action, e.target.value)}
-                                                    rows={10}
-                                                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm resize-y focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                                    placeholder="프롬프트를 입력하세요..."
-                                                />
+                                            <div className="mt-4 space-y-4">
+                                                <div className="relative">
+                                                    <textarea
+                                                        value={currentPrompt}
+                                                        onChange={e => handlePromptChange(action, e.target.value)}
+                                                        rows={10}
+                                                        className="w-full px-4 py-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm resize-y focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                                                        placeholder="프롬프트를 입력하세요..."
+                                                    />
+                                                    <button
+                                                        onClick={() => handleCopyPrompt(currentPrompt)}
+                                                        className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded"
+                                                        title="프롬프트 복사"
+                                                    >
+                                                        <Copy className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                                
                                                 <div className="flex items-center justify-between">
-                                                    <p className="text-xs text-slate-500">
-                                                        액션 코드: <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">{action}</code>
-                                                    </p>
                                                     <div className="flex items-center gap-2">
+                                                        <p className="text-xs text-slate-500">
+                                                            액션 코드: <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">{action}</code>
+                                                        </p>
+                                                        <span className="text-xs text-slate-400">|</span>
+                                                        <p className="text-xs text-slate-500">
+                                                            {currentPrompt.length} 글자
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => handleTest(action)}
+                                                            disabled={testingAction === action}
+                                                            className="flex items-center gap-2 px-3 py-2 text-sm text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition-colors"
+                                                        >
+                                                            {testingAction === action ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <Wand2 className="h-4 w-4" />
+                                                            )}
+                                                            테스트
+                                                        </button>
                                                         {data.isCustom && (
                                                             <button
                                                                 onClick={() => handleReset(action)}
@@ -262,6 +480,21 @@ export default function AiPromptsPage() {
                                                         </button>
                                                     </div>
                                                 </div>
+
+                                                {/* Test Result */}
+                                                {testResult && (
+                                                    <div className="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+                                                        <p className="text-sm font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                                                            <Play className="h-4 w-4 text-violet-600" />
+                                                            테스트 결과
+                                                        </p>
+                                                        <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 max-h-60 overflow-y-auto">
+                                                            <pre className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono">
+                                                                {testResult}
+                                                            </pre>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
