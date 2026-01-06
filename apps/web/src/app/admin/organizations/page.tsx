@@ -11,6 +11,16 @@ import {
     FolderKanban,
     AlertTriangle,
     X,
+    Eye,
+    Shield,
+    Calendar,
+    Mail,
+    ExternalLink,
+    MoreVertical,
+    Settings,
+    Activity,
+    TrendingUp,
+    CheckCircle,
 } from 'lucide-react';
 import {
     useOrganizations,
@@ -21,7 +31,7 @@ import {
 } from '@/lib/api-hooks';
 
 export default function AdminOrganizationsPage() {
-    const { data: organizations, isLoading, error } = useOrganizations();
+    const { data: organizations, isLoading, error, refetch } = useOrganizations();
     const createMutation = useCreateOrganization();
     const updateMutation = useUpdateOrganization();
     const deleteMutation = useDeleteOrganization();
@@ -29,6 +39,7 @@ export default function AdminOrganizationsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+    const [viewingOrg, setViewingOrg] = useState<Organization | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({ name: '', slug: '', description: '' });
@@ -37,6 +48,10 @@ export default function AdminOrganizationsPage() {
         org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         org.slug.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Stats
+    const totalUsers = organizations?.reduce((sum, org) => sum + (org._count?.users || 0), 0) || 0;
+    const totalProjects = organizations?.reduce((sum, org) => sum + (org._count?.projects || 0), 0) || 0;
 
     const openCreateModal = () => {
         setFormData({ name: '', slug: '', description: '' });
@@ -51,12 +66,15 @@ export default function AdminOrganizationsPage() {
     const closeModals = () => {
         setShowCreateModal(false);
         setEditingOrg(null);
+        setViewingOrg(null);
         setFormData({ name: '', slug: '', description: '' });
     };
 
     const handleCreate = async () => {
         try {
-            await createMutation.mutateAsync(formData);
+            // Auto-generate slug if not provided
+            const slug = formData.slug || formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            await createMutation.mutateAsync({ ...formData, slug });
             closeModals();
         } catch (err) {
             console.error('Failed to create organization:', err);
@@ -74,12 +92,18 @@ export default function AdminOrganizationsPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('정말 이 조직을 삭제하시겠습니까?')) return;
+        if (!confirm('정말 이 조직을 삭제하시겠습니까? 모든 관련 데이터가 삭제됩니다.')) return;
         try {
             await deleteMutation.mutateAsync(id);
         } catch (err) {
             console.error('Failed to delete organization:', err);
         }
+    };
+
+    // Auto-generate slug from name
+    const handleNameChange = (name: string) => {
+        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        setFormData({ ...formData, name, slug });
     };
 
     if (isLoading) {
@@ -106,7 +130,7 @@ export default function AdminOrganizationsPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">조직 관리</h1>
                     <p className="text-slate-600 dark:text-slate-400 mt-1">
-                        {organizations?.length || 0}개 조직
+                        {organizations?.length || 0}개 조직 관리
                     </p>
                 </div>
                 <button
@@ -118,16 +142,74 @@ export default function AdminOrganizationsPage() {
                 </button>
             </div>
 
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">전체 조직</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">{organizations?.length || 0}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                            <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">전체 사용자</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">{totalUsers}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                            <FolderKanban className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">전체 프로젝트</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">{totalProjects}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                            <Activity className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">평균 사용자</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">
+                                {organizations?.length ? Math.round(totalUsers / organizations.length) : 0}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Search */}
-            <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <input
-                    type="text"
-                    placeholder="조직 검색..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
+            <div className="flex items-center gap-4">
+                <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="조직 이름 또는 슬러그로 검색..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                </div>
+                <button
+                    onClick={() => refetch()}
+                    className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                >
+                    새로고침
+                </button>
             </div>
 
             {/* Organizations Grid */}
@@ -135,11 +217,11 @@ export default function AdminOrganizationsPage() {
                 {filteredOrganizations.map((org) => (
                     <div
                         key={org.id}
-                        className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6"
+                        className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 hover:shadow-lg transition-shadow"
                     >
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                                <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/30 dark:to-red-800/30 rounded-lg flex items-center justify-center">
                                     <Building2 className="h-6 w-6 text-red-600 dark:text-red-400" />
                                 </div>
                                 <div>
@@ -149,8 +231,16 @@ export default function AdminOrganizationsPage() {
                             </div>
                             <div className="flex gap-1">
                                 <button
+                                    onClick={() => setViewingOrg(org)}
+                                    className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                    title="상세 보기"
+                                >
+                                    <Eye className="h-4 w-4" />
+                                </button>
+                                <button
                                     onClick={() => openEditModal(org)}
                                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                    title="수정"
                                 >
                                     <Edit className="h-4 w-4" />
                                 </button>
@@ -158,6 +248,7 @@ export default function AdminOrganizationsPage() {
                                     onClick={() => handleDelete(org.id)}
                                     disabled={deleteMutation.isPending}
                                     className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                                    title="삭제"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </button>
@@ -180,6 +271,20 @@ export default function AdminOrganizationsPage() {
                                 {org._count?.projects || 0} 프로젝트
                             </span>
                         </div>
+
+                        {/* Progress bar for users */}
+                        <div className="mt-4">
+                            <div className="flex justify-between text-xs text-slate-500 mb-1">
+                                <span>사용자 점유율</span>
+                                <span>{totalUsers > 0 ? Math.round(((org._count?.users || 0) / totalUsers) * 100) : 0}%</span>
+                            </div>
+                            <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-red-500 rounded-full transition-all" 
+                                    style={{ width: `${totalUsers > 0 ? ((org._count?.users || 0) / totalUsers) * 100 : 0}%` }}
+                                />
+                            </div>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -189,18 +294,20 @@ export default function AdminOrganizationsPage() {
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center">
                     <Building2 className="h-16 w-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                        조직이 없습니다
+                        {searchQuery ? '검색 결과가 없습니다' : '조직이 없습니다'}
                     </h3>
                     <p className="text-slate-600 dark:text-slate-400 mb-4">
-                        첫 번째 조직을 추가하세요.
+                        {searchQuery ? '다른 검색어로 시도해보세요.' : '첫 번째 조직을 추가하세요.'}
                     </p>
-                    <button
-                        onClick={openCreateModal}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
-                    >
-                        <Plus className="h-4 w-4" />
-                        조직 추가
-                    </button>
+                    {!searchQuery && (
+                        <button
+                            onClick={openCreateModal}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                        >
+                            <Plus className="h-4 w-4" />
+                            조직 추가
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -225,22 +332,26 @@ export default function AdminOrganizationsPage() {
                                 <input
                                     type="text"
                                     value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    onChange={(e) => handleNameChange(e.target.value)}
                                     className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                                     placeholder="ACME Corporation"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    슬러그 *
+                                    슬러그 (URL에 사용됨) *
                                 </label>
-                                <input
-                                    type="text"
-                                    value={formData.slug}
-                                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                                    placeholder="acme-corp"
-                                />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-400">@</span>
+                                    <input
+                                        type="text"
+                                        value={formData.slug}
+                                        onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                                        className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                                        placeholder="acme-corp"
+                                    />
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">영문 소문자, 숫자, 하이픈만 허용됩니다.</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -265,10 +376,113 @@ export default function AdminOrganizationsPage() {
                             </button>
                             <button
                                 onClick={editingOrg ? handleUpdate : handleCreate}
-                                disabled={createMutation.isPending || updateMutation.isPending || !formData.name}
+                                disabled={createMutation.isPending || updateMutation.isPending || !formData.name || !formData.slug}
                                 className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                             >
                                 {createMutation.isPending || updateMutation.isPending ? '처리 중...' : editingOrg ? '저장' : '추가'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View Detail Modal */}
+            {viewingOrg && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewingOrg(null)}>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/30 dark:to-red-800/30 rounded-lg flex items-center justify-center">
+                                    <Building2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{viewingOrg.name}</h3>
+                                    <p className="text-sm text-slate-500">@{viewingOrg.slug}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setViewingOrg(null)} className="text-slate-400 hover:text-slate-600">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {/* Organization Info */}
+                            <div>
+                                <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">조직 정보</h4>
+                                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 space-y-3">
+                                    {viewingOrg.description && (
+                                        <div>
+                                            <span className="text-xs text-slate-500">설명</span>
+                                            <p className="text-sm text-slate-700 dark:text-slate-300">{viewingOrg.description}</p>
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <span className="text-xs text-slate-500">생성일</span>
+                                            <p className="text-sm text-slate-700 dark:text-slate-300">
+                                                {viewingOrg.createdAt ? new Date(viewingOrg.createdAt).toLocaleDateString('ko-KR') : '-'}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-slate-500">ID</span>
+                                            <p className="text-sm text-slate-700 dark:text-slate-300 font-mono text-xs">{viewingOrg.id}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Stats */}
+                            <div>
+                                <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">통계</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
+                                        <Users className="h-8 w-8 mx-auto text-blue-600 dark:text-blue-400 mb-2" />
+                                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{viewingOrg._count?.users || 0}</p>
+                                        <p className="text-sm text-slate-600 dark:text-slate-400">사용자</p>
+                                    </div>
+                                    <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 text-center">
+                                        <FolderKanban className="h-8 w-8 mx-auto text-purple-600 dark:text-purple-400 mb-2" />
+                                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{viewingOrg._count?.projects || 0}</p>
+                                        <p className="text-sm text-slate-600 dark:text-slate-400">프로젝트</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quick Actions */}
+                            <div>
+                                <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">빠른 작업</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        onClick={() => { setViewingOrg(null); openEditModal(viewingOrg); }}
+                                        className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                        수정
+                                    </button>
+                                    <a
+                                        href={`/admin/users?organizationId=${viewingOrg.id}`}
+                                        className="flex items-center gap-2 px-3 py-2 text-sm bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30"
+                                    >
+                                        <Users className="h-4 w-4" />
+                                        사용자 보기
+                                    </a>
+                                    <a
+                                        href={`/dashboard/projects?organizationId=${viewingOrg.id}`}
+                                        className="flex items-center gap-2 px-3 py-2 text-sm bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30"
+                                    >
+                                        <FolderKanban className="h-4 w-4" />
+                                        프로젝트 보기
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 p-6 border-t border-slate-200 dark:border-slate-700">
+                            <button
+                                onClick={() => setViewingOrg(null)}
+                                className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                            >
+                                닫기
                             </button>
                         </div>
                     </div>
