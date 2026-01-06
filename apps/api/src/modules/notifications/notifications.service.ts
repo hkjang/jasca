@@ -125,6 +125,43 @@ export class NotificationsService {
         }
     }
 
+    /**
+     * Send policy violation notification
+     */
+    async notifyPolicyViolation(params: {
+        policyName: string;
+        ruleName: string;
+        action: string;
+        severity?: string;
+        projectName?: string;
+        cveId?: string;
+        details?: string;
+    }) {
+        const { policyName, ruleName, action, severity, projectName, cveId, details } = params;
+
+        const actionLabel = action === 'BLOCK' ? '🚫 차단' : action === 'WARN' ? '⚠️ 경고' : '📋 감사';
+        const title = `정책 위반: ${policyName}`;
+        const message = [
+            `**정책**: ${policyName}`,
+            `**규칙**: ${ruleName}`,
+            `**액션**: ${actionLabel}`,
+            projectName ? `**프로젝트**: ${projectName}` : null,
+            severity ? `**심각도**: ${severity}` : null,
+            cveId ? `**CVE**: ${cveId}` : null,
+            details ? `**상세**: ${details}` : null,
+        ].filter(Boolean).join('\n');
+
+        await this.notify({
+            eventType: 'POLICY_VIOLATION',
+            title,
+            message,
+            severity: severity || action === 'BLOCK' ? 'CRITICAL' : 'HIGH',
+            cveId,
+        });
+
+        this.logger.log(`Policy violation notification sent: ${policyName} - ${action}`);
+    }
+
     // Test channel connection
     async testChannel(channelId: string): Promise<{ success: boolean; message: string }> {
         const channel = await this.prisma.notificationChannel.findUnique({

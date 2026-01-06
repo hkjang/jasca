@@ -428,6 +428,9 @@ model PolicyRule {
   
   priority       Int       @default(0)
   
+  // Notification settings
+  sendNotification Boolean @default(false)
+  
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   
