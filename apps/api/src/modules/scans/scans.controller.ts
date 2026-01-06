@@ -72,19 +72,24 @@ export class ScansController {
     @ApiOperation({ summary: 'Upload a Trivy scan result directly as JSON body' })
     @ApiQuery({ name: 'projectId', required: false, description: 'Project ID' })
     @ApiQuery({ name: 'projectName', required: false, description: 'Project name (auto-create if not exists)' })
-    @ApiQuery({ name: 'organizationId', required: false, description: 'Organization ID for auto-create' })
+    @ApiQuery({ name: 'organizationId', required: false, description: 'Organization ID for auto-create (auto-filled from API token)' })
     @ApiQuery({ name: 'imageRef', required: false, description: 'Image reference' })
     @ApiQuery({ name: 'tag', required: false, description: 'Image tag' })
     @ApiBody({ description: 'Trivy JSON scan result' })
     async uploadDirect(
         @Query('projectId') projectId: string | undefined,
         @Query('projectName') projectName: string | undefined,
-        @Query('organizationId') organizationId: string | undefined,
+        @Query('organizationId') organizationIdParam: string | undefined,
         @Query('imageRef') imageRef: string | undefined,
         @Query('tag') tag: string | undefined,
         @Body() body: any,
         @Req() req: Request,
     ) {
+        const user = (req as any).user;
+        
+        // Use organizationId from query params, or fall back to API token's organizationId
+        const organizationId = organizationIdParam || (user?.isApiToken ? user.organizationId : undefined);
+
         // Build DTO from query params
         const dto: UploadScanDto = {
             sourceType: 'TRIVY_JSON',
@@ -97,7 +102,7 @@ export class ScansController {
         // Capture source info
         const uploaderIp = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
         const userAgent = req.headers['user-agent'] || 'unknown';
-        const uploadedById = (req as any).user?.id;
+        const uploadedById = user?.id;
 
         // The body IS the Trivy result
         return this.scansService.uploadScan(projectId, dto, body, {
