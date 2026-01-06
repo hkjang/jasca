@@ -11,7 +11,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { NotificationsService } from './notifications.service';
 import { Prisma } from '@prisma/client';
 
 @ApiTags('Notification Channels')
@@ -19,7 +19,10 @@ import { Prisma } from '@prisma/client';
 @UseGuards(JwtAuthGuard)
 @Controller('notification-channels')
 export class NotificationChannelsController {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly notificationsService: NotificationsService,
+    ) { }
 
     @Get()
     @ApiOperation({ summary: 'Get all notification channels' })
@@ -87,6 +90,12 @@ export class NotificationChannelsController {
         });
     }
 
+    @Post(':id/test')
+    @ApiOperation({ summary: 'Test notification channel connection' })
+    async testChannel(@Param('id') id: string) {
+        return this.notificationsService.testChannel(id);
+    }
+
     @Post(':id/rules')
     @ApiOperation({ summary: 'Add notification rule to channel' })
     async addRule(
@@ -104,6 +113,37 @@ export class NotificationChannelsController {
                 eventType: data.eventType as any,
                 conditions: data.conditions,
                 isActive: data.isActive ?? true,
+            },
+        });
+    }
+
+    @Put(':channelId/rules/:ruleId')
+    @ApiOperation({ summary: 'Update notification rule' })
+    async updateRule(
+        @Param('channelId') channelId: string,
+        @Param('ruleId') ruleId: string,
+        @Body()
+        data: {
+            eventType?: string;
+            conditions?: Prisma.InputJsonValue;
+            isActive?: boolean;
+        },
+    ) {
+        // Verify the rule belongs to the channel
+        const rule = await this.prisma.notificationRule.findFirst({
+            where: { id: ruleId, channelId },
+        });
+        
+        if (!rule) {
+            throw new Error('Notification rule not found');
+        }
+
+        return this.prisma.notificationRule.update({
+            where: { id: ruleId },
+            data: {
+                ...(data.eventType && { eventType: data.eventType as any }),
+                ...(data.conditions !== undefined && { conditions: data.conditions }),
+                ...(data.isActive !== undefined && { isActive: data.isActive }),
             },
         });
     }

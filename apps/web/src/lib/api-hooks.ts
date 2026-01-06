@@ -1064,6 +1064,154 @@ export function useDeleteApiToken() {
     });
 }
 
+// ============ Notification Channels API ============
+
+export interface NotificationRule {
+    id: string;
+    channelId: string;
+    eventType: string;
+    conditions?: Record<string, unknown>;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface NotificationChannel {
+    id: string;
+    name: string;
+    type: 'SLACK' | 'MATTERMOST' | 'EMAIL' | 'WEBHOOK';
+    config: Record<string, unknown>;
+    isActive: boolean;
+    rules?: NotificationRule[];
+    createdAt: string;
+    updatedAt: string;
+}
+
+export function useNotificationChannels() {
+    return useQuery<NotificationChannel[]>({
+        queryKey: ['notification-channels'],
+        queryFn: () => authFetch(`${API_BASE}/notification-channels`),
+    });
+}
+
+export function useNotificationChannel(id: string) {
+    return useQuery<NotificationChannel>({
+        queryKey: ['notification-channel', id],
+        queryFn: () => authFetch(`${API_BASE}/notification-channels/${id}`),
+        enabled: !!id,
+    });
+}
+
+export function useCreateNotificationChannel() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: {
+            name: string;
+            type: 'SLACK' | 'MATTERMOST' | 'EMAIL' | 'WEBHOOK';
+            config: Record<string, unknown>;
+            isActive?: boolean;
+        }) =>
+            authFetch(`${API_BASE}/notification-channels`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+export function useUpdateNotificationChannel() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, ...data }: {
+            id: string;
+            name?: string;
+            config?: Record<string, unknown>;
+            isActive?: boolean;
+        }) =>
+            authFetch(`${API_BASE}/notification-channels/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+export function useDeleteNotificationChannel() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) =>
+            authFetch(`${API_BASE}/notification-channels/${id}`, { method: 'DELETE' }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+export function useTestNotificationChannel() {
+    return useMutation<{ success: boolean; message: string }, Error, string>({
+        mutationFn: (channelId: string) =>
+            authFetch(`${API_BASE}/notification-channels/${channelId}/test`, {
+                method: 'POST',
+            }),
+    });
+}
+
+export function useAddNotificationRule() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ channelId, ...data }: {
+            channelId: string;
+            eventType: string;
+            conditions?: Record<string, unknown>;
+            isActive?: boolean;
+        }) =>
+            authFetch(`${API_BASE}/notification-channels/${channelId}/rules`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+export function useUpdateNotificationRule() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ channelId, ruleId, ...data }: {
+            channelId: string;
+            ruleId: string;
+            eventType?: string;
+            conditions?: Record<string, unknown>;
+            isActive?: boolean;
+        }) =>
+            authFetch(`${API_BASE}/notification-channels/${channelId}/rules/${ruleId}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
+export function useDeleteNotificationRule() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ channelId, ruleId }: { channelId: string; ruleId: string }) =>
+            authFetch(`${API_BASE}/notification-channels/${channelId}/rules/${ruleId}`, {
+                method: 'DELETE',
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+        },
+    });
+}
+
 // ============ Stats API ============
 
 export interface StatsOverview {
@@ -1213,6 +1361,78 @@ export function useLoginHistory(limit = 50) {
     });
 }
 
+// ============ Audit Logs API ============
+
+export interface AuditLog {
+    id: string;
+    userId?: string;
+    user?: { id: string; name: string; email: string };
+    organizationId?: string;
+    organization?: { id: string; name: string };
+    action: string;
+    resource: string;
+    resourceId?: string;
+    details?: Record<string, unknown>;
+    ipAddress?: string;
+    userAgent?: string;
+    createdAt: string;
+}
+
+export interface AuditLogFilters {
+    action?: string;
+    resource?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface AuditLogStats {
+    total: number;
+    byAction: Record<string, number>;
+    byResource: Record<string, number>;
+    trend: { date: string; count: number }[];
+}
+
+export function useAuditLogs(filters?: AuditLogFilters) {
+    return useQuery<{ results: AuditLog[]; total: number }>({
+        queryKey: ['audit-logs', filters],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            if (filters?.action) params.set('action', filters.action);
+            if (filters?.resource) params.set('resource', filters.resource);
+            if (filters?.userId) params.set('userId', filters.userId);
+            if (filters?.startDate) params.set('startDate', filters.startDate);
+            if (filters?.endDate) params.set('endDate', filters.endDate);
+            if (filters?.limit) params.set('limit', filters.limit.toString());
+            if (filters?.offset) params.set('offset', filters.offset.toString());
+            return authFetch(`${API_BASE}/audit-logs?${params.toString()}`);
+        },
+    });
+}
+
+export function useAuditLogActions() {
+    return useQuery<{ id: string; label: string }[]>({
+        queryKey: ['audit-log-actions'],
+        queryFn: () => authFetch(`${API_BASE}/audit-logs/actions`),
+    });
+}
+
+export function useAuditLogResources() {
+    return useQuery<{ id: string; label: string }[]>({
+        queryKey: ['audit-log-resources'],
+        queryFn: () => authFetch(`${API_BASE}/audit-logs/resources`),
+    });
+}
+
+export function useAuditLogStats(days = 7) {
+    return useQuery<AuditLogStats>({
+        queryKey: ['audit-log-stats', days],
+        queryFn: () => authFetch(`${API_BASE}/audit-logs/stats?days=${days}`),
+    });
+}
+
 // ============ Reports API ============
 
 export interface Report {
@@ -1345,91 +1565,6 @@ export function useUpdateReport() {
             }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reports'] });
-        },
-    });
-}
-
-// ============ Notification Channels API ============
-
-export interface NotificationChannel {
-    id: string;
-    name: string;
-    type: 'SLACK' | 'MATTERMOST' | 'EMAIL' | 'WEBHOOK';
-    config: Record<string, unknown>;
-    isActive: boolean;
-    createdAt: string;
-    rules?: NotificationRule[];
-}
-
-export interface NotificationRule {
-    id: string;
-    channelId: string;
-    eventType: string;
-    conditions?: Record<string, unknown>;
-    isActive: boolean;
-}
-
-export function useNotificationChannels() {
-    return useQuery<NotificationChannel[]>({
-        queryKey: ['notification-channels'],
-        queryFn: () => authFetch(`${API_BASE}/notification-channels`),
-    });
-}
-
-export function useCreateNotificationChannel() {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (data: {
-            name: string;
-            type: 'SLACK' | 'MATTERMOST' | 'EMAIL' | 'WEBHOOK';
-            config: Record<string, unknown>;
-            isActive?: boolean;
-        }) =>
-            authFetch(`${API_BASE}/notification-channels`, {
-                method: 'POST',
-                body: JSON.stringify(data),
-            }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
-        },
-    });
-}
-
-export function useUpdateNotificationChannel() {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, ...data }: { id: string; name?: string; config?: Record<string, unknown>; isActive?: boolean }) =>
-            authFetch(`${API_BASE}/notification-channels/${id}`, {
-                method: 'PUT',
-                body: JSON.stringify(data),
-            }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
-        },
-    });
-}
-
-export function useDeleteNotificationChannel() {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) =>
-            authFetch(`${API_BASE}/notification-channels/${id}`, { method: 'DELETE' }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
-        },
-    });
-}
-
-export function useAddNotificationRule() {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: ({ channelId, ...data }: { channelId: string; eventType: string; conditions?: Record<string, unknown>; isActive?: boolean }) =>
-            authFetch(`${API_BASE}/notification-channels/${channelId}/rules`, {
-                method: 'POST',
-                body: JSON.stringify(data),
-            }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
         },
     });
 }
