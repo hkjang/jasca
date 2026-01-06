@@ -21,6 +21,7 @@ import {
     ApiConsumes,
     ApiQuery,
     ApiSecurity,
+    ApiBody,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -59,12 +60,62 @@ export class ScansController {
         return this.scansService.findById(id);
     }
 
+    /**
+     * Simple upload: Just send Trivy JSON directly
+     * curl -X POST /api/scans/upload -H "Authorization: Bearer jasca_xxx" -H "Content-Type: application/json" -d @trivy.json
+     */
     @Post('upload')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('DEVELOPER', 'PROJECT_ADMIN', 'ORG_ADMIN')
     @ApiBearerAuth()
     @ApiSecurity('api-key')
-    @ApiOperation({ summary: 'Upload a Trivy scan result (projectId optional - can auto-create project)' })
+    @ApiOperation({ summary: 'Upload a Trivy scan result directly as JSON body' })
+    @ApiQuery({ name: 'projectId', required: false, description: 'Project ID' })
+    @ApiQuery({ name: 'projectName', required: false, description: 'Project name (auto-create if not exists)' })
+    @ApiQuery({ name: 'organizationId', required: false, description: 'Organization ID for auto-create' })
+    @ApiQuery({ name: 'imageRef', required: false, description: 'Image reference' })
+    @ApiQuery({ name: 'tag', required: false, description: 'Image tag' })
+    @ApiBody({ description: 'Trivy JSON scan result' })
+    async uploadDirect(
+        @Query('projectId') projectId: string | undefined,
+        @Query('projectName') projectName: string | undefined,
+        @Query('organizationId') organizationId: string | undefined,
+        @Query('imageRef') imageRef: string | undefined,
+        @Query('tag') tag: string | undefined,
+        @Body() body: any,
+        @Req() req: Request,
+    ) {
+        // Build DTO from query params
+        const dto: UploadScanDto = {
+            sourceType: 'TRIVY_JSON',
+            projectName: projectName,
+            organizationId: organizationId,
+            imageRef: imageRef,
+            tag: tag,
+        };
+
+        // Capture source info
+        const uploaderIp = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        const uploadedById = (req as any).user?.id;
+
+        // The body IS the Trivy result
+        return this.scansService.uploadScan(projectId, dto, body, {
+            uploaderIp,
+            userAgent,
+            uploadedById,
+        });
+    }
+
+    /**
+     * File upload via multipart form
+     */
+    @Post('upload/file')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('DEVELOPER', 'PROJECT_ADMIN', 'ORG_ADMIN')
+    @ApiBearerAuth()
+    @ApiSecurity('api-key')
+    @ApiOperation({ summary: 'Upload a Trivy scan result as multipart file' })
     @ApiQuery({ name: 'projectId', required: false, description: 'Project ID - if not provided, use projectName & organizationId in body' })
     @ApiConsumes('multipart/form-data')
     @UseInterceptors(FileInterceptor('file'))
@@ -110,7 +161,7 @@ export class ScansController {
     @Roles('DEVELOPER', 'PROJECT_ADMIN', 'ORG_ADMIN')
     @ApiBearerAuth()
     @ApiSecurity('api-key')
-    @ApiOperation({ summary: 'Upload a Trivy scan result as JSON body (projectId optional)' })
+    @ApiOperation({ summary: 'Upload a Trivy scan result with metadata wrapper' })
     @ApiQuery({ name: 'projectId', required: false, description: 'Project ID - if not provided, use projectName & organizationId in body' })
     async uploadJson(
         @Query('projectId') projectId: string | undefined,
