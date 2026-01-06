@@ -20,6 +20,7 @@ import {
     BarChart3,
     Map,
     Database,
+    Key,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/auth-api';
@@ -47,6 +48,7 @@ const allNavigation: NavItem[] = [
     { name: 'Trivy DB', href: '/dashboard/trivy-db', icon: Database, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
     { name: '정책', href: '/dashboard/policies', icon: FileText, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
     { name: '리포트', href: '/dashboard/reports', icon: BarChart3, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
+    { name: 'API 토큰', href: '/dashboard/api-tokens', icon: Key, roles: 'all' },
     { name: '알림', href: '/dashboard/notifications', icon: Bell, roles: 'all' },
     { name: '설정', href: '/dashboard/settings', icon: Settings, roles: 'all' },
     { name: '사이트맵', href: '/dashboard/sitemap', icon: Map, roles: 'all' },

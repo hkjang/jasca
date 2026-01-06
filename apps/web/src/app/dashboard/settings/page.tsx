@@ -18,6 +18,7 @@ import {
     ExternalLink,
     Copy,
     Check,
+    Key,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/auth-api';
@@ -647,6 +648,42 @@ export default function SettingsPage() {
                             <p className="text-sm text-slate-500">
                                 외부 도구와 JASCA를 연동하는 방법을 안내합니다.
                             </p>
+
+                            {/* API Tokens Card */}
+                            <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-6 hover:border-purple-300 dark:hover:border-purple-600 transition-colors">
+                                <div className="flex items-start gap-4">
+                                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <Key className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-semibold text-slate-900 dark:text-white mb-1">
+                                            API 토큰 관리
+                                        </h4>
+                                        <p className="text-sm text-slate-500 mb-4">
+                                            CI/CD 파이프라인이나 외부 도구와 연동하기 위한 API 토큰을 생성하고 관리합니다.
+                                            토큰을 사용하여 스캔 결과를 업로드하거나 취약점 정보를 조회할 수 있습니다.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded text-xs">
+                                                스캔 업로드
+                                            </span>
+                                            <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded text-xs">
+                                                취약점 조회
+                                            </span>
+                                            <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded text-xs">
+                                                권한 관리
+                                            </span>
+                                        </div>
+                                        <Link
+                                            href="/dashboard/api-tokens"
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                        >
+                                            토큰 관리
+                                            <ExternalLink className="h-4 w-4" />
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Trivy Integration Card */}
                             <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-6 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
