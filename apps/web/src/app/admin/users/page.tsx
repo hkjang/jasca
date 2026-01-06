@@ -28,7 +28,8 @@ import { useAiStore } from '@/stores/ai-store';
 const roleLabels: Record<string, string> = {
     SYSTEM_ADMIN: 'System Admin',
     ORG_ADMIN: 'Org Admin',
-    SECURITY_ENGINEER: 'Security Engineer',
+    SECURITY_ADMIN: 'Security Admin',
+    PROJECT_ADMIN: 'Project Admin',
     DEVELOPER: 'Developer',
     VIEWER: 'Viewer',
 };
@@ -56,6 +57,7 @@ export default function AdminUsersPage() {
         email: '',
         password: '',
         role: 'DEVELOPER',
+        status: 'ACTIVE',
         organizationId: '',
     });
 
@@ -98,7 +100,7 @@ export default function AdminUsersPage() {
     });
 
     const openCreateModal = () => {
-        setFormData({ name: '', email: '', password: '', role: 'DEVELOPER', organizationId: '' });
+        setFormData({ name: '', email: '', password: '', role: 'DEVELOPER', status: 'ACTIVE', organizationId: '' });
         setShowCreateModal(true);
     };
 
@@ -108,6 +110,7 @@ export default function AdminUsersPage() {
             email: user.email,
             password: '',
             role: user.role,
+            status: user.status || 'ACTIVE',
             organizationId: user.organizationId || '',
         });
         setEditingUser(user);
@@ -130,7 +133,13 @@ export default function AdminUsersPage() {
     const handleUpdate = async () => {
         if (!editingUser) return;
         try {
-            await updateMutation.mutateAsync({ id: editingUser.id, name: formData.name, role: formData.role });
+            await updateMutation.mutateAsync({ 
+                id: editingUser.id, 
+                name: formData.name, 
+                role: formData.role,
+                status: formData.status,
+                organizationId: formData.organizationId || undefined,
+            });
             closeModals();
         } catch (err) {
             console.error('Failed to update user:', err);
@@ -363,7 +372,22 @@ export default function AdminUsersPage() {
                                     ))}
                                 </select>
                             </div>
-                            {!editingUser && organizations && (
+                            {editingUser && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                        상태
+                                    </label>
+                                    <select
+                                        value={formData.status}
+                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    >
+                                        <option value="ACTIVE">활성</option>
+                                        <option value="INACTIVE">비활성</option>
+                                    </select>
+                                </div>
+                            )}
+                            {organizations && (
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                                         조직

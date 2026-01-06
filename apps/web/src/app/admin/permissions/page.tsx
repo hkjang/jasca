@@ -19,7 +19,8 @@ const API_BASE = '/api';
 const roles = [
     { id: 'SYSTEM_ADMIN', name: 'System Admin', description: '전체 시스템 관리자' },
     { id: 'ORG_ADMIN', name: 'Org Admin', description: '조직 관리자' },
-    { id: 'SECURITY_ENGINEER', name: 'Security Engineer', description: '보안 엔지니어' },
+    { id: 'SECURITY_ADMIN', name: 'Security Admin', description: '보안 관리자' },
+    { id: 'PROJECT_ADMIN', name: 'Project Admin', description: '프로젝트 관리자' },
     { id: 'DEVELOPER', name: 'Developer', description: '개발자' },
     { id: 'VIEWER', name: 'Viewer', description: '읽기 전용' },
 ];
@@ -89,7 +90,14 @@ const defaultMatrix: Record<string, string[]> = {
         'user:read', 'user:create', 'user:update',
         'org:read', 'org:update',
     ],
-    SECURITY_ENGINEER: [
+    SECURITY_ADMIN: [
+        'vuln:read', 'vuln:update', 'vuln:assign',
+        'scan:read', 'scan:create', 'scan:delete',
+        'policy:read', 'policy:create', 'policy:update',
+        'exception:read', 'exception:request', 'exception:approve',
+        'user:read',
+    ],
+    PROJECT_ADMIN: [
         'vuln:read', 'vuln:update', 'vuln:assign',
         'scan:read', 'scan:create',
         'policy:read',

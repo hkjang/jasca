@@ -6,11 +6,29 @@ export class UsersService {
     constructor(private readonly prisma: PrismaService) { }
 
     async findAll(organizationId?: string) {
-        return this.prisma.user.findMany({
+        const users = await this.prisma.user.findMany({
             where: organizationId ? { organizationId } : undefined,
-            include: { roles: true },
+            include: { 
+                roles: true, 
+                organization: { select: { id: true, name: true } },
+                mfa: true,
+            },
             orderBy: { createdAt: 'desc' },
         });
+        
+        // Transform data for frontend
+        return users.map(user => ({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.roles?.[0]?.role || 'VIEWER',
+            status: user.isActive ? 'ACTIVE' : 'INACTIVE',
+            mfaEnabled: !!user.mfa?.isEnabled,
+            organizationId: user.organizationId,
+            organization: user.organization,
+            createdAt: user.createdAt,
+            lastLoginAt: user.lastLoginAt,
+        }));
     }
 
     async findById(id: string) {
@@ -40,17 +58,30 @@ export class UsersService {
         });
     }
 
-    async updateUser(id: string, data: { name?: string; role?: string; status?: string }) {
+    async updateUser(id: string, data: { name?: string; role?: string; status?: string; organizationId?: string }) {
+        // Valid roles from Prisma schema
+        const validRoles = ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN', 'PROJECT_ADMIN', 'DEVELOPER', 'VIEWER'];
+        
+        // Validate role if provided
+        if (data.role && !validRoles.includes(data.role)) {
+            throw new Error(`Invalid role: ${data.role}. Valid roles are: ${validRoles.join(', ')}`);
+        }
+        
         // First update the user basic info
-        const updateData: { name?: string; isActive?: boolean } = {};
+        const updateData: { name?: string; isActive?: boolean; organizationId?: string | null } = {};
         if (data.name) updateData.name = data.name;
         if (data.status) updateData.isActive = data.status === 'ACTIVE';
+        if (data.organizationId !== undefined) {
+            updateData.organizationId = data.organizationId || null;
+        }
 
-        const user = await this.prisma.user.update({
-            where: { id },
-            data: updateData,
-            include: { roles: true, organization: true },
-        });
+        // Only update user if there's data to update
+        if (Object.keys(updateData).length > 0) {
+            await this.prisma.user.update({
+                where: { id },
+                data: updateData,
+            });
+        }
 
         // If role is being updated, update the user's primary role
         if (data.role) {
@@ -59,13 +90,36 @@ export class UsersService {
             await this.prisma.userRole.create({
                 data: {
                     userId: id,
-                    role: data.role as any,
+                    role: data.role as 'SYSTEM_ADMIN' | 'ORG_ADMIN' | 'SECURITY_ADMIN' | 'PROJECT_ADMIN' | 'DEVELOPER' | 'VIEWER',
                     scope: 'GLOBAL',
                 },
             });
         }
 
-        return this.findById(id);
+        // Fetch and return updated user with transformed data
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+            include: { 
+                roles: true, 
+                organization: { select: { id: true, name: true } },
+                mfa: true,
+            },
+        });
+        
+        if (!user) throw new NotFoundException('User not found');
+        
+        return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.roles?.[0]?.role || 'VIEWER',
+            status: user.isActive ? 'ACTIVE' : 'INACTIVE',
+            mfaEnabled: !!user.mfa?.isEnabled,
+            organizationId: user.organizationId,
+            organization: user.organization,
+            createdAt: user.createdAt,
+            lastLoginAt: user.lastLoginAt,
+        };
     }
 
     async deleteUser(id: string) {

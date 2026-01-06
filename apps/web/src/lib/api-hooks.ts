@@ -849,7 +849,7 @@ export interface User {
     id: string;
     email: string;
     name: string;
-    role: 'SYSTEM_ADMIN' | 'ORG_ADMIN' | 'SECURITY_ENGINEER' | 'DEVELOPER' | 'VIEWER';
+    role: 'SYSTEM_ADMIN' | 'ORG_ADMIN' | 'SECURITY_ADMIN' | 'PROJECT_ADMIN' | 'DEVELOPER' | 'VIEWER';
     status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
     mfaEnabled: boolean;
     organizationId?: string;
@@ -894,7 +894,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, ...data }: { id: string; name?: string; role?: string; status?: string }) =>
+        mutationFn: ({ id, ...data }: { id: string; name?: string; role?: string; status?: string; organizationId?: string }) =>
             authFetch(`${API_BASE}/users/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(data),
