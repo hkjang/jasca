@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     BarChart,
     Bar,
@@ -13,8 +13,6 @@ import {
     PieChart,
     Pie,
     Cell,
-    LineChart,
-    Line,
     Legend,
     AreaChart,
     Area,
@@ -25,28 +23,26 @@ import {
     CheckCircle,
     Clock,
     ExternalLink,
-    Loader2,
     Bell,
-    TrendingUp,
-    TrendingDown,
     Activity,
     FileWarning,
     Zap,
-    Target,
-    ArrowRight,
-    Calendar,
-    BarChart3,
-    PieChartIcon,
     RefreshCw,
     Settings,
     GitBranch,
     Package,
+    Scan,
+    BarChart3,
+    PieChart as PieChartIcon,
+    ChevronRight,
+    Calendar,
+    Timer,
 } from 'lucide-react';
 import { StatCard, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatCardSkeleton, ChartSkeleton } from '@/components/ui/skeleton';
 import { SeverityBadge } from '@/components/ui/badge';
 import { useStatsOverview, useStatsByProject, useStatsTrend, useNotifications } from '@/lib/api-hooks';
-import { AiButton, AiButtonGroup, AiResultPanel } from '@/components/ai';
+import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution, useDashboardAiContext } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -69,22 +65,6 @@ function formatDaysAgo(dateString: string) {
     return `${diffDays}일 전`;
 }
 
-function formatNumber(num: number): string {
-    if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-}
-
-function getChangeIndicator(current: number, previous: number) {
-    if (previous === 0) return { trend: 'neutral', percent: 0 };
-    const percent = ((current - previous) / previous) * 100;
-    return {
-        trend: percent > 0 ? 'up' : percent < 0 ? 'down' : 'neutral',
-        percent: Math.abs(percent).toFixed(1),
-    };
-}
-
 export default function DashboardPage() {
     const router = useRouter();
     const [chartView, setChartView] = useState<'severity' | 'status'>('severity');
@@ -99,12 +79,12 @@ export default function DashboardPage() {
     const isLoading = overviewLoading || projectLoading || trendLoading;
     const unreadNotifications = notifications.filter(n => !n.isRead).length;
 
-    // Calculate totals and trends
+    // Calculate totals
     const totalVulns = overview ? 
         overview.bySeverity.critical + overview.bySeverity.high + overview.bySeverity.medium + overview.bySeverity.low : 0;
     
     const openVulns = overview ?
-        (overview.byStatus.new || 0) + (overview.byStatus.inProgress || 0) : 0;
+        (overview.byStatus.open || 0) + (overview.byStatus.inProgress || 0) : 0;
 
     // Prepare severity data for pie chart
     const severityData = overview ? [
@@ -116,7 +96,7 @@ export default function DashboardPage() {
 
     // Prepare status data for pie chart
     const statusData = overview ? [
-        { name: '신규', value: overview.byStatus.new || 0, color: '#ef4444' },
+        { name: '신규', value: overview.byStatus.open || 0, color: '#ef4444' },
         { name: '진행중', value: overview.byStatus.inProgress || 0, color: '#3b82f6' },
         { name: '해결됨', value: overview.byStatus.fixed || 0, color: '#22c55e' },
         { name: '무시됨', value: overview.byStatus.ignored || 0, color: '#94a3b8' },
@@ -124,13 +104,12 @@ export default function DashboardPage() {
 
     // Prepare project data for bar chart - top 5
     const projectData = projectStats?.slice(0, 5).map(p => ({
-        name: p.name.length > 10 ? p.name.slice(0, 10) + '...' : p.name,
+        name: p.name.length > 12 ? p.name.slice(0, 12) + '...' : p.name,
         fullName: p.name,
         id: p.id,
         critical: p.lastScan?.summary?.critical || 0,
         high: p.lastScan?.summary?.high || 0,
         medium: p.lastScan?.summary?.medium || 0,
-        total: (p.lastScan?.summary?.critical || 0) + (p.lastScan?.summary?.high || 0) + (p.lastScan?.summary?.medium || 0),
     })) || [];
 
     // Prepare trend data for area chart
@@ -139,7 +118,6 @@ export default function DashboardPage() {
         critical: t.critical,
         high: t.high,
         medium: t.medium,
-        total: t.critical + t.high + t.medium,
     })) || [];
 
     // Calculate risk score (0-100)
@@ -232,7 +210,7 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header with Actions */}
+            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <div>
@@ -247,7 +225,7 @@ export default function DashboardPage() {
                             </button>
                         </div>
                         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                            {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+                            전체 취약점 현황을 확인하세요
                         </p>
                     </div>
                 </div>
@@ -268,102 +246,77 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Risk Score & Quick Stats Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {/* Risk Score + Stats Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
                 {/* Risk Score Card */}
-                <div className="lg:col-span-1">
-                    <Card className="h-full">
-                        <CardContent className="p-6 flex flex-col items-center justify-center h-full">
-                            <div className="relative">
-                                <svg className="w-32 h-32 transform -rotate-90">
-                                    <circle
-                                        cx="64"
-                                        cy="64"
-                                        r="56"
-                                        stroke="currentColor"
-                                        strokeWidth="12"
-                                        fill="none"
-                                        className="text-slate-200 dark:text-slate-700"
-                                    />
-                                    <circle
-                                        cx="64"
-                                        cy="64"
-                                        r="56"
-                                        stroke="currentColor"
-                                        strokeWidth="12"
-                                        fill="none"
-                                        strokeDasharray={`${(riskScore / 100) * 352} 352`}
-                                        strokeLinecap="round"
-                                        className={riskScore >= 60 ? 'text-red-500' : riskScore >= 40 ? 'text-yellow-500' : 'text-green-500'}
-                                    />
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-3xl font-bold text-slate-900 dark:text-white">{riskScore}</span>
-                                    <span className="text-xs text-slate-500">점</span>
-                                </div>
-                            </div>
-                            <div className={`mt-4 px-3 py-1 rounded-full text-sm font-medium ${riskLevel.bg} ${riskLevel.color}`}>
-                                {riskLevel.label}
-                            </div>
-                            <p className="text-xs text-slate-500 mt-2 text-center">종합 보안 위험도</p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Quick Stats Cards */}
-                <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 text-white shadow-lg shadow-red-500/20 cursor-pointer hover:shadow-xl transition-shadow"
-                         onClick={() => handleSeverityClick('critical')}>
-                        <div className="flex items-center justify-between">
-                            <Shield className="h-8 w-8 opacity-80" />
-                            {overview && overview.bySeverity.critical > 0 && (
-                                <span className="animate-pulse w-2 h-2 rounded-full bg-white" />
-                            )}
-                        </div>
-                        <div className="mt-3">
-                            <p className="text-3xl font-bold">{overview?.bySeverity.critical || 0}</p>
-                            <p className="text-sm opacity-80">Critical</p>
+                <Card className="p-6 flex flex-col items-center justify-center">
+                    <div className="relative w-24 h-24">
+                        <svg className="w-full h-full transform -rotate-90">
+                            <circle
+                                cx="48"
+                                cy="48"
+                                r="40"
+                                stroke="currentColor"
+                                strokeWidth="8"
+                                fill="none"
+                                className="text-slate-200 dark:text-slate-700"
+                            />
+                            <circle
+                                cx="48"
+                                cy="48"
+                                r="40"
+                                stroke="currentColor"
+                                strokeWidth="8"
+                                fill="none"
+                                strokeDasharray={`${(riskScore / 100) * 251} 251`}
+                                strokeLinecap="round"
+                                className={riskScore >= 60 ? 'text-red-500' : riskScore >= 30 ? 'text-yellow-500' : 'text-green-500'}
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-2xl font-bold text-slate-900 dark:text-white">{riskScore}</span>
                         </div>
                     </div>
-
-                    <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white shadow-lg shadow-orange-500/20 cursor-pointer hover:shadow-xl transition-shadow"
-                         onClick={() => handleSeverityClick('high')}>
-                        <div className="flex items-center justify-between">
-                            <AlertTriangle className="h-8 w-8 opacity-80" />
-                        </div>
-                        <div className="mt-3">
-                            <p className="text-3xl font-bold">{overview?.bySeverity.high || 0}</p>
-                            <p className="text-sm opacity-80">High</p>
-                        </div>
+                    <div className={`mt-3 px-3 py-1 rounded-full text-sm font-medium ${riskLevel.bg} ${riskLevel.color}`}>
+                        {riskLevel.label}
                     </div>
+                    <p className="text-xs text-slate-500 mt-1">위험도</p>
+                </Card>
 
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-lg shadow-green-500/20 cursor-pointer hover:shadow-xl transition-shadow"
-                         onClick={() => handleStatusClick('FIXED')}>
-                        <div className="flex items-center justify-between">
-                            <CheckCircle className="h-8 w-8 opacity-80" />
-                        </div>
-                        <div className="mt-3">
-                            <p className="text-3xl font-bold">{overview?.byStatus.fixed || 0}</p>
-                            <p className="text-sm opacity-80">해결됨</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-lg shadow-blue-500/20 cursor-pointer hover:shadow-xl transition-shadow"
-                         onClick={() => handleStatusClick('IN_PROGRESS')}>
-                        <div className="flex items-center justify-between">
-                            <Clock className="h-8 w-8 opacity-80" />
-                        </div>
-                        <div className="mt-3">
-                            <p className="text-3xl font-bold">{overview?.byStatus.inProgress || 0}</p>
-                            <p className="text-sm opacity-80">진행 중</p>
-                        </div>
-                    </div>
-                </div>
+                {/* Stats Cards */}
+                <StatCard
+                    title="Critical"
+                    value={overview?.bySeverity.critical || 0}
+                    icon={<Shield className="h-6 w-6" />}
+                    color="red"
+                    onClick={() => handleSeverityClick('critical')}
+                />
+                <StatCard
+                    title="High"
+                    value={overview?.bySeverity.high || 0}
+                    icon={<AlertTriangle className="h-6 w-6" />}
+                    color="orange"
+                    onClick={() => handleSeverityClick('high')}
+                />
+                <StatCard
+                    title="해결됨"
+                    value={overview?.byStatus.fixed || 0}
+                    icon={<CheckCircle className="h-6 w-6" />}
+                    color="green"
+                    onClick={() => handleStatusClick('FIXED')}
+                />
+                <StatCard
+                    title="진행 중"
+                    value={overview?.byStatus.inProgress || 0}
+                    icon={<Clock className="h-6 w-6" />}
+                    color="blue"
+                    onClick={() => handleStatusClick('IN_PROGRESS')}
+                />
             </div>
 
-            {/* Summary Stats Row */}
+            {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="p-4">
+                <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/dashboard/vulnerabilities')}>
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
                             <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-300" />
@@ -374,7 +327,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </Card>
-                <Card className="p-4">
+                <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleStatusClick('OPEN')}>
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
                             <FileWarning className="h-5 w-5 text-red-600 dark:text-red-400" />
@@ -385,7 +338,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </Card>
-                <Card className="p-4">
+                <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/dashboard/projects')}>
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                             <GitBranch className="h-5 w-5 text-purple-600 dark:text-purple-400" />
@@ -396,7 +349,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </Card>
-                <Card className="p-4">
+                <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/dashboard/notifications')}>
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
                             <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -411,7 +364,7 @@ export default function DashboardPage() {
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Distribution Chart with Toggle */}
+                {/* Distribution Chart */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="flex items-center gap-2">
@@ -456,52 +409,39 @@ export default function DashboardPage() {
                                             dataKey="value"
                                             onClick={(entry) => chartView === 'severity' 
                                                 ? handleSeverityClick(entry.name) 
-                                                : handleStatusClick(entry.name === '신규' ? 'NEW' : entry.name === '진행중' ? 'IN_PROGRESS' : entry.name === '해결됨' ? 'FIXED' : 'IGNORED')}
-                                            cursor="pointer"
+                                                : handleStatusClick(entry.name === '신규' ? 'OPEN' : entry.name === '진행중' ? 'IN_PROGRESS' : entry.name === '해결됨' ? 'FIXED' : 'IGNORED')}
+                                            style={{ cursor: 'pointer' }}
                                         >
                                             {(chartView === 'severity' ? severityData : statusData).map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
                                         </Pie>
-                                        <Tooltip 
-                                            formatter={(value: number) => [value, '개']}
-                                            contentStyle={{ 
-                                                backgroundColor: 'rgba(255,255,255,0.95)',
-                                                borderRadius: '8px',
-                                                border: '1px solid #e2e8f0'
-                                            }}
-                                        />
+                                        <Tooltip />
                                     </PieChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex items-center justify-center h-full text-slate-500">
-                                    데이터가 없습니다
+                                <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                                    <CheckCircle className="h-12 w-12 text-green-400 mb-3" />
+                                    <p>취약점 없음</p>
                                 </div>
                             )}
                         </div>
-                        <div className="flex flex-wrap justify-center gap-4 mt-4">
-                            {(chartView === 'severity' ? severityData : statusData).map((item) => (
-                                <button
-                                    key={item.name}
-                                    onClick={() => chartView === 'severity' 
-                                        ? handleSeverityClick(item.name)
-                                        : handleStatusClick(item.name === '신규' ? 'NEW' : item.name === '진행중' ? 'IN_PROGRESS' : item.name === '해결됨' ? 'FIXED' : 'IGNORED')}
-                                    className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-                                >
-                                    <div
-                                        className="w-3 h-3 rounded-full"
-                                        style={{ backgroundColor: item.color }}
-                                    />
-                                    <span className="text-sm text-slate-600 dark:text-slate-300">
-                                        {item.name}: <span className="font-medium tabular-nums">{item.value}</span>
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
+                        {(chartView === 'severity' ? severityData : statusData).length > 0 && (
+                            <div className="flex flex-wrap justify-center gap-4 mt-4">
+                                {(chartView === 'severity' ? severityData : statusData).map((item) => (
+                                    <div key={item.name} className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                                        <span className="text-sm text-slate-600 dark:text-slate-300">
+                                            {item.name}: <span className="font-semibold">{item.value}</span>
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* Trend Chart with Period Toggle */}
+                {/* Trend Chart */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="flex items-center gap-2">
@@ -530,7 +470,7 @@ export default function DashboardPage() {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={formattedTrendData}>
                                         <defs>
-                                            <linearGradient id="colorCritical" x1="0" y1="0" x2="0" y2="1">
+                                            <linearGradient id="colorCrit" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3}/>
                                                 <stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
                                             </linearGradient>
@@ -538,54 +478,20 @@ export default function DashboardPage() {
                                                 <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3}/>
                                                 <stop offset="95%" stopColor="#ea580c" stopOpacity={0}/>
                                             </linearGradient>
-                                            <linearGradient id="colorMedium" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#ca8a04" stopOpacity={0.3}/>
-                                                <stop offset="95%" stopColor="#ca8a04" stopOpacity={0}/>
-                                            </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                        <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-                                        <YAxis stroke="#64748b" fontSize={12} />
-                                        <Tooltip
-                                            contentStyle={{ 
-                                                backgroundColor: 'rgba(255,255,255,0.95)',
-                                                borderRadius: '8px',
-                                                border: '1px solid #e2e8f0'
-                                            }}
-                                        />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                                        <XAxis dataKey="date" stroke="#64748b" fontSize={11} />
+                                        <YAxis stroke="#64748b" fontSize={11} />
+                                        <Tooltip />
                                         <Legend />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="critical"
-                                            name="Critical"
-                                            stroke="#dc2626"
-                                            fillOpacity={1}
-                                            fill="url(#colorCritical)"
-                                            strokeWidth={2}
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="high"
-                                            name="High"
-                                            stroke="#ea580c"
-                                            fillOpacity={1}
-                                            fill="url(#colorHigh)"
-                                            strokeWidth={2}
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="medium"
-                                            name="Medium"
-                                            stroke="#ca8a04"
-                                            fillOpacity={1}
-                                            fill="url(#colorMedium)"
-                                            strokeWidth={2}
-                                        />
+                                        <Area type="monotone" dataKey="critical" name="Critical" stroke="#dc2626" fill="url(#colorCrit)" strokeWidth={2} />
+                                        <Area type="monotone" dataKey="high" name="High" stroke="#ea580c" fill="url(#colorHigh)" strokeWidth={2} />
+                                        <Area type="monotone" dataKey="medium" name="Medium" stroke="#ca8a04" fill="#ca8a04" fillOpacity={0.1} strokeWidth={2} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             ) : (
                                 <div className="flex items-center justify-center h-full text-slate-500">
-                                    데이터가 없습니다
+                                    데이터 없음
                                 </div>
                             )}
                         </div>
@@ -601,14 +507,14 @@ export default function DashboardPage() {
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle className="flex items-center gap-2">
                                 <Package className="h-5 w-5 text-purple-500" />
-                                프로젝트별 취약점 (Top 5)
+                                프로젝트별 취약점
                             </CardTitle>
                             <button
                                 onClick={() => router.push('/dashboard/projects')}
                                 className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
                             >
                                 전체 보기
-                                <ArrowRight className="h-4 w-4" />
+                                <ChevronRight className="h-4 w-4" />
                             </button>
                         </CardHeader>
                         <CardContent>
@@ -625,25 +531,18 @@ export default function DashboardPage() {
                                             }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-                                            <XAxis type="number" stroke="#64748b" fontSize={12} />
-                                            <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={12} width={80} />
-                                            <Tooltip
-                                                contentStyle={{ 
-                                                    backgroundColor: 'rgba(255,255,255,0.95)',
-                                                    borderRadius: '8px',
-                                                    border: '1px solid #e2e8f0'
-                                                }}
-                                                formatter={(value: number, name: string) => [value, name]}
-                                            />
+                                            <XAxis type="number" stroke="#64748b" fontSize={11} />
+                                            <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={11} width={90} />
+                                            <Tooltip />
                                             <Legend />
-                                            <Bar dataKey="critical" name="Critical" stackId="a" fill="#dc2626" cursor="pointer" radius={[0, 0, 0, 0]} />
-                                            <Bar dataKey="high" name="High" stackId="a" fill="#ea580c" cursor="pointer" />
-                                            <Bar dataKey="medium" name="Medium" stackId="a" fill="#ca8a04" cursor="pointer" radius={[0, 4, 4, 0]} />
+                                            <Bar dataKey="critical" name="Critical" stackId="a" fill="#dc2626" style={{ cursor: 'pointer' }} />
+                                            <Bar dataKey="high" name="High" stackId="a" fill="#ea580c" style={{ cursor: 'pointer' }} />
+                                            <Bar dataKey="medium" name="Medium" stackId="a" fill="#ca8a04" style={{ cursor: 'pointer' }} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
                                     <div className="flex items-center justify-center h-full text-slate-500">
-                                        프로젝트 데이터가 없습니다
+                                        프로젝트 없음
                                     </div>
                                 )}
                             </div>
@@ -651,56 +550,49 @@ export default function DashboardPage() {
                     </Card>
                 </div>
 
-                {/* Recent Critical Vulnerabilities */}
+                {/* Recent Critical */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
                             <Shield className="h-5 w-5 text-red-500" />
-                            최근 Critical
+                            Critical 취약점
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-700 max-h-[280px] overflow-y-auto">
                             {overview?.recentCritical && overview.recentCritical.length > 0 ? (
                                 overview.recentCritical.slice(0, 5).map((vuln) => (
                                     <button
                                         key={vuln.id}
                                         onClick={() => router.push(`/dashboard/vulnerabilities/${vuln.id}`)}
-                                        className="w-full p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                                        className="w-full p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-center gap-3"
                                     >
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                                                    {vuln.cveId}
-                                                </p>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                                                    {vuln.title || vuln.pkgName}
-                                                </p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-xs text-slate-400">{vuln.project}</span>
-                                                    <span className="text-xs text-slate-400">•</span>
-                                                    <span className="text-xs text-slate-400">{formatDaysAgo(vuln.createdAt)}</span>
-                                                </div>
-                                            </div>
-                                            <SeverityBadge severity="critical" size="sm" />
+                                        <div className="w-1 h-8 bg-red-500 rounded-full flex-shrink-0" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                                                {vuln.cveId}
+                                            </p>
+                                            <p className="text-xs text-slate-500 truncate">
+                                                {vuln.project} • {formatDaysAgo(vuln.createdAt)}
+                                            </p>
                                         </div>
+                                        <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
                                     </button>
                                 ))
                             ) : (
-                                <div className="p-8 text-center text-slate-500 text-sm">
-                                    <CheckCircle className="h-12 w-12 mx-auto text-green-400 mb-3" />
-                                    <p>Critical 취약점 없음</p>
+                                <div className="p-6 text-center">
+                                    <CheckCircle className="h-10 w-10 mx-auto text-green-400 mb-2" />
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">Critical 없음</p>
                                 </div>
                             )}
                         </div>
-                        {overview?.recentCritical && overview.recentCritical.length > 0 && (
-                            <div className="p-4 border-t border-slate-100 dark:border-slate-700">
+                        {overview?.recentCritical && overview.recentCritical.length > 5 && (
+                            <div className="p-2 border-t border-slate-100 dark:border-slate-700">
                                 <button
                                     onClick={() => handleSeverityClick('critical')}
-                                    className="w-full flex items-center justify-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                    className="w-full py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
                                 >
-                                    모든 Critical 취약점 보기
-                                    <ExternalLink className="h-3 w-3" />
+                                    더 보기
                                 </button>
                             </div>
                         )}
@@ -712,10 +604,10 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <button
                     onClick={() => router.push('/dashboard/scans/new')}
-                    className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors group"
+                    className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-lg transition-all"
                 >
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-500 transition-colors">
-                        <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400 group-hover:text-white" />
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                        <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="text-left">
                         <p className="font-medium text-slate-900 dark:text-white">새 스캔</p>
@@ -725,10 +617,10 @@ export default function DashboardPage() {
 
                 <button
                     onClick={() => router.push('/dashboard/vulnerabilities')}
-                    className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-red-500 dark:hover:border-red-500 transition-colors group"
+                    className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-red-500 dark:hover:border-red-500 hover:shadow-lg transition-all"
                 >
-                    <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg group-hover:bg-red-500 transition-colors">
-                        <Shield className="h-5 w-5 text-red-600 dark:text-red-400 group-hover:text-white" />
+                    <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                        <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
                     </div>
                     <div className="text-left">
                         <p className="font-medium text-slate-900 dark:text-white">취약점</p>
@@ -738,10 +630,10 @@ export default function DashboardPage() {
 
                 <button
                     onClick={() => router.push('/dashboard/reports')}
-                    className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-green-500 dark:hover:border-green-500 transition-colors group"
+                    className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-green-500 dark:hover:border-green-500 hover:shadow-lg transition-all"
                 >
-                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:bg-green-500 transition-colors">
-                        <BarChart3 className="h-5 w-5 text-green-600 dark:text-green-400 group-hover:text-white" />
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                        <BarChart3 className="h-5 w-5 text-green-600 dark:text-green-400" />
                     </div>
                     <div className="text-left">
                         <p className="font-medium text-slate-900 dark:text-white">리포트</p>
@@ -751,10 +643,10 @@ export default function DashboardPage() {
 
                 <button
                     onClick={() => router.push('/dashboard/settings')}
-                    className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-500 dark:hover:border-slate-500 transition-colors group"
+                    className="flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-500 dark:hover:border-slate-500 hover:shadow-lg transition-all"
                 >
-                    <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg group-hover:bg-slate-500 transition-colors">
-                        <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400 group-hover:text-white" />
+                    <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                        <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                     </div>
                     <div className="text-left">
                         <p className="font-medium text-slate-900 dark:text-white">설정</p>
