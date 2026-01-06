@@ -61,19 +61,6 @@ function getStatusBadge(status: string) {
     );
 }
 
-// Mock AI remediation guide
-const mockAiGuide = {
-    summary: "이 취약점은 인증되지 않은 원격 공격자가 임의의 코드를 실행할 수 있게 합니다. 패키지를 최신 버전으로 업데이트하는 것이 권장됩니다.",
-    steps: [
-        "package.json에서 해당 패키지 버전을 확인합니다.",
-        "pnpm update lodash 또는 npm update lodash를 실행합니다.",
-        "pnpm audit 또는 npm audit으로 취약점이 해결되었는지 확인합니다.",
-        "변경사항을 테스트하고 배포합니다."
-    ],
-    confidence: 0.92,
-    model: "GPT-4",
-};
-
 function formatHistoryDate(dateString: string) {
     const date = new Date(dateString);
     return date.toLocaleString('ko-KR', {
@@ -107,7 +94,7 @@ export default function VulnerabilityDetailPage() {
         );
     }, [exceptionsData, vuln, vulnId]);
     
-    const [showAiGuide, setShowAiGuide] = useState(true);
+    
     const [showHistory, setShowHistory] = useState(false);
     
     // Action modal states
@@ -291,44 +278,6 @@ export default function VulnerabilityDetailPage() {
                         </div>
                     </div>
 
-                    {/* AI Remediation Guide */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                        <button
-                            onClick={() => setShowAiGuide(!showAiGuide)}
-                            className="w-full flex items-center justify-between p-6 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                                    <Sparkles className="h-5 w-5 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">AI 조치 가이드</h3>
-                                    <p className="text-sm text-slate-500">모델: {mockAiGuide.model} | 신뢰도: {Math.round(mockAiGuide.confidence * 100)}%</p>
-                                </div>
-                            </div>
-                            {showAiGuide ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-                        </button>
-                        {showAiGuide && (
-                            <div className="px-6 pb-6 space-y-4">
-                                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                    <p className="text-slate-700 dark:text-slate-300">{mockAiGuide.summary}</p>
-                                </div>
-                                <div>
-                                    <h4 className="font-medium text-slate-900 dark:text-white mb-3">수정 단계</h4>
-                                    <ol className="space-y-3">
-                                        {mockAiGuide.steps.map((step, idx) => (
-                                            <li key={idx} className="flex items-start gap-3">
-                                                <span className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
-                                                    {idx + 1}
-                                                </span>
-                                                <span className="text-slate-600 dark:text-slate-400">{step}</span>
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </div>
-                            </div>
-                        )}
-                    </div>
 
                     {/* History */}
                     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
