@@ -22,6 +22,9 @@ import {
     Edit,
     Trash2,
     ChevronDown,
+    Download,
+    Eye,
+    Play,
 } from 'lucide-react';
 import { useProjects, useOrganizations, useCreateProject, useDeleteProject, useUpdateProject, Project } from '@/lib/api-hooks';
 
@@ -636,6 +639,31 @@ export default function ProjectsPage() {
         }
     };
 
+    const exportProjects = () => {
+        const csv = [
+            ['프로젝트명', 'Slug', '조직', '위험도', 'Critical', 'High', 'Medium', 'Low', '정책위반', '마지막 스캔'].join(','),
+            ...filteredAndSortedProjects.map(p => [
+                p.name,
+                p.slug,
+                organizations?.find(o => o.id === p.organizationId)?.name || '-',
+                p.riskLevel || 'NONE',
+                p.stats?.vulnerabilities.critical || 0,
+                p.stats?.vulnerabilities.high || 0,
+                p.stats?.vulnerabilities.medium || 0,
+                p.stats?.vulnerabilities.low || 0,
+                p.policyViolations || 0,
+                p.stats?.lastScanAt ? new Date(p.stats.lastScanAt).toLocaleDateString('ko-KR') : '-'
+            ].join(','))
+        ].join('\n');
+        
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `projects_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -681,6 +709,14 @@ export default function ProjectsPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={exportProjects}
+                        className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        title="CSV 내보내기"
+                    >
+                        <Download className="h-4 w-4" />
+                        내보내기
+                    </button>
                     <button
                         onClick={() => refetch()}
                         className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
@@ -932,6 +968,9 @@ export default function ProjectsPage() {
                                     프로젝트
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    조직
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                     위험도
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -959,6 +998,9 @@ export default function ProjectsPage() {
                                                 <p className="text-sm text-slate-500">{project.slug}</p>
                                             </div>
                                         </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                        {organizations?.find(o => o.id === project.organizationId)?.name || <span className="text-slate-400">-</span>}
                                     </td>
                                     <td className="px-6 py-4">{getRiskBadge(project.riskLevel)}</td>
                                     <td className="px-6 py-4">
