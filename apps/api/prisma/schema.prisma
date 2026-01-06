@@ -119,6 +119,7 @@ model User {
   loginHistory        LoginHistory[]
   passwordHistory     PasswordHistory[]
   sentInvitations     UserInvitation[] @relation("InvitedBy")
+  notifications       UserNotification[]
   
   // Additional auth fields
   emailVerifiedAt     DateTime?
@@ -552,6 +553,27 @@ enum NotificationEventType {
   EXCEPTION_APPROVED
   EXCEPTION_EXPIRING
   SCAN_COMPLETED
+}
+
+// User Notification (for notification center)
+model UserNotification {
+  id             String    @id @default(uuid())
+  
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type           String    // critical_vuln, policy_violation, exception, scan_complete, system
+  title          String
+  message        String
+  link           String?
+  
+  isRead         Boolean   @default(false)
+  
+  createdAt      DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([createdAt])
 }
 
 // ============================================

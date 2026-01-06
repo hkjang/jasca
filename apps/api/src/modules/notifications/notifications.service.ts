@@ -13,19 +13,17 @@ interface NotificationPayload {
     link?: string;
 }
 
-// In-memory storage for user notifications (in production, you'd use a database table)
+// Export interface for API compatibility
 export interface UserNotification {
     id: string;
     userId: string;
-    type: 'critical_vuln' | 'policy_violation' | 'exception' | 'scan_complete' | 'system';
+    type: string;
     title: string;
     message: string;
     isRead: boolean;
     createdAt: Date;
-    link?: string;
+    link: string | null;
 }
-
-const userNotifications: Map<string, UserNotification[]> = new Map();
 
 @Injectable()
 export class NotificationsService {
@@ -33,38 +31,36 @@ export class NotificationsService {
 
     constructor(private readonly prisma: PrismaService) { }
 
-    // User notification methods
+    // User notification methods - now persisted to database
     async getUserNotifications(userId: string): Promise<UserNotification[]> {
-        // In production, this would query from a database table
-        // For now, we return mock notifications or empty array
-        const notifications = userNotifications.get(userId) || [];
+        const notifications = await this.prisma.userNotification.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+        });
 
-        // If no notifications exist for user, generate some mock ones for testing
-        if (notifications.length === 0) {
-            return [];
-        }
-
-        return notifications.sort(
-            (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-        );
+        return notifications;
     }
 
     async markAsRead(notificationId: string, userId: string): Promise<{ success: boolean }> {
-        const notifications = userNotifications.get(userId) || [];
-        const notification = notifications.find(n => n.id === notificationId);
-
-        if (notification) {
-            notification.isRead = true;
-        }
+        await this.prisma.userNotification.updateMany({
+            where: { 
+                id: notificationId,
+                userId: userId,
+            },
+            data: { isRead: true },
+        });
 
         return { success: true };
     }
 
     async markAllAsRead(userId: string): Promise<{ success: boolean }> {
-        const notifications = userNotifications.get(userId) || [];
-
-        notifications.forEach(n => {
-            n.isRead = true;
+        await this.prisma.userNotification.updateMany({
+            where: { 
+                userId: userId,
+                isRead: false,
+            },
+            data: { isRead: true },
         });
 
         return { success: true };
@@ -73,27 +69,66 @@ export class NotificationsService {
     // Creates a user notification (called internally when events happen)
     async createUserNotification(
         userId: string,
-        type: UserNotification['type'],
+        type: string,
         title: string,
         message: string,
         link?: string,
-    ) {
-        const notification: UserNotification = {
-            id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            userId,
-            type,
-            title,
-            message,
-            isRead: false,
-            createdAt: new Date(),
-            link,
-        };
+    ): Promise<UserNotification> {
+        const notification = await this.prisma.userNotification.create({
+            data: {
+                userId,
+                type,
+                title,
+                message,
+                link,
+                isRead: false,
+            },
+        });
 
-        const existing = userNotifications.get(userId) || [];
-        existing.push(notification);
-        userNotifications.set(userId, existing);
-
+        this.logger.log(`Created notification for user ${userId}: ${title}`);
         return notification;
+    }
+
+    // Bulk create notifications for multiple users
+    async createNotificationsForUsers(
+        userIds: string[],
+        type: string,
+        title: string,
+        message: string,
+        link?: string,
+    ): Promise<void> {
+        await this.prisma.userNotification.createMany({
+            data: userIds.map(userId => ({
+                userId,
+                type,
+                title,
+                message,
+                link,
+                isRead: false,
+            })),
+        });
+
+        this.logger.log(`Created notifications for ${userIds.length} users: ${title}`);
+    }
+
+    // Get unread count for a user
+    async getUnreadCount(userId: string): Promise<number> {
+        return this.prisma.userNotification.count({
+            where: { userId, isRead: false },
+        });
+    }
+
+    // Delete old notifications (cleanup task)
+    async deleteOldNotifications(daysOld: number = 30): Promise<number> {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+        const result = await this.prisma.userNotification.deleteMany({
+            where: { createdAt: { lt: cutoffDate } },
+        });
+
+        this.logger.log(`Deleted ${result.count} old notifications`);
+        return result.count;
     }
 
     // External channel notification methods
