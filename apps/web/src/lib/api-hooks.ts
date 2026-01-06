@@ -408,7 +408,7 @@ export function useVulnerabilities(filters?: {
 }) {
     return useQuery<{ results: Vulnerability[]; total: number }>({
         queryKey: ['vulnerabilities', filters],
-        queryFn: () => {
+        queryFn: async () => {
             const params = new URLSearchParams();
             if (filters?.projectId) params.set('projectId', filters.projectId);
             if (filters?.severity?.length) {
@@ -418,7 +418,34 @@ export function useVulnerabilities(filters?: {
                 filters.status.forEach(s => params.append('status', s));
             }
             params.set('limit', '200');
-            return authFetch(`${API_BASE}/vulnerabilities?${params.toString()}`);
+            const response = await authFetch(`${API_BASE}/vulnerabilities?${params.toString()}`);
+            
+            // Transform API response: flatten vulnerability relation data
+            // API returns scanVulnerability with nested vulnerability object
+            // Frontend expects flattened data with cveId, severity, title, description at top level
+            const transformedResults = (response.results || []).map((item: any) => ({
+                id: item.id,
+                // Map from nested vulnerability object
+                cveId: item.vulnerability?.cveId || item.cveId || 'Unknown',
+                severity: item.vulnerability?.severity || item.severity || 'UNKNOWN',
+                title: item.vulnerability?.title || item.title || '',
+                description: item.vulnerability?.description || item.description || '',
+                // Direct fields from scanVulnerability
+                pkgName: item.pkgName || '',
+                installedVersion: item.pkgVersion || item.installedVersion || '',
+                fixedVersion: item.fixedVersion || '',
+                status: item.status || 'OPEN',
+                assigneeId: item.assigneeId,
+                assignee: item.assignee,
+                scanResult: item.scanResult,
+                createdAt: item.createdAt,
+                updatedAt: item.updatedAt,
+            }));
+
+            return {
+                results: transformedResults,
+                total: response.total || transformedResults.length,
+            };
         },
     });
 }
