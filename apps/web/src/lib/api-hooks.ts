@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
+import { toast } from '@/components/ui/toast';
 
 const API_BASE = '/api';
 
@@ -139,8 +140,10 @@ async function authFetch(url: string, options: RequestInit = {}, retryCount = 0)
                 console.log('[API] Token refreshed, retrying request...');
                 return authFetch(url, options, 1);
             }
+            const errorMsg = '인증이 만료되었습니다. 다시 로그인해주세요.';
+            toast.error('인증 오류', errorMsg);
             throw new ApiError(
-                '인증이 만료되었습니다. 다시 로그인해주세요.',
+                errorMsg,
                 401,
                 false,
                 false
@@ -166,10 +169,26 @@ async function authFetch(url: string, options: RequestInit = {}, retryCount = 0)
             );
         }
         
-        // ========== Other Error Responses ==========
         if (!response.ok) {
             const errorData = await safeParseJson(response);
-            const errorMessage = errorData?.message || getDefaultErrorMessage(response.status);
+            // Handle array of messages (validation errors)
+            let errorMessage = '';
+            if (Array.isArray(errorData?.message)) {
+                errorMessage = errorData.message.join(', ');
+            } else {
+                errorMessage = errorData?.message || getDefaultErrorMessage(response.status);
+            }
+            
+            // Show toast notification for all client errors (4xx)
+            if (response.status >= 400 && response.status < 500) {
+                const errorTitle = response.status === 400 ? '요청 오류' :
+                                   response.status === 403 ? '권한 오류' :
+                                   response.status === 404 ? '리소스 없음' :
+                                   response.status === 409 ? '중복 오류' :
+                                   'API 오류';
+                toast.error(errorTitle, errorMessage);
+            }
+            
             throw new ApiError(
                 errorMessage,
                 response.status,
