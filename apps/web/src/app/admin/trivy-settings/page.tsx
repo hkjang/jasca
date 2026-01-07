@@ -13,8 +13,29 @@ import {
     Clock,
     Loader2,
     RefreshCw,
+    HelpCircle,
+    Info,
+    XCircle,
+    AlertCircle,
+    Terminal,
+    Shield,
 } from 'lucide-react';
 import { useTrivySettings, useUpdateSettings, type TrivySettings } from '@/lib/api-hooks';
+
+interface ValidationResult {
+    name: string;
+    passed: boolean;
+    message: string;
+}
+
+interface TestConfigResult {
+    success: boolean;
+    settings: TrivySettings;
+    trivyVersion: string | null;
+    dbExists: boolean;
+    dbHealthy: boolean;
+    validations: ValidationResult[];
+}
 
 const defaultConfig: TrivySettings = {
     outputFormat: 'json',
@@ -34,6 +55,8 @@ export default function TrivySettingsPage() {
     const [saved, setSaved] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
     const [testResult, setTestResult] = useState<'success' | 'error' | 'testing' | null>(null);
+    const [activeTab, setActiveTab] = useState<'settings' | 'help'>('settings');
+    const [testDetails, setTestDetails] = useState<TestConfigResult | null>(null);
 
     // Load settings from API
     useEffect(() => {
@@ -63,18 +86,21 @@ export default function TrivySettingsPage() {
 
     const handleTest = async () => {
         setTestResult('testing');
+        setTestDetails(null);
         try {
-            // Call a simple API endpoint to test connectivity
-            const response = await fetch('/api/health');
-            if (response.ok) {
-                setTestResult('success');
-            } else {
-                setTestResult('error');
-            }
+            const token = localStorage.getItem('accessToken');
+            const response = await fetch('/api/trivy-db/test-config', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const data = await response.json();
+            setTestDetails(data);
+            setTestResult(data.success ? 'success' : 'error');
         } catch (err) {
             setTestResult('error');
         }
-        setTimeout(() => setTestResult(null), 3000);
+        setTimeout(() => {
+            setTestResult(null);
+        }, 10000);
     };
 
     const toggleSeverity = (severity: string) => {
@@ -145,6 +171,153 @@ export default function TrivySettingsPage() {
                 </button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+                <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === 'settings'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                >
+                    <Settings className="h-4 w-4" />
+                    설정
+                </button>
+                <button
+                    onClick={() => setActiveTab('help')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === 'help'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                >
+                    <HelpCircle className="h-4 w-4" />
+                    사용법 안내
+                </button>
+            </div>
+
+            {/* Help Content */}
+            {activeTab === 'help' && (
+                <div className="space-y-6">
+                    {/* Overview */}
+                    <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-cyan-200 dark:border-cyan-800">
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-cyan-100 dark:bg-cyan-800 rounded-lg">
+                                <Shield className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                                    Trivy 설정이란?
+                                </h3>
+                                <p className="text-slate-600 dark:text-slate-400">
+                                    Trivy는 컨테이너 이미지, 파일 시스템, Git 저장소의 취약점을 스캔하는 도구입니다.
+                                    여기서 설정한 옵션들은 Trivy 스캔 실행 시 자동으로 적용됩니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Settings Explanation */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Settings className="h-5 w-5 text-blue-600" />
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                설정 항목 설명
+                            </h3>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <h4 className="font-medium text-slate-900 dark:text-white mb-2">심각도 필터</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    스캔 결과에서 표시할 취약점의 심각도를 선택합니다. CRITICAL, HIGH를 선택하면 중요한 취약점만 표시됩니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <h4 className="font-medium text-slate-900 dark:text-white mb-2">스캐너 유형</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    <strong>취약점</strong>: 알려진 CVE 취약점 검사 | <strong>시크릿</strong>: 하드코딩된 비밀키 검사 |
+                                    <strong>설정 오류</strong>: 잘못된 설정 검사
+                                </p>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <h4 className="font-medium text-slate-900 dark:text-white mb-2">수정사항 없는 취약점 무시</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    활성화하면 아직 패치가 없는 취약점을 결과에서 제외합니다. 조치 가능한 취약점에만 집중할 수 있습니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Integration Info */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Database className="h-5 w-5 text-purple-600" />
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                연동 방식
+                            </h3>
+                        </div>
+
+                        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 mb-4">
+                            <div className="flex items-start gap-2">
+                                <Info className="h-5 w-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-sm text-purple-700 dark:text-purple-300">
+                                    이 설정은 <strong>Trivy DB</strong> 메뉴의 스캔 기능에 자동으로 적용됩니다.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                취약점 조회 시 설정된 심각도 필터 자동 적용
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                설정된 타임아웃 시간 적용
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                수정사항 없는 취약점 무시 옵션 적용
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Test Results */}
+                    {testDetails && (
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                                <Terminal className="h-5 w-5" />
+                                설정 검증 결과
+                            </h3>
+                            <div className="space-y-2">
+                                {testDetails.validations.map((v, i) => (
+                                    <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${
+                                        v.passed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'
+                                    }`}>
+                                        <div className="flex items-center gap-2">
+                                            {v.passed ? (
+                                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <XCircle className="h-4 w-4 text-red-500" />
+                                            )}
+                                            <span className="font-medium text-slate-900 dark:text-white">{v.name}</span>
+                                        </div>
+                                        <span className={`text-sm ${v.passed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            {v.message}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Settings Content */}
+            {activeTab === 'settings' && (
+            <>
             {/* Output Settings */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
@@ -354,6 +527,8 @@ export default function TrivySettingsPage() {
                     </button>
                 </div>
             </div>
+            </>
+            )}
         </div>
     );
 }

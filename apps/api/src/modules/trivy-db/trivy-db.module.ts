@@ -4,12 +4,14 @@ import { diskStorage } from 'multer';
 import * as path from 'path';
 import * as fs from 'fs';
 import { TrivyDbController } from './trivy-db.controller';
+import { SettingsModule } from '../settings/settings.module';
 
 // Trivy DB path
 const trivyDbPath = path.resolve(process.cwd(), '..', '..', 'trivy-db');
 
 @Module({
   imports: [
+    SettingsModule,
     MulterModule.register({
       storage: diskStorage({
         destination: (req, file, cb) => {

@@ -6,6 +6,7 @@ import {
   UploadedFiles,
   BadRequestException,
   Query,
+  Logger,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
@@ -13,8 +14,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync, exec } from 'child_process';
 import { promisify } from 'util';
+import { SettingsService } from '../settings/settings.service';
 
 const execAsync = promisify(exec);
+
+// Trivy settings interface
+interface TrivySettings {
+  outputFormat: string;
+  schemaVersion: number;
+  severities: string[];
+  ignoreUnfixed: boolean;
+  timeout: string;
+  cacheDir: string;
+  scanners: string[];
+}
 
 interface TrivyDbMetadata {
   Version: number;
@@ -51,10 +64,58 @@ interface VulnerabilityStats {
 @Controller('trivy-db')
 export class TrivyDbController {
   private readonly dbPath: string;
+  private readonly logger = new Logger(TrivyDbController.name);
 
-  constructor() {
+  constructor(private readonly settingsService: SettingsService) {
     // Resolve path relative to project root (apps/api is two levels deep)
     this.dbPath = path.resolve(process.cwd(), '..', '..', 'trivy-db');
+  }
+
+  /**
+   * Get Trivy settings from the settings service
+   */
+  private async getTrivySettings(): Promise<TrivySettings> {
+    const defaultSettings: TrivySettings = {
+      outputFormat: 'json',
+      schemaVersion: 2,
+      severities: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'],
+      ignoreUnfixed: false,
+      timeout: '10m',
+      cacheDir: '/tmp/trivy-cache',
+      scanners: ['vuln', 'secret', 'config'],
+    };
+
+    try {
+      const settings = await this.settingsService.get('trivy') as TrivySettings;
+      if (settings) {
+        return { ...defaultSettings, ...settings };
+      }
+    } catch (error) {
+      this.logger.warn('Failed to load trivy settings, using defaults');
+    }
+    return defaultSettings;
+  }
+
+  /**
+   * Build severity filter string from settings
+   */
+  private buildSeverityFilter(settings: TrivySettings): string {
+    return settings.severities.join(',');
+  }
+
+  /**
+   * Parse timeout string to milliseconds
+   */
+  private parseTimeoutMs(timeout: string): number {
+    const match = timeout.match(/(\d+)(s|m|h)?/);
+    if (!match) return 60000; // default 1 minute
+    const value = parseInt(match[1], 10);
+    const unit = match[2] || 's';
+    switch (unit) {
+      case 'h': return value * 3600000;
+      case 'm': return value * 60000;
+      default: return value * 1000;
+    }
   }
 
   private getTrivyVersion(): string | null {
@@ -483,14 +544,18 @@ export class TrivyDbController {
     @Query('severity') severity?: string,
     @Query('limit') limit?: string
   ): Promise<{ vulnerabilities: any[]; message: string }> {
+    const settings = await this.getTrivySettings();
     const maxLimit = Math.min(parseInt(limit || '10', 10), 50);
-    const severityFilter = (severity || 'CRITICAL,HIGH').toUpperCase();
+    // Use provided severity or fall back to settings
+    const severityFilter = severity ? severity.toUpperCase() : this.buildSeverityFilter(settings);
+    const timeoutMs = this.parseTimeoutMs(settings.timeout);
 
     try {
       // Scan current project with skip-db-update to prevent downloading
+      const ignoreUnfixedFlag = settings.ignoreUnfixed ? '--ignore-unfixed' : '';
       const result = await execAsync(
-        `trivy fs --cache-dir "${this.dbPath}" --skip-db-update --format json --severity ${severityFilter} --skip-dirs node_modules .`,
-        { timeout: 60000, cwd: path.resolve(this.dbPath, '..') }
+        `trivy fs --cache-dir "${this.dbPath}" --skip-db-update --format json --severity ${severityFilter} ${ignoreUnfixedFlag} --skip-dirs node_modules .`,
+        { timeout: timeoutMs, cwd: path.resolve(this.dbPath, '..') }
       );
 
       const scanResult = JSON.parse(result.stdout);
@@ -520,5 +585,85 @@ export class TrivyDbController {
         message: `조회 실패: ${error.message}`,
       };
     }
+  }
+
+  @Get('test-config')
+  @ApiOperation({ summary: 'Test Trivy configuration and validate settings' })
+  @ApiResponse({ status: 200, description: 'Configuration test result' })
+  async testConfig(): Promise<{
+    success: boolean;
+    settings: TrivySettings;
+    trivyVersion: string | null;
+    dbExists: boolean;
+    dbHealthy: boolean;
+    validations: { name: string; passed: boolean; message: string }[];
+  }> {
+    const settings = await this.getTrivySettings();
+    const trivyVersion = this.getTrivyVersion();
+    const dbInfo = await this.getDbInfo();
+
+    const validations: { name: string; passed: boolean; message: string }[] = [];
+
+    // 1. Check Trivy CLI availability
+    validations.push({
+      name: 'Trivy CLI',
+      passed: !!trivyVersion,
+      message: trivyVersion ? `버전 ${trivyVersion} 감지됨` : 'Trivy CLI가 설치되어 있지 않거나 PATH에 없습니다',
+    });
+
+    // 2. Check DB exists
+    validations.push({
+      name: 'Trivy DB',
+      passed: dbInfo.exists,
+      message: dbInfo.exists ? `DB 경로: ${dbInfo.location}` : 'Trivy DB가 존재하지 않습니다. 업로드가 필요합니다.',
+    });
+
+    // 3. Check DB is healthy
+    validations.push({
+      name: 'DB 상태',
+      passed: dbInfo.isHealthy,
+      message: dbInfo.isHealthy ? '메타데이터와 DB 파일이 모두 존재합니다' : '메타데이터 또는 DB 파일이 누락되었습니다',
+    });
+
+    // 4. Validate severities
+    const validSeverities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
+    const invalidSeverities = settings.severities.filter(s => !validSeverities.includes(s));
+    validations.push({
+      name: '심각도 설정',
+      passed: invalidSeverities.length === 0 && settings.severities.length > 0,
+      message: invalidSeverities.length === 0 
+        ? `선택된 심각도: ${settings.severities.join(', ')}` 
+        : `잘못된 심각도: ${invalidSeverities.join(', ')}`,
+    });
+
+    // 5. Validate timeout format
+    const timeoutMatch = settings.timeout?.match(/^\d+(s|m|h)?$/);
+    validations.push({
+      name: '타임아웃 설정',
+      passed: !!timeoutMatch,
+      message: timeoutMatch ? `타임아웃: ${settings.timeout}` : `잘못된 타임아웃 형식: ${settings.timeout}`,
+    });
+
+    // 6. Validate scanners
+    const validScanners = ['vuln', 'secret', 'config', 'license'];
+    const invalidScanners = settings.scanners.filter(s => !validScanners.includes(s));
+    validations.push({
+      name: '스캐너 설정',
+      passed: invalidScanners.length === 0 && settings.scanners.length > 0,
+      message: invalidScanners.length === 0 
+        ? `선택된 스캐너: ${settings.scanners.join(', ')}` 
+        : `잘못된 스캐너: ${invalidScanners.join(', ')}`,
+    });
+
+    const allPassed = validations.every(v => v.passed);
+
+    return {
+      success: allPassed,
+      settings,
+      trivyVersion,
+      dbExists: dbInfo.exists,
+      dbHealthy: dbInfo.isHealthy,
+      validations,
+    };
   }
 }
