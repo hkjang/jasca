@@ -500,28 +500,91 @@ export class AiService {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
-        const response = await fetch(`${apiUrl}/v1/completions`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-                model,
-                prompt,
-                max_tokens: 2000,
-                temperature: 0.7,
-            }),
-            signal,
-        });
+        // Normalize API URL (remove trailing slash)
+        const normalizedUrl = apiUrl.replace(/\/$/, '');
+        
+        // Try chat completions first (newer vLLM versions), fallback to completions
+        const endpoints = [
+            `${normalizedUrl}/v1/chat/completions`,
+            `${normalizedUrl}/v1/completions`,
+        ];
+        
+        let lastError: Error | null = null;
+        
+        for (const endpoint of endpoints) {
+            try {
+                const isChatEndpoint = endpoint.includes('/chat/');
+                const body = isChatEndpoint
+                    ? {
+                        model,
+                        messages: [
+                            { role: 'system', content: '당신은 보안 취약점 분석 전문가입니다. 한국어로 답변하세요.' },
+                            { role: 'user', content: prompt },
+                        ],
+                        max_tokens: 2000,
+                        temperature: 0.7,
+                    }
+                    : {
+                        model,
+                        prompt,
+                        max_tokens: 2000,
+                        temperature: 0.7,
+                    };
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`vLLM API error: ${response.status} - ${errorText}`);
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body),
+                    signal,
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    // If 404, try next endpoint
+                    if (response.status === 404) {
+                        lastError = new Error(`Endpoint not found: ${endpoint}`);
+                        continue;
+                    }
+                    throw new Error(`vLLM API error: ${response.status} - ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                // Handle chat completions response
+                if (isChatEndpoint && data.choices?.[0]?.message?.content) {
+                    return {
+                        content: data.choices[0].message.content,
+                        model: data.model || model,
+                    };
+                }
+                
+                // Handle completions response
+                if (data.choices?.[0]?.text) {
+                    return {
+                        content: data.choices[0].text,
+                        model: data.model || model,
+                    };
+                }
+                
+                throw new Error('vLLM returned unexpected response format');
+            } catch (error) {
+                lastError = error instanceof Error ? error : new Error(String(error));
+                
+                // Network errors - don't try next endpoint
+                if (lastError.message.includes('ECONNREFUSED') || 
+                    lastError.message.includes('ENOTFOUND') ||
+                    lastError.message.includes('ETIMEDOUT') ||
+                    lastError.message.includes('fetch failed') ||
+                    lastError.name === 'AbortError') {
+                    throw new Error(`vLLM 서버 연결 실패: ${normalizedUrl} - 서버가 실행 중인지 확인하세요.`);
+                }
+                
+                // Continue to try next endpoint for other errors
+                continue;
+            }
         }
-
-        const data = await response.json() as { choices: Array<{ text: string }>; model: string };
-        return {
-            content: data.choices[0]?.text || '',
-            model: data.model || model,
-        };
+        
+        throw lastError || new Error('vLLM API call failed');
     }
 
     /**

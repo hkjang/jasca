@@ -422,30 +422,81 @@ export class AiController {
                 headers['Authorization'] = `Bearer ${apiKey}`;
             }
 
-            const response = await fetch(`${apiUrl}/models`, {
-                method: 'GET',
-                headers,
-                signal: controller.signal,
-            });
+            // Normalize URL and try v1/models endpoint (OpenAI-compatible)
+            const normalizedUrl = apiUrl.replace(/\/$/, '');
+            const endpoints = [
+                `${normalizedUrl}/v1/models`,
+                `${normalizedUrl}/models`,
+            ];
+            
+            let lastError: Error | null = null;
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'GET',
+                        headers,
+                        signal: controller.signal,
+                    });
 
-            clearTimeout(timeoutId);
+                    clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                throw new Error(`vLLM server returned ${response.status}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            lastError = new Error(`Endpoint not found: ${endpoint}`);
+                            continue;
+                        }
+                        throw new Error(`vLLM server returned ${response.status}`);
+                    }
+
+                    const data = await response.json() as { data?: { id: string }[] };
+                    const models = data.data || [];
+                    
+                    return {
+                        success: true,
+                        models: models.map((m) => ({
+                            id: m.id,
+                            name: m.id,
+                        })),
+                    };
+                } catch (innerError) {
+                    lastError = innerError instanceof Error ? innerError : new Error(String(innerError));
+                    if (lastError.name === 'AbortError' ||
+                        lastError.message.includes('ECONNREFUSED') ||
+                        lastError.message.includes('ENOTFOUND') ||
+                        lastError.message.includes('fetch failed')) {
+                        break; // Network error, don't try other endpoints
+                    }
+                    continue;
+                }
             }
-
-            const data = await response.json() as { data: { id: string }[] };
-            return {
-                success: true,
-                models: data.data.map((m) => ({
-                    id: m.id,
-                    name: m.id,
-                })),
-            };
+            
+            throw lastError || new Error('Failed to fetch models');
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch models';
+            
+            // Check for network-related errors
+            if (errorMessage.includes('ECONNREFUSED') || 
+                errorMessage.includes('ENOTFOUND') ||
+                errorMessage.includes('fetch failed')) {
+                return {
+                    success: false,
+                    message: 'vLLM 서버에 연결할 수 없습니다. 서버 주소와 실행 상태를 확인하세요.',
+                    models: [],
+                };
+            }
+            
+            if (error instanceof Error && error.name === 'AbortError') {
+                return {
+                    success: false,
+                    message: 'vLLM 서버 응답 시간 초과 (10초)',
+                    models: [],
+                };
+            }
+            
             return {
                 success: false,
-                message: error instanceof Error ? error.message : 'Failed to fetch models',
+                message: errorMessage,
                 models: [],
             };
         }
@@ -493,27 +544,83 @@ export class AiController {
                 headers['Authorization'] = `Bearer ${apiKey}`;
             }
 
-            const response = await fetch(`${apiUrl}/models`, {
-                method: 'GET',
-                headers,
-                signal: controller.signal,
-            });
+            // Normalize URL and try v1/models endpoint (OpenAI-compatible)
+            const normalizedUrl = apiUrl.replace(/\/$/, '');
+            const endpoints = [
+                `${normalizedUrl}/v1/models`,
+                `${normalizedUrl}/models`,
+            ];
+            
+            let lastError: Error | null = null;
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'GET',
+                        headers,
+                        signal: controller.signal,
+                    });
 
-            clearTimeout(timeoutId);
+                    clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                return { success: false, message: `vLLM server returned ${response.status}` };
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            lastError = new Error(`Endpoint not found: ${endpoint}`);
+                            continue;
+                        }
+                        return { success: false, message: `vLLM server returned ${response.status}` };
+                    }
+
+                    const data = await response.json() as { data?: { id: string }[] };
+                    const models = data.data || [];
+                    
+                    return {
+                        success: true,
+                        message: `vLLM 서버 연결 성공. ${models.length}개 모델 사용 가능.`,
+                        modelCount: models.length,
+                    };
+                } catch (innerError) {
+                    lastError = innerError instanceof Error ? innerError : new Error(String(innerError));
+                    if (lastError.name === 'AbortError' ||
+                        lastError.message.includes('ECONNREFUSED') ||
+                        lastError.message.includes('ENOTFOUND') ||
+                        lastError.message.includes('fetch failed')) {
+                        break; // Network error, don't try other endpoints
+                    }
+                    continue;
+                }
             }
-
-            const data = await response.json() as { data: { id: string }[] };
-            return {
-                success: true,
-                message: `Connected to vLLM. ${data.data.length} model(s) available.`,
-                modelCount: data.data.length,
-            };
+            
+            // Handle network errors
+            if (lastError) {
+                if (lastError.name === 'AbortError') {
+                    return { success: false, message: 'vLLM 서버 응답 시간 초과 (10초)' };
+                }
+                if (lastError.message.includes('ECONNREFUSED')) {
+                    return { success: false, message: 'vLLM 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.' };
+                }
+                if (lastError.message.includes('ENOTFOUND')) {
+                    return { success: false, message: 'vLLM 서버 주소를 찾을 수 없습니다. URL을 확인하세요.' };
+                }
+                if (lastError.message.includes('fetch failed')) {
+                    return { success: false, message: 'vLLM 서버 연결 실패. 네트워크 상태를 확인하세요.' };
+                }
+                return { success: false, message: lastError.message };
+            }
+            
+            return { success: false, message: 'vLLM 서버 연결 실패' };
         } catch (error) {
             clearTimeout(timeoutId);
-            throw error;
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            
+            if (errorMessage.includes('ECONNREFUSED')) {
+                return { success: false, message: 'vLLM 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.' };
+            }
+            if (errorMessage.includes('ENOTFOUND')) {
+                return { success: false, message: 'vLLM 서버 주소를 찾을 수 없습니다. URL을 확인하세요.' };
+            }
+            
+            return { success: false, message: errorMessage };
         }
     }
 
