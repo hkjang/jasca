@@ -273,6 +273,7 @@ export interface Scan {
     status: string;
     startedAt: string;
     completedAt?: string;
+    createdAt?: string;
     summary?: {
         critical: number;
         high: number;
@@ -399,6 +400,8 @@ export interface Vulnerability {
             name: string;
         };
     };
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export function useVulnerabilities(filters?: {
@@ -608,8 +611,10 @@ export interface PolicyRule {
     ruleType: string;
     operator?: string;
     condition?: string;
-    value: string;
+    conditions?: Record<string, any>;
+    value?: string;
     action: string;
+    message?: string;
     sendNotification?: boolean;
 }
 

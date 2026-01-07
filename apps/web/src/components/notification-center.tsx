@@ -157,7 +157,7 @@ export function NotificationCenter() {
     }));
 
     const unreadCount = notifications.filter(n => !n.read).length;
-    const criticalCount = notifications.filter(n => !n.read && (n.type === 'critical_vuln' || n.type === 'error')).length;
+    const criticalCount = notifications.filter(n => !n.read && n.type === 'critical_vuln').length;
 
     const markAsRead = useCallback(async (id: string) => {
         try {
@@ -281,7 +281,7 @@ export function NotificationCenter() {
                                 {notifications.slice(0, 10).map((notification) => {
                                     const config = getNotificationConfig(notification.type);
                                     const Icon = config.icon;
-                                    const isCritical = notification.type === 'critical_vuln' || notification.type === 'error';
+                                    const isCritical = notification.type === 'critical_vuln';
 
                                     return (
                                         <div
