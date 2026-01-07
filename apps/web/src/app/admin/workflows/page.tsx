@@ -13,6 +13,13 @@ import {
     AlertTriangle,
     Loader2,
     X,
+    HelpCircle,
+    BookOpen,
+    Workflow,
+    ShieldCheck,
+    Users,
+    ArrowRightLeft,
+    Info,
 } from 'lucide-react';
 import { useWorkflowSettings, useUpdateSettings, type WorkflowSettings } from '@/lib/api-hooks';
 
@@ -71,6 +78,7 @@ export default function WorkflowsPage() {
     const [transitions, setTransitions] = useState<WorkflowTransition[]>(defaultTransitions);
     const [saved, setSaved] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const [activeTab, setActiveTab] = useState<'settings' | 'help'>('settings');
 
     // Modal states
     const [showStateModal, setShowStateModal] = useState(false);
@@ -227,21 +235,269 @@ export default function WorkflowsPage() {
                     {hasChanges && (
                         <span className="text-sm text-orange-600">변경사항 있음</span>
                     )}
-                    <button
-                        onClick={handleSave}
-                        disabled={updateMutation.isPending || !hasChanges}
-                        className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    >
-                        {updateMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Save className="h-4 w-4" />
-                        )}
-                        저장
-                    </button>
+                    {activeTab === 'settings' && (
+                        <button
+                            onClick={handleSave}
+                            disabled={updateMutation.isPending || !hasChanges}
+                            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                            {updateMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="h-4 w-4" />
+                            )}
+                            저장
+                        </button>
+                    )}
                 </div>
             </div>
 
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+                <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === 'settings'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                >
+                    <Workflow className="h-4 w-4" />
+                    설정
+                </button>
+                <button
+                    onClick={() => setActiveTab('help')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === 'help'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                >
+                    <HelpCircle className="h-4 w-4" />
+                    사용법 안내
+                </button>
+            </div>
+
+            {/* Help Content */}
+            {activeTab === 'help' && (
+                <div className="space-y-6">
+                    {/* Overview */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-lg">
+                                <Workflow className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                                    워크플로우란?
+                                </h3>
+                                <p className="text-slate-600 dark:text-slate-400">
+                                    워크플로우는 취약점의 생명주기를 관리하는 상태 전이 규칙입니다. 
+                                    취약점이 발견되면 어떤 상태를 거쳐 해결되는지, 누가 어떤 상태로 변경할 수 있는지를 정의합니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* How it works */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <BookOpen className="h-5 w-5 text-indigo-600" />
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                동작 방식
+                            </h3>
+                        </div>
+                        
+                        <div className="space-y-6">
+                            {/* States Section */}
+                            <div className="flex gap-4">
+                                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                                    <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">1</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-white mb-1">상태 정의</h4>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                        취약점이 가질 수 있는 상태를 정의합니다. 각 상태는 고유 ID, 표시 이름, 색상, 설명을 가집니다.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <span className="px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded text-xs">미해결</span>
+                                        <ArrowRight className="h-4 w-4 text-slate-400 self-center" />
+                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded text-xs">진행 중</span>
+                                        <ArrowRight className="h-4 w-4 text-slate-400 self-center" />
+                                        <span className="px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded text-xs">해결됨</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Transitions Section */}
+                            <div className="flex gap-4">
+                                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                                    <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">2</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-white mb-1">전이 규칙</h4>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                        어떤 상태에서 어떤 상태로 변경할 수 있는지, 그리고 누가 그 전이를 수행할 수 있는지를 정의합니다.
+                                    </p>
+                                    <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <span className="px-2 py-0.5 bg-red-500 text-white rounded text-xs">미해결</span>
+                                            <ArrowRightLeft className="h-4 w-4 text-slate-400" />
+                                            <span className="px-2 py-0.5 bg-yellow-500 text-white rounded text-xs">진행 중</span>
+                                            <span className="text-slate-400">→</span>
+                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 rounded text-xs">개발자 이상</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Validation Section */}
+                            <div className="flex gap-4">
+                                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                                    <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">3</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-white mb-1">자동 검증</h4>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        취약점 상태 변경 시 시스템이 자동으로 전이 규칙을 검증합니다. 
+                                        허용되지 않은 전이나 권한이 없는 경우 상태 변경이 거부됩니다.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Role Hierarchy */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Users className="h-5 w-5 text-purple-600" />
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                역할 계층 구조
+                            </h3>
+                        </div>
+                        
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                            역할은 계층 구조를 가집니다. 상위 역할은 하위 역할의 모든 권한을 포함합니다.
+                        </p>
+                        
+                        <div className="flex items-center justify-center gap-2 py-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                            <div className="flex flex-col items-center">
+                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
+                                    <ShieldCheck className="h-8 w-8 text-white" />
+                                </div>
+                                <span className="text-xs font-medium text-slate-700 dark:text-slate-300 mt-2">조직 관리자</span>
+                                <span className="text-[10px] text-slate-500">최상위 권한</span>
+                            </div>
+                            <ArrowRight className="h-5 w-5 text-slate-300 mx-2" />
+                            <div className="flex flex-col items-center">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                                    <Users className="h-6 w-6 text-white" />
+                                </div>
+                                <span className="text-xs font-medium text-slate-700 dark:text-slate-300 mt-2">프로젝트 관리자</span>
+                            </div>
+                            <ArrowRight className="h-5 w-5 text-slate-300 mx-2" />
+                            <div className="flex flex-col items-center">
+                                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center shadow">
+                                    <ShieldCheck className="h-5 w-5 text-white" />
+                                </div>
+                                <span className="text-xs font-medium text-slate-700 dark:text-slate-300 mt-2">보안 엔지니어</span>
+                            </div>
+                            <ArrowRight className="h-5 w-5 text-slate-300 mx-2" />
+                            <div className="flex flex-col items-center">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                                    <Users className="h-4 w-4 text-white" />
+                                </div>
+                                <span className="text-xs font-medium text-slate-700 dark:text-slate-300 mt-2">개발자</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <div className="flex items-start gap-2">
+                                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-blue-700 dark:text-blue-300">
+                                    예: "보안 엔지니어" 권한이 필요한 전이는 보안 엔지니어, 프로젝트 관리자, 조직 관리자 모두 수행할 수 있습니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Best Practices */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <ShieldCheck className="h-5 w-5 text-green-600" />
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                권장 사항
+                            </h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                <div>
+                                    <h5 className="text-sm font-medium text-slate-900 dark:text-white">오탐 처리는 보안팀이</h5>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                                        FALSE_POSITIVE 전이는 보안 엔지니어 이상으로 설정하세요.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                <div>
+                                    <h5 className="text-sm font-medium text-slate-900 dark:text-white">예외 승인은 관리자가</h5>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                                        위험 수용 결정은 조직 관리자 권한으로 제한하세요.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                <div>
+                                    <h5 className="text-sm font-medium text-slate-900 dark:text-white">재오픈 허용</h5>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                                        해결된 취약점도 필요시 재오픈할 수 있도록 전이를 설정하세요.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                <div>
+                                    <h5 className="text-sm font-medium text-slate-900 dark:text-white">히스토리 추적</h5>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                                        모든 상태 변경은 자동으로 기록되어 감사 추적이 가능합니다.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Quick Start */}
+                    <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-6 text-white">
+                        <h3 className="text-lg font-semibold mb-4">빠른 시작 가이드</h3>
+                        <ol className="space-y-3">
+                            <li className="flex gap-3">
+                                <span className="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-sm">1</span>
+                                <span className="text-slate-200">"설정" 탭에서 필요한 <strong className="text-white">상태</strong>를 정의합니다.</span>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-sm">2</span>
+                                <span className="text-slate-200">상태 간의 <strong className="text-white">전이 규칙</strong>과 필요한 권한을 설정합니다.</span>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-sm">3</span>
+                                <span className="text-slate-200"><strong className="text-white">저장</strong> 버튼을 클릭하면 즉시 적용됩니다.</span>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="flex-shrink-0 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-sm">4</span>
+                                <span className="text-slate-200">취약점 상세 페이지에서 설정된 규칙에 따라 <strong className="text-white">허용된 전이만</strong> 표시됩니다.</span>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            )}
+
+            {/* Settings Content */}
+            {activeTab === 'settings' && (
+            <>
             {/* States */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -365,6 +621,8 @@ export default function WorkflowsPage() {
                     기본 워크플로우: 미해결 → 진행 중 → 해결됨
                 </p>
             </div>
+            </>
+            )}
 
             {/* State Modal */}
             {showStateModal && (
