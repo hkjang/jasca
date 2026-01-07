@@ -887,7 +887,7 @@ export function useUser(id: string) {
 export function useCreateUser() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: { email: string; name: string; password: string; role: string; organizationId?: string }) =>
+        mutationFn: (data: { email: string; name: string; password: string; role?: string; status?: string; organizationId?: string }) =>
             authFetch(`${API_BASE}/auth/register`, {
                 method: 'POST',
                 body: JSON.stringify(data),
