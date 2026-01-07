@@ -10,6 +10,12 @@ import {
     ChevronUp,
     Loader2,
     AlertTriangle,
+    HelpCircle,
+    GitBranch,
+    ArrowRight,
+    Info,
+    Link2,
+    Settings,
 } from 'lucide-react';
 import { useExceptions, useApproveException, useRejectException, type Exception } from '@/lib/api-hooks';
 
@@ -55,6 +61,7 @@ function formatDate(dateString: string) {
 export default function ExceptionsPage() {
     const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'list' | 'help'>('list');
 
     const { data: exceptions = [], isLoading, error, refetch } = useExceptions(
         filter === 'all' ? undefined : filter
@@ -117,6 +124,187 @@ export default function ExceptionsPage() {
                 </p>
             </div>
 
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+                <button
+                    onClick={() => setActiveTab('list')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === 'list'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                >
+                    <ShieldCheck className="h-4 w-4" />
+                    예외 목록
+                    {pendingCount > 0 && (
+                        <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">{pendingCount}</span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('help')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === 'help'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                >
+                    <HelpCircle className="h-4 w-4" />
+                    사용법 안내
+                </button>
+            </div>
+
+            {/* Help Content */}
+            {activeTab === 'help' && (
+                <div className="space-y-6">
+                    {/* Overview */}
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800">
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-purple-100 dark:bg-purple-800 rounded-lg">
+                                <ShieldCheck className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                                    예외 승인이란?
+                                </h3>
+                                <p className="text-slate-600 dark:text-slate-400">
+                                    예외 승인은 특정 취약점이나 패키지를 정책에서 예외 처리하는 메커니즘입니다.
+                                    예외가 승인되면 해당 취약점이 자동으로 &quot;오탐&quot; 상태로 변경되어 더 이상 알림이 발생하지 않습니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Workflow Integration */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Link2 className="h-5 w-5 text-blue-600" />
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                워크플로우 연동
+                            </h3>
+                        </div>
+                        
+                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
+                            <div className="flex items-start gap-2">
+                                <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    예외 승인 시스템은 <strong>워크플로우 관리</strong>와 자동으로 연동됩니다.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+                                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                </div>
+                                <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-white mb-1">승인 시</h4>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        CVE 또는 패키지에 대한 예외가 승인되면:
+                                    </p>
+                                    <ul className="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                                        <li className="flex items-center gap-2">
+                                            <ArrowRight className="h-3 w-3" />
+                                            관련 취약점이 자동으로 <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400 rounded text-xs">오탐</span> 상태로 변경
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <ArrowRight className="h-3 w-3" />
+                                            워크플로우 히스토리에 예외 승인 기록 저장
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 w-8 h-8 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
+                                    <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                </div>
+                                <div>
+                                    <h4 className="font-medium text-slate-900 dark:text-white mb-1">반려 시</h4>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        취약점 상태는 변경되지 않으며, 요청자가 다시 예외 요청을 할 수 있습니다.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Exception Types */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Settings className="h-5 w-5 text-orange-600" />
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                예외 유형
+                            </h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <h4 className="font-medium text-slate-900 dark:text-white mb-2">CVE 예외</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    특정 CVE ID에 대한 예외입니다. 승인 시 해당 CVE를 포함한 모든 취약점이 자동으로 &quot;오탐&quot; 처리됩니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <h4 className="font-medium text-slate-900 dark:text-white mb-2">패키지 예외</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    특정 패키지에 대한 예외입니다. 해당 패키지의 모든 취약점이 자동으로 예외 처리됩니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <h4 className="font-medium text-slate-900 dark:text-white mb-2">이미지 예외</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    특정 컨테이너 이미지에 대한 예외입니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                <h4 className="font-medium text-slate-900 dark:text-white mb-2">심각도 예외</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    특정 심각도 이하의 취약점을 예외 처리합니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Flow Diagram */}
+                    <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-6 text-white">
+                        <h3 className="text-lg font-semibold mb-4">예외 처리 흐름</h3>
+                        <div className="flex items-center justify-center gap-4 flex-wrap py-4">
+                            <div className="flex flex-col items-center">
+                                <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center">
+                                    <Clock className="h-8 w-8 text-white" />
+                                </div>
+                                <span className="text-sm mt-2">예외 요청</span>
+                            </div>
+                            <ArrowRight className="h-6 w-6 text-slate-400" />
+                            <div className="flex flex-col items-center">
+                                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <ShieldCheck className="h-8 w-8 text-white" />
+                                </div>
+                                <span className="text-sm mt-2">관리자 검토</span>
+                            </div>
+                            <ArrowRight className="h-6 w-6 text-slate-400" />
+                            <div className="flex flex-col items-center">
+                                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                                    <CheckCircle className="h-8 w-8 text-white" />
+                                </div>
+                                <span className="text-sm mt-2">승인</span>
+                            </div>
+                            <ArrowRight className="h-6 w-6 text-slate-400" />
+                            <div className="flex flex-col items-center">
+                                <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center">
+                                    <GitBranch className="h-8 w-8 text-white" />
+                                </div>
+                                <span className="text-sm mt-2">상태 자동 변경</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* List Content */}
+            {activeTab === 'list' && (
+            <>
             {/* Filters */}
             <div className="flex items-center gap-2">
                 {[
@@ -239,6 +427,8 @@ export default function ExceptionsPage() {
                         </div>
                     ))}
                 </div>
+            )}
+            </>
             )}
         </div>
     );

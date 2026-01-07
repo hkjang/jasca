@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ExceptionStatus, ExceptionType } from '@prisma/client';
 
 export interface CreateExceptionDto {
     policyId?: string;
-    scanVulnerabilityId?: string;
+    scanVulnerabilityId?: string;  // Link to specific vulnerability
     cveId?: string;
     reason: string;
     expiresAt?: string;
@@ -14,6 +14,8 @@ export interface CreateExceptionDto {
 
 @Injectable()
 export class ExceptionsService {
+    private readonly logger = new Logger(ExceptionsService.name);
+
     constructor(private readonly prisma: PrismaService) {}
 
     async findAll(status?: string, organizationId?: string) {
@@ -146,6 +148,12 @@ export class ExceptionsService {
         });
     }
 
+    /**
+     * Approve an exception request
+     * - Updates exception status to APPROVED
+     * - If linked to a CVE, finds and updates related vulnerabilities to ACCEPTED status
+     * - Records workflow history for audit trail
+     */
     async approve(id: string, userId: string) {
         const exception = await this.findById(id);
 
@@ -153,15 +161,103 @@ export class ExceptionsService {
             throw new ForbiddenException('Only pending exceptions can be approved');
         }
 
-        return this.prisma.policyException.update({
-            where: { id },
-            data: {
-                status: 'APPROVED',
-                approvedById: userId,
-            },
+        // Use transaction to ensure atomicity
+        return this.prisma.$transaction(async (tx) => {
+            // 1. Update exception status
+            const updatedException = await tx.policyException.update({
+                where: { id },
+                data: {
+                    status: 'APPROVED',
+                    approvedById: userId,
+                },
+            });
+
+            // 2. If exception is for a CVE, update related vulnerabilities
+            if (exception.exceptionType === 'CVE' && exception.targetValue) {
+                const cveId = exception.targetValue;
+                
+                // Find all open vulnerabilities with this CVE
+                const vulnerabilities = await tx.scanVulnerability.findMany({
+                    where: {
+                        vulnerability: { cveId },
+                        status: { in: ['OPEN', 'ASSIGNED', 'IN_PROGRESS'] },
+                    },
+                    include: {
+                        vulnerability: true,
+                    },
+                });
+
+                this.logger.log(`Found ${vulnerabilities.length} vulnerabilities for CVE ${cveId} to mark as ACCEPTED`);
+
+                // Update each vulnerability to ACCEPTED status
+                for (const vuln of vulnerabilities) {
+                    // Update status
+                    await tx.scanVulnerability.update({
+                        where: { id: vuln.id },
+                        data: { status: 'FALSE_POSITIVE' as any }, // Use FALSE_POSITIVE as ACCEPTED equivalent
+                    });
+
+                    // Record workflow history
+                    await (tx as any).vulnerabilityWorkflow?.create({
+                        data: {
+                            scanVulnerabilityId: vuln.id,
+                            fromStatus: vuln.status,
+                            toStatus: 'FALSE_POSITIVE',
+                            changedById: userId,
+                            comment: `예외 승인됨: ${exception.reason}`,
+                            evidence: {
+                                exceptionId: exception.id,
+                                approvedAt: new Date().toISOString(),
+                            },
+                        },
+                    });
+                }
+            }
+
+            // 3. If exception is for a specific package
+            if (exception.exceptionType === 'PACKAGE' && exception.targetValue) {
+                const pkgName = exception.targetValue;
+                
+                const vulnerabilities = await tx.scanVulnerability.findMany({
+                    where: {
+                        pkgName: { contains: pkgName },
+                        status: { in: ['OPEN', 'ASSIGNED', 'IN_PROGRESS'] },
+                    },
+                });
+
+                this.logger.log(`Found ${vulnerabilities.length} vulnerabilities for package ${pkgName} to mark as ACCEPTED`);
+
+                for (const vuln of vulnerabilities) {
+                    await tx.scanVulnerability.update({
+                        where: { id: vuln.id },
+                        data: { status: 'FALSE_POSITIVE' as any },
+                    });
+
+                    await (tx as any).vulnerabilityWorkflow?.create({
+                        data: {
+                            scanVulnerabilityId: vuln.id,
+                            fromStatus: vuln.status,
+                            toStatus: 'FALSE_POSITIVE',
+                            changedById: userId,
+                            comment: `패키지 예외 승인됨: ${exception.reason}`,
+                            evidence: {
+                                exceptionId: exception.id,
+                                approvedAt: new Date().toISOString(),
+                            },
+                        },
+                    });
+                }
+            }
+
+            return updatedException;
         });
     }
 
+    /**
+     * Reject an exception request
+     * - Updates exception status to REJECTED
+     * - No changes to vulnerability status
+     */
     async reject(id: string, userId: string, reason?: string) {
         const exception = await this.findById(id);
 
@@ -188,5 +284,25 @@ export class ExceptionsService {
             },
             orderBy: { createdAt: 'desc' },
         });
+    }
+
+    /**
+     * Get exception statistics
+     */
+    async getStats() {
+        const [pending, approved, rejected, total] = await Promise.all([
+            this.prisma.policyException.count({ where: { status: 'PENDING' } }),
+            this.prisma.policyException.count({ where: { status: 'APPROVED' } }),
+            this.prisma.policyException.count({ where: { status: 'REJECTED' } }),
+            this.prisma.policyException.count(),
+        ]);
+
+        return {
+            pending,
+            approved,
+            rejected,
+            total,
+            approvalRate: total > 0 ? Math.round((approved / total) * 100) : 0,
+        };
     }
 }
