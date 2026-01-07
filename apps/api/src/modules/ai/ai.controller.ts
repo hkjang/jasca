@@ -87,6 +87,8 @@ export class AiController {
                 outputTokens: result.outputTokens,
                 durationMs,
                 usedPrompt: result.usedPrompt,
+                isMock: result.isMock,
+                mockReason: result.mockReason,
             };
         } catch (error) {
             throw new BadRequestException(

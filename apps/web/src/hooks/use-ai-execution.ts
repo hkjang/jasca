@@ -186,6 +186,8 @@ export function useAiExecution(
                 },
                 usedPrompt: data.usedPrompt,
                 createdAt: new Date(),
+                isMock: data.isMock,
+                mockReason: data.mockReason,
             };
 
             setProgress(contextKey, 100);

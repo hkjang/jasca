@@ -16,6 +16,8 @@ import {
     FileText,
     GitCompare,
     MessageSquare,
+    AlertTriangle,
+    Settings,
 } from 'lucide-react';
 import { AiActionType, AI_ACTION_CONFIG } from './ai-button';
 
@@ -35,6 +37,10 @@ export interface AiResult {
     };
     usedPrompt?: string;
     createdAt: Date;
+    /** Whether mock data was used instead of real AI */
+    isMock?: boolean;
+    /** Reason for using mock data (if applicable) */
+    mockReason?: string;
 }
 
 // ============================================
@@ -217,6 +223,29 @@ export function AiResultPanel({
 
                         {/* Content */}
                         <div className="flex-1 overflow-y-auto px-6 py-4">
+                            {/* Mock Data Warning Banner */}
+                            {displayedResult.isMock && (
+                                <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                                    <div className="flex items-start gap-3">
+                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                        <div className="flex-1">
+                                            <p className="font-medium text-amber-800 dark:text-amber-300">
+                                                Mock 데이터 사용 중
+                                            </p>
+                                            <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                                                {displayedResult.mockReason || '실제 AI 응답 대신 샘플 데이터가 표시되고 있습니다.'}
+                                            </p>
+                                            <a
+                                                href="/admin/ai-settings"
+                                                className="inline-flex items-center gap-1.5 mt-2 text-sm text-amber-800 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 font-medium"
+                                            >
+                                                <Settings className="h-4 w-4" />
+                                                AI 설정하기
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {showDiff && previousResults.length > 0 ? (
                                 <AiDiffView
                                     current={displayedResult}

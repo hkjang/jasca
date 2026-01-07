@@ -32,6 +32,10 @@ export interface AiExecutionResult {
     inputTokens?: number;
     outputTokens?: number;
     usedPrompt?: string;
+    /** Whether mock data was used instead of real AI */
+    isMock?: boolean;
+    /** Reason for using mock data (if applicable) */
+    mockReason?: string;
 }
 
 export interface TokenEstimate {
@@ -297,6 +301,8 @@ export class AiService {
         let providerName: string = 'mock';
         let status: 'SUCCESS' | 'ERROR' | 'TIMEOUT' = 'SUCCESS';
         let errorMessage: string | undefined;
+        let isMock = false;
+        let mockReason: string | undefined;
 
         // If AI settings exist and enabled, use real AI
         if (aiSettings?.enabled && aiSettings.apiUrl) {
@@ -312,8 +318,11 @@ export class AiService {
                 modelName = 'mock-model-v1 (fallback)';
                 status = 'ERROR';
                 errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                isMock = true;
+                mockReason = `AI API 호출 실패: ${errorMessage}`;
                 if (errorMessage.includes('timed out')) {
                     status = 'TIMEOUT';
+                    mockReason = 'AI 서버 응답 시간 초과';
                 }
             }
         } else {
@@ -321,6 +330,8 @@ export class AiService {
             this.logger.warn('AI settings not configured, using mock response');
             content = await this.generateMockResponse(action, context);
             modelName = 'mock-model-v1';
+            isMock = true;
+            mockReason = !aiSettings ? 'AI 설정이 구성되지 않았습니다' : 'AI 기능이 비활성화되어 있습니다';
         }
 
         // Estimate tokens
@@ -360,6 +371,8 @@ export class AiService {
             inputTokens: estimate.inputTokens,
             outputTokens: estimate.outputTokens,
             usedPrompt: promptTemplate,
+            isMock,
+            mockReason,
         };
     }
 
