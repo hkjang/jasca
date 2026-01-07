@@ -35,6 +35,7 @@ const adminNavigation = [
     { name: '조직 관리', href: '/admin/organizations', icon: Building2 },
     { name: '사용자 관리', href: '/admin/users', icon: Users },
     { name: '프로젝트 관리', href: '/admin/projects', icon: FolderKanban },
+    { name: '취약점 현황', href: '/admin/vulnerabilities', icon: AlertTriangle },
     { name: '정책 관리', href: '/admin/policies', icon: FileText },
     { name: '예외 승인', href: '/admin/exceptions', icon: ShieldCheck },
     { name: '워크플로우', href: '/admin/workflows', icon: Settings },
