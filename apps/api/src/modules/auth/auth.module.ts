@@ -25,7 +25,7 @@ import { ApiTokenService } from './services/api-token.service';
         JwtModule.registerAsync({
             imports: [ConfigModule],
             useFactory: async (configService: ConfigService) => ({
-                secret: configService.get<string>('JWT_SECRET') || 'jasca-secret-key',
+                secret: configService.get<string>('JWT_SECRET') || 'jasca_offline_secret',
                 signOptions: {
                     expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1d',
                 },

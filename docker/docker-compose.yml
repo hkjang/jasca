@@ -46,7 +46,7 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://jasca:${DB_PASSWORD:-jasca_secret}@postgres:5432/jasca
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key}
+      JWT_SECRET: ${JWT_SECRET:-jasca_offline_secret}
       JWT_EXPIRES_IN: 1d
       CORS_ORIGIN: ${CORS_ORIGIN:-https://jasca.koreacb.com}
     depends_on:
