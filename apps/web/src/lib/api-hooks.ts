@@ -423,11 +423,18 @@ export interface Vulnerability {
     updatedAt?: string;
 }
 
-export function useVulnerabilities(filters?: {
+export interface VulnerabilitiesFilter {
     projectId?: string;
     severity?: string[];
     status?: string[];
-}) {
+    search?: string;
+    page?: number;
+    pageSize?: number;
+    sortBy?: 'severity' | 'cveId' | 'pkgName' | 'status' | 'createdAt';
+    sortOrder?: 'asc' | 'desc';
+}
+
+export function useVulnerabilities(filters?: VulnerabilitiesFilter) {
     return useQuery<{ results: Vulnerability[]; total: number }>({
         queryKey: ['vulnerabilities', filters],
         queryFn: async () => {
@@ -439,7 +446,21 @@ export function useVulnerabilities(filters?: {
             if (filters?.status?.length) {
                 filters.status.forEach(s => params.append('status', s));
             }
-            params.set('limit', '200');
+            // Server-side search: use cveId and pkgName filters
+            if (filters?.search) {
+                params.set('cveId', filters.search);
+                params.set('pkgName', filters.search);
+            }
+            // Server-side pagination
+            const page = filters?.page || 1;
+            const pageSize = filters?.pageSize || 25;
+            params.set('limit', String(pageSize));
+            params.set('offset', String((page - 1) * pageSize));
+            // Server-side sorting
+            if (filters?.sortBy) {
+                params.set('sortBy', filters.sortBy);
+                params.set('sortOrder', filters?.sortOrder || 'asc');
+            }
             const response = await authFetch(`${API_BASE}/vulnerabilities?${params.toString()}`);
             
             // Transform API response: flatten vulnerability relation data

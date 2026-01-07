@@ -31,6 +31,8 @@ export class VulnerabilitiesController {
     @ApiQuery({ name: 'pkgName', required: false })
     @ApiQuery({ name: 'limit', required: false, type: Number })
     @ApiQuery({ name: 'offset', required: false, type: Number })
+    @ApiQuery({ name: 'sortBy', required: false, enum: ['severity', 'cveId', 'pkgName', 'status', 'createdAt'] })
+    @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
     async findAll(
         @Query('projectId') projectId?: string,
         @Query('severity') severity?: Severity | Severity[],
@@ -39,6 +41,8 @@ export class VulnerabilitiesController {
         @Query('pkgName') pkgName?: string,
         @Query('limit') limit?: string,
         @Query('offset') offset?: string,
+        @Query('sortBy') sortBy?: 'severity' | 'cveId' | 'pkgName' | 'status' | 'createdAt',
+        @Query('sortOrder') sortOrder?: 'asc' | 'desc',
     ) {
         const severityArr = severity
             ? Array.isArray(severity)
@@ -56,6 +60,8 @@ export class VulnerabilitiesController {
             {
                 limit: limit ? parseInt(limit, 10) : undefined,
                 offset: offset ? parseInt(offset, 10) : undefined,
+                sortBy,
+                sortOrder,
             },
         );
     }

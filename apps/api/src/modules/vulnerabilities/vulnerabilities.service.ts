@@ -19,7 +19,12 @@ export class VulnerabilitiesService {
         private readonly workflowService: WorkflowService,
     ) { }
 
-    async findAll(filter: VulnFilter = {}, options?: { limit?: number; offset?: number }) {
+    async findAll(filter: VulnFilter = {}, options?: { 
+        limit?: number; 
+        offset?: number;
+        sortBy?: 'severity' | 'cveId' | 'pkgName' | 'status' | 'createdAt';
+        sortOrder?: 'asc' | 'desc';
+    }) {
         const where: any = {};
 
         if (filter.severity?.length) {
@@ -35,15 +40,40 @@ export class VulnerabilitiesService {
         }
 
         if (filter.cveId) {
-            where.vulnerability = { ...where.vulnerability, cveId: { contains: filter.cveId } };
+            where.vulnerability = { ...where.vulnerability, cveId: { contains: filter.cveId, mode: 'insensitive' } };
         }
 
         if (filter.pkgName) {
-            where.pkgName = { contains: filter.pkgName };
+            where.pkgName = { contains: filter.pkgName, mode: 'insensitive' };
         }
 
         if (filter.assigneeId) {
             where.assigneeId = filter.assigneeId;
+        }
+
+        // Build dynamic orderBy based on sortBy parameter
+        const sortOrder = options?.sortOrder || 'asc';
+        let orderBy: any[];
+        switch (options?.sortBy) {
+            case 'cveId':
+                orderBy = [{ vulnerability: { cveId: sortOrder } }];
+                break;
+            case 'pkgName':
+                orderBy = [{ pkgName: sortOrder }];
+                break;
+            case 'status':
+                orderBy = [{ status: sortOrder }];
+                break;
+            case 'createdAt':
+                orderBy = [{ createdAt: sortOrder }];
+                break;
+            case 'severity':
+            default:
+                orderBy = [
+                    { vulnerability: { severity: sortOrder } },
+                    { createdAt: 'desc' },
+                ];
+                break;
         }
 
         const [results, total] = await Promise.all([
@@ -58,10 +88,7 @@ export class VulnerabilitiesService {
                     },
                     assignee: { select: { id: true, name: true, email: true } },
                 },
-                orderBy: [
-                    { vulnerability: { severity: 'asc' } },
-                    { createdAt: 'desc' },
-                ],
+                orderBy,
                 take: options?.limit || 50,
                 skip: options?.offset || 0,
             }),

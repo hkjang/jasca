@@ -220,55 +220,80 @@ export default function AdminVulnerabilitiesPage() {
     const [showBulkActions, setShowBulkActions] = useState(false);
     const [bulkActionLoading, setBulkActionLoading] = useState(false);
     
-    // Search
+    // Search with debounce
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const searchInputRef = useRef<HTMLInputElement>(null);
+    
+    // Debounce search input
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+            setCurrentPage(1); // Reset to page 1 on search
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
     
     // Expanded rows
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     
-    // Sorting
+    // Server-side sorting
     const [sortField, setSortField] = useState<SortField>('severity');
     const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
     
-    // Pagination
+    // Server-side pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
     
     // Export
     const [showExportMenu, setShowExportMenu] = useState(false);
 
-    const { data, isLoading, error, refetch } = useVulnerabilities(filters);
+    // Server-side data fetching with all parameters
+    const { data, isLoading, error, refetch, isFetching } = useVulnerabilities({
+        ...filters,
+        search: debouncedSearch || undefined,
+        page: currentPage,
+        pageSize,
+        sortBy: sortField === 'project' ? undefined : sortField as any,
+        sortOrder,
+    });
     const { data: statsOverview, isLoading: statsLoading } = useStatsOverview();
     const { data: projectsData } = useProjects();
     const { data: projectStats } = useStatsByProject();
     const updateStatus = useUpdateVulnerabilityStatus();
 
+    // Data is now server-side paginated/sorted/filtered
     const vulnerabilities = data?.results || [];
+    const totalCount = data?.total || 0;
     const projects = projectsData?.data || [];
 
-    // Search filter
-    const searchFiltered = vulnerabilities.filter((v: Vulnerability) => {
-        if (!searchQuery) return true;
-        const q = searchQuery.toLowerCase();
-        return v.cveId.toLowerCase().includes(q) || 
-               v.pkgName.toLowerCase().includes(q) || 
-               (v.title?.toLowerCase().includes(q)) ||
-               (v.scanResult?.project?.name?.toLowerCase().includes(q));
-    });
+    // Stats based on server data (using statsOverview for accurate counts)
+    const stats = useMemo(() => {
+        // Use statsOverview for global stats if available
+        if (statsOverview) {
+            return {
+                total: statsOverview.total || totalCount,
+                critical: statsOverview.bySeverity?.critical || 0,
+                high: statsOverview.bySeverity?.high || 0,
+                medium: statsOverview.bySeverity?.medium || 0,
+                low: statsOverview.bySeverity?.low || 0,
+                open: statsOverview.byStatus?.open || 0,
+                resolved: statsOverview.byStatus?.fixed || 0,
+            };
+        }
+        // Fallback to current page counts (less accurate for filtered views)
+        return {
+            total: totalCount,
+            critical: vulnerabilities.filter((v: Vulnerability) => v.severity === 'CRITICAL').length,
+            high: vulnerabilities.filter((v: Vulnerability) => v.severity === 'HIGH').length,
+            medium: vulnerabilities.filter((v: Vulnerability) => v.severity === 'MEDIUM').length,
+            low: vulnerabilities.filter((v: Vulnerability) => v.severity === 'LOW').length,
+            open: vulnerabilities.filter((v: Vulnerability) => v.status === 'OPEN').length,
+            resolved: vulnerabilities.filter((v: Vulnerability) => v.status === 'RESOLVED').length,
+        };
+    }, [statsOverview, totalCount, vulnerabilities]);
 
-    // Stats
-    const stats = {
-        total: searchFiltered.length,
-        critical: searchFiltered.filter((v: Vulnerability) => v.severity === 'CRITICAL').length,
-        high: searchFiltered.filter((v: Vulnerability) => v.severity === 'HIGH').length,
-        medium: searchFiltered.filter((v: Vulnerability) => v.severity === 'MEDIUM').length,
-        low: searchFiltered.filter((v: Vulnerability) => v.severity === 'LOW').length,
-        open: searchFiltered.filter((v: Vulnerability) => v.status === 'OPEN').length,
-        resolved: searchFiltered.filter((v: Vulnerability) => v.status === 'RESOLVED').length,
-    };
-
-    // Chart data
+    // Chart data based on stats
     const severityChartData = [
         { name: 'Critical', value: stats.critical, color: SEVERITY_COLORS.CRITICAL },
         { name: 'High', value: stats.high, color: SEVERITY_COLORS.HIGH },
@@ -289,30 +314,18 @@ export default function AdminVulnerabilitiesPage() {
         }));
     }, [projectStats]);
 
-    // Sort
-    const sorted = [...searchFiltered].sort((a: Vulnerability, b: Vulnerability) => {
-        let cmp = 0;
-        switch (sortField) {
-            case 'severity': cmp = getSeverityOrder(a.severity) - getSeverityOrder(b.severity); break;
-            case 'cveId': cmp = a.cveId.localeCompare(b.cveId); break;
-            case 'pkgName': cmp = a.pkgName.localeCompare(b.pkgName); break;
-            case 'status': cmp = a.status.localeCompare(b.status); break;
-            case 'project': 
-                cmp = (a.scanResult?.project?.name || '').localeCompare(b.scanResult?.project?.name || ''); 
-                break;
-            default: cmp = 0;
-        }
-        return sortOrder === 'asc' ? cmp : -cmp;
-    });
+    // Server-side pagination calculation
+    const totalPages = Math.ceil(totalCount / pageSize);
 
-    // Paginate
-    const totalPages = Math.ceil(sorted.length / pageSize);
-    const paginated = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-    // Handlers
+    // Handlers - now trigger server-side operations
     const handleSort = (field: SortField) => {
-        if (sortField === field) setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
-        else { setSortField(field); setSortOrder('asc'); }
+        if (sortField === field) {
+            setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortOrder('asc');
+        }
+        setCurrentPage(1); // Reset to page 1 on sort change
     };
 
     const toggleSelect = (id: string) => {
@@ -320,7 +333,7 @@ export default function AdminVulnerabilitiesPage() {
     };
 
     const toggleSelectAll = () => {
-        setSelectedIds(selectedIds.size === paginated.length ? new Set() : new Set(paginated.map((v: Vulnerability) => v.id)));
+        setSelectedIds(selectedIds.size === vulnerabilities.length ? new Set() : new Set(vulnerabilities.map((v: Vulnerability) => v.id)));
     };
 
     const toggleExpand = (id: string) => {
@@ -340,7 +353,7 @@ export default function AdminVulnerabilitiesPage() {
     };
 
     const handleExport = (format: 'csv' | 'json') => {
-        const items = selectedIds.size > 0 ? searchFiltered.filter((v: Vulnerability) => selectedIds.has(v.id)) : searchFiltered;
+        const items = selectedIds.size > 0 ? vulnerabilities.filter((v: Vulnerability) => selectedIds.has(v.id)) : vulnerabilities;
         if (format === 'csv') {
             const csv = [['CVE ID', 'Package', 'Severity', 'Status', 'Installed', 'Fixed', 'Project'].join(','), ...items.map((v: Vulnerability) => [v.cveId, v.pkgName, v.severity, v.status, v.installedVersion, v.fixedVersion || '', v.scanResult?.project?.name || ''].join(','))].join('\n');
             download(csv, `vulnerabilities-${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
@@ -378,7 +391,7 @@ export default function AdminVulnerabilitiesPage() {
         setCurrentPage(1);
     };
 
-    const isAllSelected = paginated.length > 0 && selectedIds.size === paginated.length;
+    const isAllSelected = vulnerabilities.length > 0 && selectedIds.size === vulnerabilities.length;
     const isSomeSelected = selectedIds.size > 0;
 
     if (isLoading || statsLoading) return (
@@ -402,7 +415,7 @@ export default function AdminVulnerabilitiesPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">취약점 현황</h1>
                     <p className="text-slate-600 dark:text-slate-400 mt-1">
-                        전체 프로젝트 취약점 현황 관리 • 총 {data?.total || 0}개 {searchQuery && `(검색: ${searchFiltered.length}개)`}
+                        전체 프로젝트 취약점 현황 관리 • 총 {totalCount}개 {debouncedSearch && `(검색 결과)`} {isFetching && <Loader2 className="inline h-4 w-4 animate-spin ml-1" />}
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -526,14 +539,23 @@ export default function AdminVulnerabilitiesPage() {
             )}
 
             {/* Content */}
-            {searchFiltered.length === 0 ? (
+            {vulnerabilities.length === 0 && !isFetching ? (
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border p-12 text-center">
                     <ShieldCheck className="h-16 w-16 mx-auto text-green-400 mb-4" />
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">취약점이 없습니다</h3>
                     <p className="text-slate-600 dark:text-slate-400">{searchQuery ? '검색 결과가 없습니다' : '현재 조건에 맞는 취약점이 없습니다'}</p>
                 </div>
             ) : (
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border overflow-hidden">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border overflow-hidden relative">
+                    {/* Loading overlay for page transitions */}
+                    {isFetching && (
+                        <div className="absolute inset-0 bg-white/50 dark:bg-slate-800/50 z-10 flex items-center justify-center">
+                            <div className="flex items-center gap-2 bg-white dark:bg-slate-700 px-4 py-2 rounded-lg shadow-lg">
+                                <Loader2 className="h-5 w-5 animate-spin text-red-600" />
+                                <span className="text-sm text-slate-600 dark:text-slate-300">로딩 중...</span>
+                            </div>
+                        </div>
+                    )}
                     <table className="w-full">
                         <thead className="bg-slate-50 dark:bg-slate-700/50">
                             <tr>
@@ -548,7 +570,7 @@ export default function AdminVulnerabilitiesPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                            {paginated.map((v: Vulnerability, idx: number) => (
+                            {vulnerabilities.map((v: Vulnerability, idx: number) => (
                                 <React.Fragment key={v.id}>
                                     <tr onClick={() => router.push(`/dashboard/vulnerabilities/${v.id}`)} className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer ${selectedIds.has(v.id) ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
                                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}><button onClick={() => toggleSelect(v.id)} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600">{selectedIds.has(v.id) ? <CheckSquare className="h-5 w-5 text-red-600" /> : <Square className="h-5 w-5 text-slate-400" />}</button></td>
@@ -576,7 +598,7 @@ export default function AdminVulnerabilitiesPage() {
                         </tbody>
                     </table>
                     <div className="px-6 py-4 border-t flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm text-slate-600"><span>페이지당</span><select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-700">{PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select><span>개 | 총 {sorted.length}개 중 {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, sorted.length)}</span></div>
+                        <div className="flex items-center gap-2 text-sm text-slate-600"><span>페이지당</span><select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-700">{PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}</select><span>개 | 총 {totalCount}개 중 {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)}</span></div>
                         <div className="flex items-center gap-1">
                             <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-3 py-1 text-sm border rounded hover:bg-slate-50 disabled:opacity-50">처음</button>
                             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 text-sm border rounded hover:bg-slate-50 disabled:opacity-50">이전</button>
