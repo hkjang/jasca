@@ -125,8 +125,16 @@ function CreateProjectModal({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            // Generate slug from name: lowercase, alphanumeric with hyphens only
+            const slug = name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .replace(/-+/g, '-');
+            
             await createProject.mutateAsync({
                 name,
+                slug,
                 description,
                 organizationId,
             });

@@ -341,10 +341,10 @@ export function useUploadScan() {
                 }
             });
 
-            // Build URL - projectId is now optional
+            // Build URL - projectId is now optional, use /upload/file for multipart form
             const url = projectId
-                ? `${API_BASE}/scans/upload?projectId=${projectId}`
-                : `${API_BASE}/scans/upload`;
+                ? `${API_BASE}/scans/upload/file?projectId=${projectId}`
+                : `${API_BASE}/scans/upload/file`;
 
             console.log('[Upload Debug] URL:', url);
             console.log('[Upload Debug] FormData entries:');

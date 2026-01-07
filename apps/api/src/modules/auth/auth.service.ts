@@ -76,9 +76,11 @@ export class AuthService {
                 name: dto.name,
                 passwordHash,
                 passwordChangedAt: new Date(),
+                isActive: dto.status !== 'INACTIVE',
+                organizationId: dto.organizationId || undefined,
                 roles: {
                     create: {
-                        role: 'VIEWER',
+                        role: dto.role || 'VIEWER',
                         scope: 'ORGANIZATION',
                     },
                 },
