@@ -226,16 +226,39 @@ export function WorkflowStatusDropdown({
     React.useEffect(() => {
         if (isOpen && vulnerabilityId) {
             setLoadingTransitions(true);
+            const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : '';
+            
+            if (!token) {
+                // No token, fallback to default options
+                setTransitions(statusOptions.map(s => ({ status: s.value, name: s.label })));
+                setLoadingTransitions(false);
+                return;
+            }
+
             fetch(`/api/vulnerabilities/${vulnerabilityId}/available-transitions`, {
                 headers: {
-                    'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('accessToken') : ''}`,
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                 },
             })
-                .then(res => res.json())
-                .then(data => {
-                    setTransitions(data || []);
+                .then(res => {
+                    if (!res.ok) {
+                        console.warn(`Failed to fetch transitions: ${res.status}`);
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+                    return res.json();
                 })
-                .catch(() => {
+                .then(data => {
+                    // Validate response is an array
+                    if (Array.isArray(data)) {
+                        setTransitions(data);
+                    } else {
+                        console.warn('Invalid transitions response, using defaults');
+                        setTransitions(statusOptions.map(s => ({ status: s.value, name: s.label })));
+                    }
+                })
+                .catch((err) => {
+                    console.warn('Error fetching transitions:', err.message);
                     // Fallback to all status options if API fails
                     setTransitions(statusOptions.map(s => ({ status: s.value, name: s.label })));
                 })

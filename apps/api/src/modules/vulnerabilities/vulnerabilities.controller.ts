@@ -7,6 +7,7 @@ import {
     Body,
     Query,
     UseGuards,
+    BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -84,6 +85,9 @@ export class VulnerabilitiesController {
         @Body() body: { status: VulnStatus; comment?: string },
         @CurrentUser() user: any,
     ) {
+        if (!user?.id) {
+            throw new BadRequestException('User authentication required');
+        }
         return this.vulnService.updateStatus(id, body.status, user.id, user.role);
     }
 
@@ -112,6 +116,9 @@ export class VulnerabilitiesController {
         @Body() body: { content: string },
         @CurrentUser() user: any,
     ) {
+        if (!user?.id) {
+            throw new BadRequestException('User authentication required');
+        }
         return this.vulnService.addComment(id, user.id, body.content);
     }
 

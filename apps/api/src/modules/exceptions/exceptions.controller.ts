@@ -7,6 +7,7 @@ import {
     Body,
     Query,
     UseGuards,
+    BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -36,6 +37,9 @@ export class ExceptionsController {
     @Get('my')
     @ApiOperation({ summary: 'Get my exception requests' })
     async getMyExceptions(@CurrentUser() user: any) {
+        if (!user?.id) {
+            throw new BadRequestException('User authentication required');
+        }
         return this.exceptionsService.getMyExceptions(user.id);
     }
 
@@ -58,6 +62,12 @@ export class ExceptionsController {
         },
         @CurrentUser() user: any,
     ) {
+        if (!user?.id) {
+            throw new BadRequestException('User authentication required');
+        }
+        if (!body.reason) {
+            throw new BadRequestException('Exception reason is required');
+        }
         return this.exceptionsService.create(
             {
                 policyId: body.policyId,
@@ -76,6 +86,9 @@ export class ExceptionsController {
     @Roles('SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN')
     @ApiOperation({ summary: 'Approve an exception request' })
     async approve(@Param('id') id: string, @CurrentUser() user: any) {
+        if (!user?.id) {
+            throw new BadRequestException('User authentication required');
+        }
         return this.exceptionsService.approve(id, user.id);
     }
 
@@ -87,6 +100,9 @@ export class ExceptionsController {
         @Body() body: { reason?: string },
         @CurrentUser() user: any,
     ) {
+        if (!user?.id) {
+            throw new BadRequestException('User authentication required');
+        }
         return this.exceptionsService.reject(id, user.id, body.reason);
     }
 }
