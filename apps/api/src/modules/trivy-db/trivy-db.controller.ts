@@ -104,6 +104,16 @@ export class TrivyDbController {
   }
 
   /**
+   * Build scanners flag string from settings
+   */
+  private buildScannersFlag(settings: TrivySettings): string {
+    if (settings.scanners && settings.scanners.length > 0) {
+      return `--scanners ${settings.scanners.join(',')}`;
+    }
+    return '';
+  }
+
+  /**
    * Parse timeout string to milliseconds
    */
   private parseTimeoutMs(timeout: string): number {
@@ -491,6 +501,12 @@ export class TrivyDbController {
     }
 
     try {
+      const settings = await this.getTrivySettings();
+      const scannersFlag = this.buildScannersFlag(settings);
+      const severityFilter = this.buildSeverityFilter(settings);
+      const timeoutMs = this.parseTimeoutMs(settings.timeout);
+      const ignoreUnfixedFlag = settings.ignoreUnfixed ? '--ignore-unfixed' : '';
+
       // Create a temporary package.json to scan
       const tempDir = path.join(require('os').tmpdir(), `trivy-scan-${Date.now()}`);
       fs.mkdirSync(tempDir, { recursive: true });
@@ -505,10 +521,10 @@ export class TrivyDbController {
 
       fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(packageJson, null, 2));
 
-      // Run trivy fs scan with skip-db-update to prevent downloading
+      // Run trivy fs scan with settings applied
       const result = await execAsync(
-        `trivy fs --cache-dir "${this.dbPath}" --skip-db-update --format json "${tempDir}"`,
-        { timeout: 30000 }
+        `trivy fs --cache-dir "${this.dbPath}" --skip-db-update ${scannersFlag} --severity ${severityFilter} ${ignoreUnfixedFlag} --format json "${tempDir}"`,
+        { timeout: timeoutMs }
       );
 
       // Clean up
@@ -553,8 +569,9 @@ export class TrivyDbController {
     try {
       // Scan current project with skip-db-update to prevent downloading
       const ignoreUnfixedFlag = settings.ignoreUnfixed ? '--ignore-unfixed' : '';
+      const scannersFlag = this.buildScannersFlag(settings);
       const result = await execAsync(
-        `trivy fs --cache-dir "${this.dbPath}" --skip-db-update --format json --severity ${severityFilter} ${ignoreUnfixedFlag} --skip-dirs node_modules .`,
+        `trivy fs --cache-dir "${this.dbPath}" --skip-db-update ${scannersFlag} --format json --severity ${severityFilter} ${ignoreUnfixedFlag} --skip-dirs node_modules .`,
         { timeout: timeoutMs, cwd: path.resolve(this.dbPath, '..') }
       );
 

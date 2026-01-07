@@ -14,3 +14,4 @@ trivy-db/*.db
 trivy-db/*.json
 trivy-db/db
 trivy-db/java-db
+trivy-db/policy
