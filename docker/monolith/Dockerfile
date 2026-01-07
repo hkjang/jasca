@@ -70,8 +70,10 @@ RUN apt-get update && apt-get install -y wget lsb-release \
     && apt-get update && apt-get install -y trivy \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Trivy DB for offline usage
-COPY trivy-db /app/trivy-db
+# Copy Trivy DB for offline usage (optional - create empty dir if not present)
+# For offline usage, mount the trivy-db at runtime: -v /path/to/trivy-db:/app/trivy-db
+RUN mkdir -p /app/trivy-db
+COPY trivy-d[b] /app/trivy-db/
 ENV TRIVY_CACHE_DIR=/app/trivy-db
 
 # Copy production node_modules from prod-deps
