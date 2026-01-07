@@ -285,3 +285,376 @@ export function getSchemaStats(schema: ParsedSchema) {
     avgFieldsPerModel: Math.round(totalFields / schema.models.length),
   };
 }
+
+/**
+ * Get detailed schema statistics for dashboard
+ */
+export function getDetailedSchemaStats(schema: ParsedSchema) {
+  const baseStats = getSchemaStats(schema);
+  
+  // Category distribution
+  const MODEL_CATEGORIES: Record<string, string[]> = {
+    '조직/프로젝트': ['Organization', 'Project', 'Registry'],
+    '사용자/인증': ['User', 'UserRole', 'ApiToken', 'UserSession', 'LoginHistory', 'UserInvitation', 'UserMfa', 'EmailVerification', 'SsoConfig', 'IpWhitelist', 'PasswordPolicy', 'PasswordHistory'],
+    '스캔/취약점': ['ScanResult', 'ScanSummary', 'Vulnerability', 'ScanVulnerability', 'VulnerabilityComment', 'VulnerabilityImpact', 'VulnerabilityBookmark', 'MergedVulnerability', 'MitreMapping'],
+    '정책/예외': ['Policy', 'PolicyRule', 'PolicyException'],
+    '워크플로우': ['VulnerabilityWorkflow', 'FixEvidence'],
+    '알림': ['NotificationChannel', 'NotificationRule', 'UserNotification'],
+    '보고서': ['ReportTemplate', 'Report'],
+    '통합': ['GitIntegration', 'GitRepository', 'IssueTrackerIntegration', 'LinkedIssue'],
+    '설정/기타': ['RiskScoreConfig', 'AssetCriticality', 'AuditLog', 'SystemSettings', 'AiExecution'],
+  };
+
+  const categoryDistribution: Record<string, number> = {};
+  const assignedModels = new Set<string>();
+  
+  for (const [category, modelNames] of Object.entries(MODEL_CATEGORIES)) {
+    const count = schema.models.filter(m => {
+      if (modelNames.includes(m.name)) {
+        assignedModels.add(m.name);
+        return true;
+      }
+      return false;
+    }).length;
+    if (count > 0) categoryDistribution[category] = count;
+  }
+  
+  const uncategorized = schema.models.filter(m => !assignedModels.has(m.name)).length;
+  if (uncategorized > 0) categoryDistribution['기타'] = uncategorized;
+
+  // Field type distribution
+  const fieldTypeDistribution: Record<string, number> = {};
+  for (const model of schema.models) {
+    for (const field of model.fields) {
+      const baseType = field.type;
+      fieldTypeDistribution[baseType] = (fieldTypeDistribution[baseType] || 0) + 1;
+    }
+  }
+
+  // Relation type distribution
+  const relationTypeDistribution: Record<string, number> = {
+    '1:1': 0,
+    '1:N': 0,
+    'N:1': 0,
+    'N:M': 0,
+  };
+  for (const rel of schema.relations) {
+    relationTypeDistribution[rel.type]++;
+  }
+
+  // Top models by fields
+  const topModelsByFields = [...schema.models]
+    .sort((a, b) => b.fields.length - a.fields.length)
+    .slice(0, 5)
+    .map(m => ({ name: m.name, count: m.fields.length }));
+
+  // Top models by relations
+  const modelRelationCounts: Record<string, number> = {};
+  for (const rel of schema.relations) {
+    modelRelationCounts[rel.from] = (modelRelationCounts[rel.from] || 0) + 1;
+  }
+  const topModelsByRelations = Object.entries(modelRelationCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({ name, count }));
+
+  // Cascade delete count
+  const cascadeDeleteCount = schema.relations.filter(r => r.onDelete === 'Cascade').length;
+
+  return {
+    ...baseStats,
+    categoryDistribution,
+    fieldTypeDistribution,
+    relationTypeDistribution,
+    topModelsByFields,
+    topModelsByRelations,
+    cascadeDeleteCount,
+  };
+}
+
+/**
+ * Schema comparison result types
+ */
+export interface SchemaDiff {
+  addedModels: string[];
+  removedModels: string[];
+  modifiedModels: {
+    name: string;
+    addedFields: string[];
+    removedFields: string[];
+    modifiedFields: string[];
+  }[];
+  addedEnums: string[];
+  removedEnums: string[];
+  modifiedEnums: {
+    name: string;
+    addedValues: string[];
+    removedValues: string[];
+  }[];
+  addedRelations: SchemaRelation[];
+  removedRelations: SchemaRelation[];
+}
+
+/**
+ * Compare two schemas and return differences
+ */
+export function compareSchemas(oldSchema: ParsedSchema, newSchema: ParsedSchema): SchemaDiff {
+  const diff: SchemaDiff = {
+    addedModels: [],
+    removedModels: [],
+    modifiedModels: [],
+    addedEnums: [],
+    removedEnums: [],
+    modifiedEnums: [],
+    addedRelations: [],
+    removedRelations: [],
+  };
+
+  const oldModelNames = new Set(oldSchema.models.map(m => m.name));
+  const newModelNames = new Set(newSchema.models.map(m => m.name));
+  const oldEnumNames = new Set(oldSchema.enums.map(e => e.name));
+  const newEnumNames = new Set(newSchema.enums.map(e => e.name));
+
+  // Added/removed models
+  diff.addedModels = newSchema.models
+    .filter(m => !oldModelNames.has(m.name))
+    .map(m => m.name);
+  diff.removedModels = oldSchema.models
+    .filter(m => !newModelNames.has(m.name))
+    .map(m => m.name);
+
+  // Modified models
+  for (const newModel of newSchema.models) {
+    if (!oldModelNames.has(newModel.name)) continue;
+    
+    const oldModel = oldSchema.models.find(m => m.name === newModel.name)!;
+    const oldFieldNames = new Set(oldModel.fields.map(f => f.name));
+    const newFieldNames = new Set(newModel.fields.map(f => f.name));
+
+    const addedFields = newModel.fields
+      .filter(f => !oldFieldNames.has(f.name))
+      .map(f => f.name);
+    const removedFields = oldModel.fields
+      .filter(f => !newFieldNames.has(f.name))
+      .map(f => f.name);
+    
+    // Modified fields (type or attributes changed)
+    const modifiedFields: string[] = [];
+    for (const newField of newModel.fields) {
+      if (!oldFieldNames.has(newField.name)) continue;
+      const oldField = oldModel.fields.find(f => f.name === newField.name)!;
+      if (
+        oldField.type !== newField.type ||
+        oldField.isArray !== newField.isArray ||
+        oldField.isOptional !== newField.isOptional ||
+        oldField.isPrimaryKey !== newField.isPrimaryKey ||
+        oldField.isUnique !== newField.isUnique
+      ) {
+        modifiedFields.push(newField.name);
+      }
+    }
+
+    if (addedFields.length > 0 || removedFields.length > 0 || modifiedFields.length > 0) {
+      diff.modifiedModels.push({
+        name: newModel.name,
+        addedFields,
+        removedFields,
+        modifiedFields,
+      });
+    }
+  }
+
+  // Added/removed enums
+  diff.addedEnums = newSchema.enums
+    .filter(e => !oldEnumNames.has(e.name))
+    .map(e => e.name);
+  diff.removedEnums = oldSchema.enums
+    .filter(e => !newEnumNames.has(e.name))
+    .map(e => e.name);
+
+  // Modified enums
+  for (const newEnum of newSchema.enums) {
+    if (!oldEnumNames.has(newEnum.name)) continue;
+    
+    const oldEnum = oldSchema.enums.find(e => e.name === newEnum.name)!;
+    const oldValues = new Set(oldEnum.values);
+    const newValues = new Set(newEnum.values);
+
+    const addedValues = newEnum.values.filter(v => !oldValues.has(v));
+    const removedValues = oldEnum.values.filter(v => !newValues.has(v));
+
+    if (addedValues.length > 0 || removedValues.length > 0) {
+      diff.modifiedEnums.push({
+        name: newEnum.name,
+        addedValues,
+        removedValues,
+      });
+    }
+  }
+
+  // Relations comparison
+  const relationKey = (r: SchemaRelation) => `${r.from}-${r.to}-${r.fromField}`;
+  const oldRelationKeys = new Set(oldSchema.relations.map(relationKey));
+  const newRelationKeys = new Set(newSchema.relations.map(relationKey));
+
+  diff.addedRelations = newSchema.relations.filter(r => !oldRelationKeys.has(relationKey(r)));
+  diff.removedRelations = oldSchema.relations.filter(r => !newRelationKeys.has(relationKey(r)));
+
+  return diff;
+}
+
+/**
+ * Generate SQL DDL from schema
+ */
+export function generateSQLDDL(schema: ParsedSchema, dialect: 'postgresql' | 'mysql' = 'postgresql'): string {
+  const lines: string[] = [];
+  const typeMap: Record<string, Record<string, string>> = {
+    postgresql: {
+      String: 'TEXT',
+      Int: 'INTEGER',
+      Float: 'DOUBLE PRECISION',
+      Boolean: 'BOOLEAN',
+      DateTime: 'TIMESTAMP WITH TIME ZONE',
+      Json: 'JSONB',
+      BigInt: 'BIGINT',
+      Decimal: 'DECIMAL',
+      Bytes: 'BYTEA',
+    },
+    mysql: {
+      String: 'TEXT',
+      Int: 'INT',
+      Float: 'DOUBLE',
+      Boolean: 'TINYINT(1)',
+      DateTime: 'DATETIME',
+      Json: 'JSON',
+      BigInt: 'BIGINT',
+      Decimal: 'DECIMAL',
+      Bytes: 'BLOB',
+    },
+  };
+
+  // Generate enum types (PostgreSQL only)
+  if (dialect === 'postgresql') {
+    for (const enumDef of schema.enums) {
+      const values = enumDef.values.map(v => `'${v}'`).join(', ');
+      lines.push(`CREATE TYPE "${enumDef.name}" AS ENUM (${values});`);
+    }
+    if (schema.enums.length > 0) lines.push('');
+  }
+
+  // Generate tables
+  for (const model of schema.models) {
+    const tableName = dialect === 'postgresql' ? `"${model.name}"` : `\`${model.name}\``;
+    lines.push(`CREATE TABLE ${tableName} (`);
+    
+    const columnDefs: string[] = [];
+    const constraints: string[] = [];
+    
+    for (const field of model.fields) {
+      if (field.relation && !field.type.match(/^(String|Int|Float|Boolean|DateTime|Json)$/)) {
+        continue; // Skip relation fields (not actual columns)
+      }
+
+      const colName = dialect === 'postgresql' ? `"${field.name}"` : `\`${field.name}\``;
+      let sqlType = typeMap[dialect][field.type] || 'TEXT';
+      
+      // Check if it's an enum type
+      if (schema.enums.some(e => e.name === field.type)) {
+        sqlType = dialect === 'postgresql' ? `"${field.type}"` : 'VARCHAR(255)';
+      }
+
+      let def = `  ${colName} ${sqlType}`;
+      
+      if (!field.isOptional && !field.hasDefault) {
+        def += ' NOT NULL';
+      }
+      
+      if (field.isPrimaryKey) {
+        def += ' PRIMARY KEY';
+      }
+      
+      if (field.isUnique && !field.isPrimaryKey) {
+        constraints.push(`  UNIQUE (${colName})`);
+      }
+      
+      columnDefs.push(def);
+    }
+
+    lines.push(columnDefs.join(',\n'));
+    if (constraints.length > 0) {
+      lines.push(',\n' + constraints.join(',\n'));
+    }
+    lines.push(');');
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate Markdown documentation from schema
+ */
+export function generateMarkdownDocs(schema: ParsedSchema): string {
+  const lines: string[] = [];
+  
+  lines.push('# Database Schema Documentation');
+  lines.push('');
+  lines.push(`Generated: ${new Date().toISOString()}`);
+  lines.push('');
+  
+  // Statistics
+  const stats = getSchemaStats(schema);
+  lines.push('## Overview');
+  lines.push('');
+  lines.push(`| Metric | Count |`);
+  lines.push(`|--------|-------|`);
+  lines.push(`| Models | ${stats.modelCount} |`);
+  lines.push(`| Enums | ${stats.enumCount} |`);
+  lines.push(`| Total Fields | ${stats.totalFields} |`);
+  lines.push(`| Total Relations | ${stats.totalRelations} |`);
+  lines.push(`| Total Indexes | ${stats.totalIndexes} |`);
+  lines.push('');
+
+  // Models
+  lines.push('## Models');
+  lines.push('');
+  
+  for (const model of schema.models) {
+    lines.push(`### ${model.name}`);
+    lines.push('');
+    lines.push('| Field | Type | Attributes |');
+    lines.push('|-------|------|------------|');
+    
+    for (const field of model.fields) {
+      const attrs: string[] = [];
+      if (field.isPrimaryKey) attrs.push('PK');
+      if (field.isUnique) attrs.push('Unique');
+      if (field.isOptional) attrs.push('Optional');
+      if (field.isArray) attrs.push('Array');
+      if (field.hasDefault) attrs.push(`Default: ${field.defaultValue || 'auto'}`);
+      if (field.relation) attrs.push(`→ ${field.relation.model}`);
+      
+      const type = `${field.type}${field.isArray ? '[]' : ''}${field.isOptional ? '?' : ''}`;
+      lines.push(`| ${field.name} | \`${type}\` | ${attrs.join(', ')} |`);
+    }
+    lines.push('');
+  }
+
+  // Enums
+  if (schema.enums.length > 0) {
+    lines.push('## Enums');
+    lines.push('');
+    
+    for (const enumDef of schema.enums) {
+      lines.push(`### ${enumDef.name}`);
+      lines.push('');
+      lines.push('Values:');
+      for (const value of enumDef.values) {
+        lines.push(`- \`${value}\``);
+      }
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}

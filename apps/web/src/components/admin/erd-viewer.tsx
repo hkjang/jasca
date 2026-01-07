@@ -31,6 +31,18 @@ import {
   X,
   ArrowRight,
   Circle,
+  Filter,
+  BarChart3,
+  FileText,
+  FileCode,
+  Image,
+  PieChart,
+  TrendingUp,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  SortAsc,
+  SortDesc,
 } from 'lucide-react';
 import {
   ParsedSchema,
@@ -38,6 +50,9 @@ import {
   parsePrismaSchema,
   generateMermaidERD,
   getSchemaStats,
+  getDetailedSchemaStats,
+  generateSQLDDL,
+  generateMarkdownDocs,
 } from '@/lib/schema-parser';
 
 // Mermaid will be loaded dynamically on client-side
@@ -87,7 +102,7 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
   const [schema, setSchema] = useState<ParsedSchema | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedModel, setSelectedModel] = useState<SchemaModel | null>(null);
-  const [viewMode, setViewMode] = useState<'erd' | 'list'>('erd');
+  const [viewMode, setViewMode] = useState<'erd' | 'list' | 'stats'>('erd');
   const [zoom, setZoom] = useState(50);
   const [showFields, setShowFields] = useState(true);
   const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());
@@ -97,6 +112,19 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
   const [showMinimap, setShowMinimap] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Advanced filtering state
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [categoryFilters, setCategoryFilters] = useState<Set<string>>(new Set(Object.keys(MODEL_CATEGORIES)));
+  const [relationTypeFilters, setRelationTypeFilters] = useState<Set<string>>(new Set(['1:1', '1:N', 'N:1', 'N:M']));
+  const [showRelationsOnly, setShowRelationsOnly] = useState(false);
+  
+  // Export menu state
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  
+  // List view sorting
+  const [listSortBy, setListSortBy] = useState<'name' | 'fields' | 'relations'>('name');
+  const [listSortDir, setListSortDir] = useState<'asc' | 'desc'>('asc');
   
   // Pan state
   const [isPanning, setIsPanning] = useState(false);
@@ -234,17 +262,50 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [viewMode, showMinimap, showLegend, isFullscreen]);
 
-  // Filter models based on search
+  // Filter models based on search and category filters
   const filteredModels = useMemo(() => {
     if (!schema) return [];
-    if (!searchQuery) return schema.models;
-    const query = searchQuery.toLowerCase();
-    return schema.models.filter(
-      model =>
-        model.name.toLowerCase().includes(query) ||
-        model.fields.some(f => f.name.toLowerCase().includes(query))
-    );
-  }, [schema, searchQuery]);
+    
+    let result = schema.models;
+    
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        model =>
+          model.name.toLowerCase().includes(query) ||
+          model.fields.some(f => f.name.toLowerCase().includes(query))
+      );
+    }
+    
+    // Apply category filter
+    const assignedModelNames = new Set<string>();
+    for (const [category, modelNames] of Object.entries(MODEL_CATEGORIES)) {
+      if (categoryFilters.has(category)) {
+        modelNames.forEach(name => assignedModelNames.add(name));
+      }
+    }
+    if (categoryFilters.has('기타')) {
+      // Include uncategorized models
+      const allCategorized = new Set(Object.values(MODEL_CATEGORIES).flat());
+      result.forEach(m => {
+        if (!allCategorized.has(m.name)) assignedModelNames.add(m.name);
+      });
+    }
+    result = result.filter(m => assignedModelNames.has(m.name) || categoryFilters.size === 0);
+    
+    // Apply relations only filter
+    if (showRelationsOnly && schema) {
+      const modelsWithRelations = new Set<string>();
+      for (const rel of schema.relations) {
+        modelsWithRelations.add(rel.from);
+        modelsWithRelations.add(rel.to);
+      }
+      result = result.filter(m => modelsWithRelations.has(m.name));
+    }
+    
+    return result;
+  }, [schema, searchQuery, categoryFilters, showRelationsOnly]);
 
   // Filter enums based on search
   const filteredEnums = useMemo(() => {
@@ -281,11 +342,41 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
     return grouped;
   }, [filteredModels]);
 
-  // Stats
+  // Basic stats
   const stats = useMemo(() => {
     if (!schema) return null;
     return getSchemaStats(schema);
   }, [schema]);
+
+  // Detailed stats for dashboard
+  const detailedStats = useMemo(() => {
+    if (!schema) return null;
+    return getDetailedSchemaStats(schema);
+  }, [schema]);
+
+  // Sorted models for list view
+  const sortedModels = useMemo(() => {
+    const models = [...filteredModels];
+    const getRelationCount = (m: SchemaModel) => 
+      schema?.relations.filter(r => r.from === m.name).length || 0;
+    
+    models.sort((a, b) => {
+      let cmp = 0;
+      switch (listSortBy) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'fields':
+          cmp = a.fields.length - b.fields.length;
+          break;
+        case 'relations':
+          cmp = getRelationCount(a) - getRelationCount(b);
+          break;
+      }
+      return listSortDir === 'desc' ? -cmp : cmp;
+    });
+    return models;
+  }, [filteredModels, listSortBy, listSortDir, schema]);
 
   // Toggle functions
   const toggleModel = useCallback((modelName: string) => {
@@ -416,8 +507,8 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
     };
   }, [zoom, panOffset, svgDimensions]);
 
-  // Export
-  const handleExport = () => {
+  // Export functions
+  const handleExportSVG = () => {
     if (!mermaidSvg) return;
     const blob = new Blob([mermaidSvg], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
@@ -426,7 +517,80 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
     a.download = 'schema-erd.svg';
     a.click();
     URL.revokeObjectURL(url);
+    setShowExportMenu(false);
   };
+
+  const handleExportPNG = async () => {
+    if (!mermaidSvg) return;
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new window.Image();
+      
+      img.onload = () => {
+        canvas.width = img.width * 2;
+        canvas.height = img.height * 2;
+        ctx?.scale(2, 2);
+        ctx?.drawImage(img, 0, 0);
+        
+        const pngUrl = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = pngUrl;
+        a.download = 'schema-erd.png';
+        a.click();
+      };
+      
+      const svgBlob = new Blob([mermaidSvg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(svgBlob);
+      img.src = url;
+    } catch (error) {
+      console.error('PNG export failed:', error);
+    }
+    setShowExportMenu(false);
+  };
+
+  const handleExportSQL = (dialect: 'postgresql' | 'mysql') => {
+    if (!schema) return;
+    const sql = generateSQLDDL(schema, dialect);
+    const blob = new Blob([sql], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `schema-${dialect}.sql`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  const handleExportMarkdown = () => {
+    if (!schema) return;
+    const md = generateMarkdownDocs(schema);
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'schema-documentation.md';
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  // Legacy export for compatibility
+  const handleExport = handleExportSVG;
+
+  // Toggle category filter
+  const toggleCategoryFilter = (category: string) => {
+    setCategoryFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
+
+  // Select all/none categories
+  const selectAllCategories = () => setCategoryFilters(new Set([...Object.keys(MODEL_CATEGORIES), '기타']));
+  const clearAllCategories = () => setCategoryFilters(new Set());
 
   // Zoom presets
   const zoomPresets = [25, 50, 75, 100, 125, 150, 200];
@@ -720,6 +884,7 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
             {[
               { mode: 'erd' as const, icon: Grid3X3, label: 'ERD' },
               { mode: 'list' as const, icon: List, label: '목록' },
+              { mode: 'stats' as const, icon: BarChart3, label: '통계' },
             ].map(({ mode, icon: Icon, label }) => (
               <button
                 key={mode}
@@ -733,6 +898,24 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
               </button>
             ))}
           </div>
+
+          {/* Filter toggle */}
+          <button
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+              showFilterPanel 
+                ? 'bg-blue-600 border-blue-500 text-white' 
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            필터
+            {categoryFilters.size < Object.keys(MODEL_CATEGORIES).length + 1 && (
+              <span className="px-1.5 py-0.5 bg-blue-500 text-white rounded-full text-[10px]">
+                {categoryFilters.size}
+              </span>
+            )}
+          </button>
 
           {viewMode === 'erd' && (
             <>
@@ -794,19 +977,104 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
                 <Maximize className="h-3.5 w-3.5" />
               </button>
 
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-1.5 px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors text-xs"
-              >
-                <Download className="h-3.5 w-3.5" />
-                SVG
-              </button>
+              {/* Export dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center gap-1.5 px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors text-xs"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  내보내기
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {showExportMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                    <div className="absolute right-0 mt-1 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 py-1">
+                      <button onClick={handleExportSVG} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white">
+                        <FileCode className="h-3.5 w-3.5" />
+                        SVG 다이어그램
+                      </button>
+                      <button onClick={handleExportPNG} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white">
+                        <Image className="h-3.5 w-3.5" />
+                        PNG 이미지
+                      </button>
+                      <div className="border-t border-slate-700 my-1" />
+                      <button onClick={() => handleExportSQL('postgresql')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white">
+                        <Database className="h-3.5 w-3.5" />
+                        PostgreSQL DDL
+                      </button>
+                      <button onClick={() => handleExportSQL('mysql')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white">
+                        <Database className="h-3.5 w-3.5" />
+                        MySQL DDL
+                      </button>
+                      <div className="border-t border-slate-700 my-1" />
+                      <button onClick={handleExportMarkdown} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white">
+                        <FileText className="h-3.5 w-3.5" />
+                        Markdown 문서
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </>
           )}
         </div>
 
         {/* Content */}
         <div className="flex-1 flex gap-3 min-h-0">
+          {/* Filter Panel - Collapsible */}
+          {showFilterPanel && (
+            <div className="w-48 flex-shrink-0 bg-slate-800 rounded-lg border border-slate-700 overflow-hidden flex flex-col">
+              <div className="p-2 border-b border-slate-700 flex items-center justify-between">
+                <h3 className="font-medium text-white text-sm">필터</h3>
+                <button onClick={() => setShowFilterPanel(false)} className="p-1 text-slate-400 hover:text-white">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-3">
+                {/* Category filters */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-medium text-slate-400">카테고리</h4>
+                    <div className="flex gap-1">
+                      <button onClick={selectAllCategories} className="text-[10px] text-blue-400 hover:text-blue-300">전체</button>
+                      <span className="text-slate-600">/</span>
+                      <button onClick={clearAllCategories} className="text-[10px] text-blue-400 hover:text-blue-300">없음</button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    {[...Object.keys(MODEL_CATEGORIES), '기타'].map(category => (
+                      <label key={category} className="flex items-center gap-2 text-xs text-slate-300 hover:text-white cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={categoryFilters.has(category)}
+                          onChange={() => toggleCategoryFilter(category)}
+                          className="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500 h-3 w-3"
+                        />
+                        <div className={`w-2 h-2 rounded-full ${CATEGORY_COLORS[category] || 'bg-slate-500'}`} />
+                        {category}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Relations only filter */}
+                <div>
+                  <label className="flex items-center gap-2 text-xs text-slate-300 hover:text-white cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showRelationsOnly}
+                      onChange={e => setShowRelationsOnly(e.target.checked)}
+                      className="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500 h-3 w-3"
+                    />
+                    관계있는 모델만
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Sidebar */}
           <div className="w-56 flex-shrink-0 bg-slate-800 rounded-lg border border-slate-700 overflow-hidden flex flex-col">
             <div className="p-2 border-b border-slate-700">
@@ -881,6 +1149,130 @@ export function ERDViewer({ schemaContent }: ERDViewerProps) {
           <div className="flex-1 bg-slate-800 rounded-lg border border-slate-700 overflow-hidden relative">
             {viewMode === 'erd' ? (
               <DiagramContent />
+            ) : viewMode === 'stats' ? (
+              /* Statistics Dashboard */
+              <div className="h-full overflow-auto p-4">
+                {detailedStats && (
+                  <div className="space-y-4">
+                    {/* Category Distribution */}
+                    <div className="bg-slate-900 rounded-lg border border-slate-700 p-4">
+                      <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                        <PieChart className="h-4 w-4 text-blue-400" />
+                        카테고리별 모델 분포
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {Object.entries(detailedStats.categoryDistribution).map(([cat, count]) => (
+                          <div key={cat} className="flex items-center gap-2 p-2 bg-slate-800 rounded">
+                            <div className={`w-3 h-3 rounded-full ${CATEGORY_COLORS[cat] || 'bg-slate-500'}`} />
+                            <span className="text-xs text-slate-300 flex-1">{cat}</span>
+                            <span className="text-sm font-bold text-white">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Top Models */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="bg-slate-900 rounded-lg border border-slate-700 p-4">
+                        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-yellow-400" />
+                          필드 수 TOP 5
+                        </h3>
+                        <div className="space-y-2">
+                          {detailedStats.topModelsByFields.map((m, i) => (
+                            <div key={m.name} className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500 w-4">{i + 1}.</span>
+                              <span className="text-xs text-slate-300 flex-1 truncate">{m.name}</span>
+                              <div className="flex-1 max-w-20">
+                                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-yellow-500 rounded-full" 
+                                    style={{ width: `${(m.count / detailedStats.topModelsByFields[0].count) * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-xs font-bold text-white w-8 text-right">{m.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-900 rounded-lg border border-slate-700 p-4">
+                        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                          <LinkIcon className="h-4 w-4 text-purple-400" />
+                          관계 수 TOP 5
+                        </h3>
+                        <div className="space-y-2">
+                          {detailedStats.topModelsByRelations.map((m, i) => (
+                            <div key={m.name} className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500 w-4">{i + 1}.</span>
+                              <span className="text-xs text-slate-300 flex-1 truncate">{m.name}</span>
+                              <div className="flex-1 max-w-20">
+                                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-purple-500 rounded-full" 
+                                    style={{ width: `${(m.count / (detailedStats.topModelsByRelations[0]?.count || 1)) * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-xs font-bold text-white w-8 text-right">{m.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Relation Types & Field Types */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="bg-slate-900 rounded-lg border border-slate-700 p-4">
+                        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                          <ArrowRight className="h-4 w-4 text-cyan-400" />
+                          관계 유형 분포
+                        </h3>
+                        <div className="space-y-2">
+                          {Object.entries(detailedStats.relationTypeDistribution).map(([type, count]) => (
+                            <div key={type} className="flex items-center justify-between p-2 bg-slate-800 rounded">
+                              <span className="text-xs text-slate-300">{type}</span>
+                              <span className="text-sm font-bold text-white">{count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-900 rounded-lg border border-slate-700 p-4">
+                        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                          <Type className="h-4 w-4 text-green-400" />
+                          필드 타입 분포 (TOP 8)
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(detailedStats.fieldTypeDistribution)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 8)
+                            .map(([type, count]) => (
+                              <div key={type} className="px-2 py-1 bg-slate-800 rounded text-xs">
+                                <span className="text-blue-400">{type}</span>
+                                <span className="text-slate-400 ml-1">({count})</span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Warning stats */}
+                    {detailedStats.cascadeDeleteCount > 0 && (
+                      <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 text-amber-400">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span className="text-sm font-medium">Cascade Delete 관계: {detailedStats.cascadeDeleteCount}개</span>
+                        </div>
+                        <p className="text-xs text-amber-300/70 mt-1">
+                          상위 레코드 삭제 시 하위 레코드가 함께 삭제됩니다.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="h-full overflow-auto">
                 <div className="p-3 space-y-3">
