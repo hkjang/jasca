@@ -604,10 +604,10 @@ export interface Policy {
 
 
 export interface PolicyRule {
-    id: string;
+    id?: string;
     ruleType: string;
     operator?: string;
-    condition: string;
+    condition?: string;
     value: string;
     action: string;
     sendNotification?: boolean;
