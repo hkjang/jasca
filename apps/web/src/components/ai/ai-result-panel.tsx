@@ -18,6 +18,9 @@ import {
     MessageSquare,
     AlertTriangle,
     Settings,
+    History,
+    Cpu,
+    Zap,
 } from 'lucide-react';
 import { AiActionType, AI_ACTION_CONFIG } from './ai-button';
 
@@ -76,6 +79,7 @@ export function AiResultPanel({
     const [currentResultIndex, setCurrentResultIndex] = useState(0);
     const [copied, setCopied] = useState(false);
     const [showPromptModal, setShowPromptModal] = useState(false);
+    const [activeTab, setActiveTab] = useState<'result' | 'history' | 'info'>('result');
 
     // Reset state when panel opens/closes
     useEffect(() => {
@@ -174,29 +178,63 @@ export function AiResultPanel({
                 {/* Result Content */}
                 {!loading && displayedResult && (
                     <div className="flex flex-col h-[calc(100vh-5rem)]">
-                        {/* Metadata Bar */}
-                        {displayedResult.metadata && (
-                            <div className="flex items-center gap-4 px-6 py-2 bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500">
-                                {displayedResult.metadata.model && (
-                                    <span className="flex items-center gap-1">
-                                        <FileText className="h-3 w-3" />
-                                        {displayedResult.metadata.model}
-                                    </span>
-                                )}
-                                {displayedResult.metadata.inputTokens && displayedResult.metadata.outputTokens && (
-                                    <span className="flex items-center gap-1">
-                                        <Coins className="h-3 w-3" />
-                                        {displayedResult.metadata.inputTokens + displayedResult.metadata.outputTokens} tokens
-                                    </span>
-                                )}
-                                {displayedResult.metadata.durationMs && (
-                                    <span className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {(displayedResult.metadata.durationMs / 1000).toFixed(1)}s
-                                    </span>
-                                )}
-                            </div>
-                        )}
+                        {/* Tab Navigation */}
+                        <div className="flex items-center gap-1 px-6 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                            <button
+                                onClick={() => setActiveTab('result')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                                    activeTab === 'result'
+                                        ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 font-medium'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                <Sparkles className="h-3.5 w-3.5" />
+                                결과
+                            </button>
+                            {allResults.length > 1 && (
+                                <button
+                                    onClick={() => setActiveTab('history')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                                        activeTab === 'history'
+                                            ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 font-medium'
+                                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                    }`}
+                                >
+                                    <History className="h-3.5 w-3.5" />
+                                    기록 ({allResults.length})
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setActiveTab('info')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                                    activeTab === 'info'
+                                        ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 font-medium'
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                <Cpu className="h-3.5 w-3.5" />
+                                정보
+                            </button>
+                            
+                            {/* Quick metadata badges */}
+                            <div className="flex-1" />
+                            {displayedResult.metadata && (
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                    {displayedResult.metadata.model && !displayedResult.isMock && (
+                                        <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
+                                            <Zap className="h-3 w-3" />
+                                            실제 AI
+                                        </span>
+                                    )}
+                                    {displayedResult.metadata.durationMs && (
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            {(displayedResult.metadata.durationMs / 1000).toFixed(1)}s
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         {/* Navigation (if multiple results) */}
                         {allResults.length > 1 && (
@@ -223,44 +261,236 @@ export function AiResultPanel({
 
                         {/* Content */}
                         <div className="flex-1 overflow-y-auto px-6 py-4">
-                            {/* Mock Data Warning Banner */}
-                            {displayedResult.isMock && (
-                                <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                                    <div className="flex items-start gap-3">
-                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                            <p className="font-medium text-amber-800 dark:text-amber-300">
-                                                Mock 데이터 사용 중
+                            {/* Result Tab */}
+                            {activeTab === 'result' && (
+                                <>
+                                    {/* Mock Data Warning Banner */}
+                                    {displayedResult.isMock && (
+                                        <div className="mb-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-xl shadow-sm">
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
+                                                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="font-semibold text-amber-800 dark:text-amber-300">
+                                                            Mock 데이터 사용 중
+                                                        </p>
+                                                        {onRegenerate && (
+                                                            <button
+                                                                onClick={onRegenerate}
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-lg hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors font-medium"
+                                                            >
+                                                                <RefreshCw className="h-3.5 w-3.5" />
+                                                                재시도
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-amber-700 dark:text-amber-400 mt-1.5">
+                                                        {displayedResult.mockReason || '실제 AI 응답 대신 샘플 데이터가 표시되고 있습니다.'}
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-3 mt-3">
+                                                        <a
+                                                            href="/admin/ai-settings"
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors font-medium"
+                                                        >
+                                                            <Settings className="h-4 w-4" />
+                                                            AI 설정
+                                                        </a>
+                                                        <a
+                                                            href="/admin/ai-prompts"
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                            프롬프트 관리
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {showDiff && previousResults.length > 0 ? (
+                                        <AiDiffView
+                                            current={displayedResult}
+                                            previous={previousResults[0]}
+                                        />
+                                    ) : (
+                                        <div className="prose dark:prose-invert prose-sm max-w-none">
+                                            {displayedResult.summary && (
+                                                <div className="mb-4 p-3 bg-violet-50 dark:bg-violet-900/20 rounded-lg border border-violet-200 dark:border-violet-800">
+                                                    <p className="text-sm font-medium text-violet-700 dark:text-violet-300 m-0">
+                                                        {displayedResult.summary}
+                                                    </p>
+                                                </div>
+                                            )}
+                                            <MarkdownContent content={displayedResult.content} />
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {/* History Tab */}
+                            {activeTab === 'history' && (
+                                <div className="space-y-3">
+                                    <p className="text-sm text-slate-500 mb-4">
+                                        이번 세션에서 실행된 AI 결과 기록입니다.
+                                    </p>
+                                    {allResults.map((r, index) => (
+                                        <button
+                                            key={r.id}
+                                            onClick={() => {
+                                                setCurrentResultIndex(index);
+                                                setActiveTab('result');
+                                            }}
+                                            className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                                                index === currentResultIndex
+                                                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20'
+                                                    : 'border-slate-200 dark:border-slate-700 hover:border-violet-300 dark:hover:border-violet-700'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-sm font-medium text-slate-900 dark:text-white">
+                                                    실행 #{allResults.length - index}
+                                                    {index === 0 && (
+                                                        <span className="ml-2 px-2 py-0.5 text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full">
+                                                            최신
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className="text-xs text-slate-500">
+                                                    {new Date(r.createdAt).toLocaleTimeString('ko-KR')}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
+                                                {r.summary || r.content.substring(0, 100)}...
                                             </p>
-                                            <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                                                {displayedResult.mockReason || '실제 AI 응답 대신 샘플 데이터가 표시되고 있습니다.'}
+                                            <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                                                {r.metadata?.model && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Cpu className="h-3 w-3" />
+                                                        {r.metadata.model}
+                                                    </span>
+                                                )}
+                                                {r.isMock && (
+                                                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                                        <AlertTriangle className="h-3 w-3" />
+                                                        Mock
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Info Tab */}
+                            {activeTab === 'info' && (
+                                <div className="space-y-4">
+                                    <h3 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                                        <Cpu className="h-4 w-4 text-violet-500" />
+                                        실행 정보
+                                    </h3>
+                                    
+                                    <div className="space-y-3">
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">모델</p>
+                                            <p className="font-medium text-slate-900 dark:text-white">
+                                                {displayedResult.metadata?.model || '알 수 없음'}
                                             </p>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">입력 토큰</p>
+                                                <p className="font-medium text-slate-900 dark:text-white">
+                                                    {displayedResult.metadata?.inputTokens?.toLocaleString() || '-'}
+                                                </p>
+                                            </div>
+                                            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">출력 토큰</p>
+                                                <p className="font-medium text-slate-900 dark:text-white">
+                                                    {displayedResult.metadata?.outputTokens?.toLocaleString() || '-'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">실행 시간</p>
+                                            <p className="font-medium text-slate-900 dark:text-white">
+                                                {displayedResult.metadata?.durationMs
+                                                    ? `${(displayedResult.metadata.durationMs / 1000).toFixed(2)}초`
+                                                    : '-'}
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">상태</p>
+                                            <div className="flex items-center gap-2">
+                                                {displayedResult.isMock ? (
+                                                    <>
+                                                        <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                                                        <span className="font-medium text-amber-600 dark:text-amber-400">Mock 데이터</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="w-2 h-2 bg-green-500 rounded-full" />
+                                                        <span className="font-medium text-green-600 dark:text-green-400">실제 AI 응답</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        {displayedResult.isMock && displayedResult.mockReason && (
+                                            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                                <p className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-1">Mock 사유</p>
+                                                <p className="text-sm text-amber-800 dark:text-amber-300">
+                                                    {displayedResult.mockReason}
+                                                </p>
+                                            </div>
+                                        )}
+                                        
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">액션</p>
+                                            <code className="text-sm font-mono text-violet-600 dark:text-violet-400">
+                                                {displayedResult.action}
+                                            </code>
+                                        </div>
+                                        
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">실행 시간</p>
+                                            <p className="text-sm text-slate-700 dark:text-slate-300">
+                                                {new Date(displayedResult.createdAt).toLocaleString('ko-KR')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Quick Actions */}
+                                    <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+                                        <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">빠른 작업</h4>
+                                        <div className="flex flex-wrap gap-2">
                                             <a
                                                 href="/admin/ai-settings"
-                                                className="inline-flex items-center gap-1.5 mt-2 text-sm text-amber-800 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 font-medium"
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                                             >
                                                 <Settings className="h-4 w-4" />
-                                                AI 설정하기
+                                                AI 설정
+                                            </a>
+                                            <a
+                                                href="/admin/ai-prompts"
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                            >
+                                                <FileText className="h-4 w-4" />
+                                                프롬프트 관리
+                                            </a>
+                                            <a
+                                                href="/admin/ai-history"
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                            >
+                                                <History className="h-4 w-4" />
+                                                실행 기록
                                             </a>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                            {showDiff && previousResults.length > 0 ? (
-                                <AiDiffView
-                                    current={displayedResult}
-                                    previous={previousResults[0]}
-                                />
-                            ) : (
-                                <div className="prose dark:prose-invert prose-sm max-w-none">
-                                    {displayedResult.summary && (
-                                        <div className="mb-4 p-3 bg-violet-50 dark:bg-violet-900/20 rounded-lg border border-violet-200 dark:border-violet-800">
-                                            <p className="text-sm font-medium text-violet-700 dark:text-violet-300 m-0">
-                                                {displayedResult.summary}
-                                            </p>
-                                        </div>
-                                    )}
-                                    <MarkdownContent content={displayedResult.content} />
                                 </div>
                             )}
                         </div>
