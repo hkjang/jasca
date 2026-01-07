@@ -6,9 +6,10 @@ import { ImpactScopeService } from './services/impact-scope.service';
 import { WorkflowService } from './services/workflow.service';
 import { FixEvidenceService } from './services/fix-evidence.service';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, SettingsModule],
     controllers: [VulnerabilitiesController],
     providers: [
         VulnerabilitiesService,

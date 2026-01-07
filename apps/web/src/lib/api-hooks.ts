@@ -514,7 +514,24 @@ export function useUpdateVulnerabilityStatus() {
             queryClient.invalidateQueries({ queryKey: ['vulnerabilities'] });
             queryClient.invalidateQueries({ queryKey: ['vulnerability', variables.id] });
             queryClient.invalidateQueries({ queryKey: ['vulnerability-history', variables.id] });
+            queryClient.invalidateQueries({ queryKey: ['available-transitions', variables.id] });
         },
+    });
+}
+
+// Available transitions for workflow management
+export interface AvailableTransition {
+    status: string;
+    name: string;
+    requiresRole?: string;
+}
+
+export function useAvailableTransitions(vulnerabilityId: string) {
+    return useQuery<AvailableTransition[]>({
+        queryKey: ['available-transitions', vulnerabilityId],
+        queryFn: () => authFetch(`${API_BASE}/vulnerabilities/${vulnerabilityId}/available-transitions`),
+        enabled: !!vulnerabilityId,
+        staleTime: 30000, // 30 seconds cache
     });
 }
 

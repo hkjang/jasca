@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Severity, VulnStatus } from '@prisma/client';
+import { WorkflowService } from './services/workflow.service';
 
 export interface VulnFilter {
     severity?: Severity[];
@@ -13,7 +14,10 @@ export interface VulnFilter {
 
 @Injectable()
 export class VulnerabilitiesService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly workflowService: WorkflowService,
+    ) { }
 
     async findAll(filter: VulnFilter = {}, options?: { limit?: number; offset?: number }) {
         const where: any = {};
@@ -115,13 +119,22 @@ export class VulnerabilitiesService {
         return vuln;
     }
 
-    async updateStatus(id: string, status: VulnStatus, userId?: string) {
-        await this.findById(id);
+    async updateStatus(id: string, status: VulnStatus, userId: string, userRole?: string) {
+        const vuln = await this.findById(id);
+        const currentStatus = vuln.status as string;
 
-        return this.prisma.scanVulnerability.update({
-            where: { id },
-            data: { status },
-        });
+        // Use WorkflowService for validation and history tracking
+        await this.workflowService.transitionStatus(id, userId, {
+            from: currentStatus as any,
+            to: status as any,
+        }, userRole);
+
+        return this.findById(id);
+    }
+
+    async getAvailableTransitions(id: string, userRole?: string) {
+        const vuln = await this.findById(id);
+        return this.workflowService.getAvailableTransitions(vuln.status as any, userRole);
     }
 
     async assignUser(id: string, assigneeId: string | null) {

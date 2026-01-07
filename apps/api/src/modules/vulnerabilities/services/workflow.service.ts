@@ -1,5 +1,6 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { SettingsService } from '../../settings/settings.service';
 
 type VulnStatus = 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'FIX_SUBMITTED' | 'VERIFYING' | 'FIXED' | 'CLOSED' | 'IGNORED' | 'FALSE_POSITIVE';
 
@@ -18,15 +19,33 @@ interface TransitionResult {
     timestamp: Date;
 }
 
-// Define valid state transitions
-const VALID_TRANSITIONS: Record<VulnStatus, VulnStatus[]> = {
+interface WorkflowState {
+    id: string;
+    name: string;
+    color: string;
+    description: string;
+}
+
+interface WorkflowTransitionRule {
+    from: string;
+    to: string;
+    requiredRole: string;
+}
+
+interface WorkflowSettings {
+    states: WorkflowState[];
+    transitions: WorkflowTransitionRule[];
+}
+
+// Fallback transitions if no settings configured
+const DEFAULT_TRANSITIONS: Record<string, string[]> = {
     OPEN: ['ASSIGNED', 'IN_PROGRESS', 'IGNORED', 'FALSE_POSITIVE'],
     ASSIGNED: ['IN_PROGRESS', 'OPEN', 'IGNORED'],
     IN_PROGRESS: ['FIX_SUBMITTED', 'ASSIGNED', 'IGNORED'],
     FIX_SUBMITTED: ['VERIFYING', 'IN_PROGRESS'],
     VERIFYING: ['FIXED', 'IN_PROGRESS'],
-    FIXED: ['CLOSED', 'OPEN'], // Can reopen if regression
-    CLOSED: ['OPEN'], // Can reopen
+    FIXED: ['CLOSED', 'OPEN'],
+    CLOSED: ['OPEN'],
     IGNORED: ['OPEN'],
     FALSE_POSITIVE: ['OPEN'],
 };
@@ -35,7 +54,122 @@ const VALID_TRANSITIONS: Record<VulnStatus, VulnStatus[]> = {
 export class WorkflowService {
     private readonly logger = new Logger(WorkflowService.name);
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly settingsService: SettingsService,
+    ) { }
+
+    /**
+     * Get workflow settings from the settings service
+     */
+    private async getWorkflowSettings(): Promise<WorkflowSettings | null> {
+        try {
+            const settings = await this.settingsService.get('workflows') as WorkflowSettings;
+            if (settings && settings.states && settings.transitions) {
+                return settings;
+            }
+            return null;
+        } catch (error) {
+            this.logger.warn('Failed to load workflow settings, using defaults');
+            return null;
+        }
+    }
+
+    /**
+     * Get available transitions for a given status and user role
+     */
+    async getAvailableTransitions(
+        currentStatus: VulnStatus,
+        userRole?: string,
+    ): Promise<{ status: string; name: string; requiresRole?: string }[]> {
+        const settings = await this.getWorkflowSettings();
+
+        if (settings && settings.transitions.length > 0) {
+            // Use dynamic settings
+            const transitions = settings.transitions
+                .filter(t => t.from === currentStatus)
+                .map(t => {
+                    const state = settings.states.find(s => s.id === t.to);
+                    return {
+                        status: t.to,
+                        name: state?.name || t.to,
+                        requiresRole: t.requiredRole,
+                    };
+                });
+
+            // If user role is provided, filter by role
+            if (userRole) {
+                return transitions.filter(t => this.checkRolePermission(userRole, t.requiresRole));
+            }
+
+            return transitions;
+        }
+
+        // Fallback to default transitions
+        const defaultTargets = DEFAULT_TRANSITIONS[currentStatus] || [];
+        return defaultTargets.map(status => ({
+            status,
+            name: status.replace(/_/g, ' '),
+        }));
+    }
+
+    /**
+     * Check if user role has permission for transition
+     */
+    private checkRolePermission(userRole: string, requiredRole?: string): boolean {
+        if (!requiredRole) return true;
+
+        // Role hierarchy: ORG_ADMIN > PROJECT_ADMIN > SECURITY_ENGINEER > DEVELOPER
+        const roleHierarchy: Record<string, number> = {
+            DEVELOPER: 1,
+            SECURITY_ENGINEER: 2,
+            PROJECT_ADMIN: 3,
+            ORG_ADMIN: 4,
+            SUPER_ADMIN: 5,
+        };
+
+        const userLevel = roleHierarchy[userRole] || 0;
+        const requiredLevel = roleHierarchy[requiredRole] || 0;
+
+        return userLevel >= requiredLevel;
+    }
+
+    /**
+     * Validate if a transition is allowed
+     */
+    async isValidTransition(
+        from: VulnStatus,
+        to: VulnStatus,
+        userRole?: string,
+    ): Promise<{ valid: boolean; reason?: string; requiredRole?: string }> {
+        const settings = await this.getWorkflowSettings();
+
+        if (settings && settings.transitions.length > 0) {
+            const transition = settings.transitions.find(t => t.from === from && t.to === to);
+            
+            if (!transition) {
+                return { valid: false, reason: `Transition from ${from} to ${to} is not allowed` };
+            }
+
+            if (userRole && !this.checkRolePermission(userRole, transition.requiredRole)) {
+                return {
+                    valid: false,
+                    reason: `Role ${transition.requiredRole} is required for this transition`,
+                    requiredRole: transition.requiredRole,
+                };
+            }
+
+            return { valid: true };
+        }
+
+        // Fallback to default transitions (no role check)
+        const validTargets = DEFAULT_TRANSITIONS[from] || [];
+        if (!validTargets.includes(to)) {
+            return { valid: false, reason: `Transition from ${from} to ${to} is not allowed` };
+        }
+
+        return { valid: true };
+    }
 
     /**
      * Transition a vulnerability to a new status
@@ -44,6 +178,7 @@ export class WorkflowService {
         scanVulnerabilityId: string,
         userId: string,
         transition: WorkflowTransition,
+        userRole?: string,
     ): Promise<TransitionResult> {
         // Get current vulnerability status
         const scanVuln = await this.prisma.scanVulnerability.findUnique({
@@ -57,10 +192,12 @@ export class WorkflowService {
         const currentStatus = scanVuln.status as VulnStatus;
 
         // Validate transition
-        if (!this.isValidTransition(currentStatus, transition.to)) {
-            throw new BadRequestException(
-                `Invalid transition from ${currentStatus} to ${transition.to}`,
-            );
+        const validation = await this.isValidTransition(currentStatus, transition.to, userRole);
+        if (!validation.valid) {
+            if (validation.requiredRole) {
+                throw new ForbiddenException(validation.reason);
+            }
+            throw new BadRequestException(validation.reason);
         }
 
         // Perform transition in transaction
@@ -77,7 +214,7 @@ export class WorkflowService {
             await (tx as any).vulnerabilityWorkflow?.create({
                 data: {
                     scanVulnerabilityId,
-                    fromStatus: transition.from,
+                    fromStatus: currentStatus,
                     toStatus: transition.to,
                     changedById: userId,
                     comment: transition.comment,
@@ -88,14 +225,14 @@ export class WorkflowService {
             return {
                 success: true,
                 scanVulnerabilityId,
-                fromStatus: transition.from,
+                fromStatus: currentStatus,
                 toStatus: transition.to,
                 timestamp: new Date(),
             };
         });
 
         this.logger.log(
-            `Transitioned ${scanVulnerabilityId} from ${transition.from} to ${transition.to}`,
+            `Transitioned ${scanVulnerabilityId} from ${currentStatus} to ${transition.to}`,
         );
 
         return result;
@@ -125,6 +262,7 @@ export class WorkflowService {
         userId: string,
         toStatus: VulnStatus,
         comment?: string,
+        userRole?: string,
     ): Promise<{
         successful: string[];
         failed: { id: string; reason: string }[];
@@ -144,12 +282,10 @@ export class WorkflowService {
                 }
 
                 const currentStatus = scanVuln.status as VulnStatus;
+                const validation = await this.isValidTransition(currentStatus, toStatus, userRole);
 
-                if (!this.isValidTransition(currentStatus, toStatus)) {
-                    failed.push({
-                        id,
-                        reason: `Invalid transition from ${currentStatus} to ${toStatus}`,
-                    });
+                if (!validation.valid) {
+                    failed.push({ id, reason: validation.reason || 'Invalid transition' });
                     continue;
                 }
 
@@ -157,7 +293,7 @@ export class WorkflowService {
                     from: currentStatus,
                     to: toStatus,
                     comment,
-                });
+                }, userRole);
 
                 successful.push(id);
             } catch (error: any) {
@@ -166,21 +302,6 @@ export class WorkflowService {
         }
 
         return { successful, failed };
-    }
-
-    /**
-     * Get available transitions for current status
-     */
-    getAvailableTransitions(currentStatus: VulnStatus): VulnStatus[] {
-        return VALID_TRANSITIONS[currentStatus] || [];
-    }
-
-    /**
-     * Check if transition is valid
-     */
-    isValidTransition(from: VulnStatus, to: VulnStatus): boolean {
-        const validTargets = VALID_TRANSITIONS[from];
-        return validTargets?.includes(to) || false;
     }
 
     /**
@@ -247,5 +368,28 @@ export class WorkflowService {
             },
             {} as Record<string, number>,
         );
+    }
+
+    /**
+     * Get all workflow states from settings
+     */
+    async getWorkflowStates(): Promise<WorkflowState[]> {
+        const settings = await this.getWorkflowSettings();
+        if (settings && settings.states) {
+            return settings.states;
+        }
+
+        // Return default states
+        return [
+            { id: 'OPEN', name: '미해결', color: 'bg-red-500', description: '새로 발견된 취약점' },
+            { id: 'ASSIGNED', name: '할당됨', color: 'bg-orange-500', description: '담당자 할당됨' },
+            { id: 'IN_PROGRESS', name: '진행 중', color: 'bg-yellow-500', description: '조치 진행 중' },
+            { id: 'FIX_SUBMITTED', name: '수정 제출', color: 'bg-blue-500', description: '수정 코드 제출됨' },
+            { id: 'VERIFYING', name: '검증 중', color: 'bg-cyan-500', description: '수정 검증 중' },
+            { id: 'FIXED', name: '해결됨', color: 'bg-green-500', description: '취약점 해결됨' },
+            { id: 'CLOSED', name: '종료', color: 'bg-slate-500', description: '이슈 종료' },
+            { id: 'IGNORED', name: '무시', color: 'bg-slate-400', description: '무시됨' },
+            { id: 'FALSE_POSITIVE', name: '오탐', color: 'bg-purple-500', description: '취약점이 아님' },
+        ];
     }
 }

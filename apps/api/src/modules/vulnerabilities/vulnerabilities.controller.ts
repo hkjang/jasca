@@ -81,10 +81,19 @@ export class VulnerabilitiesController {
     @ApiOperation({ summary: 'Update vulnerability status' })
     async updateStatus(
         @Param('id') id: string,
-        @Body() body: { status: VulnStatus },
+        @Body() body: { status: VulnStatus; comment?: string },
         @CurrentUser() user: any,
     ) {
-        return this.vulnService.updateStatus(id, body.status, user.id);
+        return this.vulnService.updateStatus(id, body.status, user.id, user.role);
+    }
+
+    @Get(':id/available-transitions')
+    @ApiOperation({ summary: 'Get available status transitions for a vulnerability' })
+    async getAvailableTransitions(
+        @Param('id') id: string,
+        @CurrentUser() user: any,
+    ) {
+        return this.vulnService.getAvailableTransitions(id, user.role);
     }
 
     @Put(':id/assign')
