@@ -39,10 +39,6 @@ import {
   PieChart,
   TrendingUp,
   AlertTriangle,
-  Eye,
-  EyeOff,
-  SortAsc,
-  SortDesc,
 } from 'lucide-react';
 import {
   ParsedSchema,

@@ -245,7 +245,7 @@ export default function AdminVulnerabilitiesPage() {
     const updateStatus = useUpdateVulnerabilityStatus();
 
     const vulnerabilities = data?.results || [];
-    const projects = projectsData || [];
+    const projects = projectsData?.data || [];
 
     // Search filter
     const searchFiltered = vulnerabilities.filter((v: Vulnerability) => {
