@@ -945,12 +945,32 @@ export interface User {
     lastLoginAt?: string;
 }
 
-export function useUsers(organizationId?: string) {
-    return useQuery<User[]>({
-        queryKey: ['users', organizationId],
+export interface UsersFilter {
+    organizationId?: string;
+    search?: string;
+    role?: string;
+    status?: string;
+    page?: number;
+    pageSize?: number;
+}
+
+export function useUsers(filters?: UsersFilter) {
+    return useQuery<{ data: User[]; total: number }>({
+        queryKey: ['users', filters],
         queryFn: () => {
             const params = new URLSearchParams();
-            if (organizationId) params.set('organizationId', organizationId);
+            if (filters?.organizationId) params.set('organizationId', filters.organizationId);
+            // Server-side search
+            if (filters?.search) params.set('search', filters.search);
+            // Server-side role filter
+            if (filters?.role) params.set('role', filters.role);
+            // Server-side status filter
+            if (filters?.status) params.set('status', filters.status);
+            // Server-side pagination
+            const page = filters?.page || 1;
+            const pageSize = filters?.pageSize || 25;
+            params.set('limit', String(pageSize));
+            params.set('offset', String((page - 1) * pageSize));
             return authFetch(`${API_BASE}/users?${params.toString()}`);
         },
     });

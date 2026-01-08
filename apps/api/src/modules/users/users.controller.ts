@@ -1,5 +1,5 @@
 import { Controller, Get, Put, Delete, Param, Body, UseGuards, Query } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -48,8 +48,27 @@ export class UsersController {
     @Get()
     @UseGuards(RolesGuard)
     @ApiOperation({ summary: 'Get all users' })
-    async findAll(@Query('organizationId') organizationId?: string) {
-        return this.usersService.findAll(organizationId);
+    @ApiQuery({ name: 'organizationId', required: false })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
+    @ApiQuery({ name: 'offset', required: false, type: Number })
+    @ApiQuery({ name: 'search', required: false })
+    @ApiQuery({ name: 'role', required: false, enum: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN', 'PROJECT_ADMIN', 'DEVELOPER', 'VIEWER'] })
+    @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'INACTIVE'] })
+    async findAll(
+        @Query('organizationId') organizationId?: string,
+        @Query('limit') limit?: string,
+        @Query('offset') offset?: string,
+        @Query('search') search?: string,
+        @Query('role') role?: string,
+        @Query('status') status?: string,
+    ) {
+        return this.usersService.findAll(organizationId, {
+            limit: limit ? parseInt(limit, 10) : undefined,
+            offset: offset ? parseInt(offset, 10) : undefined,
+            search,
+            role,
+            status,
+        });
     }
 
     @Get(':id')

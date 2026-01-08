@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
     Users,
     Plus,
@@ -25,6 +25,9 @@ import {
     Clock,
     CheckCircle,
     XCircle,
+    Loader2,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import {
     useUsers,
@@ -62,23 +65,57 @@ const statusLabels: Record<string, { label: string; color: string; icon: typeof 
     PENDING: { label: '대기', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', icon: Clock },
 };
 
-export default function AdminUsersPage() {
-    const { data: users, isLoading, error, refetch } = useUsers();
-    const { data: organizations } = useOrganizations();
-    const createMutation = useCreateUser();
-    const updateMutation = useUpdateUser();
-    const deleteMutation = useDeleteUser();
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
+export default function AdminUsersPage() {
+    // Search with debounce
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    
+    // Debounce search input (300ms)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+            setCurrentPage(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+    
+    // Filters
     const [roleFilter, setRoleFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [orgFilter, setOrgFilter] = useState('');
+    
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
+    
+    // Modal states
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [viewingUser, setViewingUser] = useState<User | null>(null);
     const [showFilters, setShowFilters] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
+    // Server-side data fetching with all parameters
+    const { data: usersData, isLoading, error, refetch, isFetching } = useUsers({
+        organizationId: orgFilter || undefined,
+        role: roleFilter || undefined,
+        status: statusFilter || undefined,
+        search: debouncedSearch || undefined,
+        page: currentPage,
+        pageSize,
+    });
+    const { data: organizations } = useOrganizations();
+    const createMutation = useCreateUser();
+    const updateMutation = useUpdateUser();
+    const deleteMutation = useDeleteUser();
+
+    const users = usersData?.data || [];
+    const totalCount = usersData?.total || 0;
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    // Form state
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -104,7 +141,7 @@ export default function AdminUsersPage() {
     const handleAiRecommend = () => {
         const context = {
             screen: 'admin-users',
-            users: users?.slice(0, 10) || [],
+            users: users.slice(0, 10),
             organizations: organizations || [],
             timestamp: new Date().toISOString(),
         };
@@ -116,38 +153,32 @@ export default function AdminUsersPage() {
     };
 
     const estimatedTokens = estimateTokens({
-        users: users?.slice(0, 5) || [],
+        users: users.slice(0, 5),
     });
 
-    // Statistics
+    // Statistics (from current page data)
     const stats = useMemo(() => {
-        if (!users) return { total: 0, active: 0, inactive: 0, mfaEnabled: 0, byRole: {} as Record<string, number> };
-        
         const byRole: Record<string, number> = {};
         let active = 0, inactive = 0, mfaEnabled = 0;
         
-        users.forEach(user => {
+        users.forEach((user: User) => {
             byRole[user.role] = (byRole[user.role] || 0) + 1;
             if (user.status === 'ACTIVE') active++;
             else inactive++;
             if (user.mfaEnabled) mfaEnabled++;
         });
         
-        return { total: users.length, active, inactive, mfaEnabled, byRole };
-    }, [users]);
-
-    const filteredUsers = useMemo(() => {
-        return (users || []).filter((user) => {
-            const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesRole = !roleFilter || user.role === roleFilter;
-            const matchesStatus = !statusFilter || user.status === statusFilter;
-            const matchesOrg = !orgFilter || user.organizationId === orgFilter;
-            return matchesSearch && matchesRole && matchesStatus && matchesOrg;
-        });
-    }, [users, searchQuery, roleFilter, statusFilter, orgFilter]);
+        return { total: totalCount, active, inactive, mfaEnabled, byRole };
+    }, [users, totalCount]);
 
     const activeFiltersCount = [roleFilter, statusFilter, orgFilter].filter(Boolean).length;
+    
+    const clearFilters = () => {
+        setRoleFilter('');
+        setStatusFilter('');
+        setOrgFilter('');
+        setCurrentPage(1);
+    };
 
     const openCreateModal = () => {
         setFormData({ name: '', email: '', password: '', role: 'DEVELOPER', status: 'ACTIVE', organizationId: '' });
@@ -216,16 +247,11 @@ export default function AdminUsersPage() {
         }
     };
 
-    const clearFilters = () => {
-        setRoleFilter('');
-        setStatusFilter('');
-        setOrgFilter('');
-    };
 
     const exportUsers = () => {
         const csv = [
             ['이름', '이메일', '역할', '상태', '조직', 'MFA', '생성일'].join(','),
-            ...filteredUsers.map(u => [
+            ...users.map((u: User) => [
                 u.name,
                 u.email,
                 roleLabels[u.role] || u.role,
@@ -431,7 +457,7 @@ export default function AdminUsersPage() {
                 </div>
                 {activeFiltersCount > 0 && (
                     <p className="mt-2 text-sm text-slate-500">
-                        {filteredUsers.length}명의 사용자 표시 중 ({activeFiltersCount}개 필터 적용)
+                        {totalCount}명의 사용자 표시 중 ({activeFiltersCount}개 필터 적용)
                     </p>
                 )}
             </div>
@@ -463,7 +489,7 @@ export default function AdminUsersPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {filteredUsers.map((user) => {
+                        {users.map((user: User) => {
                             const StatusIcon = statusLabels[user.status]?.icon || Activity;
                             return (
                                 <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
@@ -542,7 +568,7 @@ export default function AdminUsersPage() {
                     </tbody>
                 </table>
                 
-                {filteredUsers.length === 0 && (
+                {users.length === 0 && !isFetching && (
                     <div className="p-12 text-center">
                         <Users className="h-12 w-12 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
@@ -560,6 +586,47 @@ export default function AdminUsersPage() {
                                 사용자 추가
                             </button>
                         )}
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {totalCount > 0 && (
+                    <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                            <span>페이지당</span>
+                            <select
+                                value={pageSize}
+                                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                                className="border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700"
+                            >
+                                {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <span>명 | 총 {totalCount}명 중 {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)}</span>
+                            {isFetching && <Loader2 className="h-4 w-4 animate-spin text-red-600" />}
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <button 
+                                onClick={() => setCurrentPage(1)} 
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            >처음</button>
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            ><ChevronLeft className="h-4 w-4" /></button>
+                            <span className="px-3 py-1 text-sm">{currentPage} / {totalPages || 1}</span>
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                                disabled={currentPage >= totalPages}
+                                className="px-3 py-1 text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            ><ChevronRight className="h-4 w-4" /></button>
+                            <button 
+                                onClick={() => setCurrentPage(totalPages)} 
+                                disabled={currentPage >= totalPages}
+                                className="px-3 py-1 text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            >마지막</button>
+                        </div>
                     </div>
                 )}
             </div>

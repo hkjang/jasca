@@ -5,19 +5,46 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class UsersService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async findAll(organizationId?: string) {
+    async findAll(organizationId?: string, options?: {
+        limit?: number;
+        offset?: number;
+        search?: string;
+        role?: string;
+        status?: string;
+    }) {
+        const where: any = {};
+        if (organizationId) {
+            where.organizationId = organizationId;
+        }
+        // Search filter for name and email
+        if (options?.search) {
+            where.OR = [
+                { name: { contains: options.search, mode: 'insensitive' } },
+                { email: { contains: options.search, mode: 'insensitive' } },
+            ];
+        }
+        // Status filter
+        if (options?.status) {
+            where.isActive = options.status === 'ACTIVE';
+        }
+
         const users = await this.prisma.user.findMany({
-            where: organizationId ? { organizationId } : undefined,
+            where,
             include: { 
                 roles: true, 
                 organization: { select: { id: true, name: true } },
                 mfa: true,
             },
             orderBy: { createdAt: 'desc' },
+            take: options?.limit || 25,
+            skip: options?.offset || 0,
         });
+
+        // Get total count for pagination
+        const total = await this.prisma.user.count({ where });
         
         // Transform data for frontend
-        return users.map(user => ({
+        let data = users.map(user => ({
             id: user.id,
             email: user.email,
             name: user.name,
@@ -29,6 +56,13 @@ export class UsersService {
             createdAt: user.createdAt,
             lastLoginAt: user.lastLoginAt,
         }));
+
+        // Filter by role (post-filter since role comes from relation)
+        if (options?.role) {
+            data = data.filter(u => u.role === options.role);
+        }
+
+        return { data, total };
     }
 
     async findById(id: string) {
