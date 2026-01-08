@@ -51,10 +51,9 @@ import {
     GitBranch,
     Scan,
     ShieldAlert,
-    CircleCheck,
+    CheckCircle,
     Timer,
     Target,
-    Gauge,
 } from 'lucide-react';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution } from '@/hooks/use-ai-execution';
@@ -504,11 +503,11 @@ export default function AdminDashboardPage() {
 
     const isLoading = statsLoading || projectStatsLoading || orgsLoading || usersLoading || policiesLoading;
 
-    const users = usersData || [];
-    const totalUsers = users.length;
+    const users = usersData?.data || [];
+    const totalUsers = usersData?.total || 0;
     const totalOrganizations = organizations?.length || 0;
-    const totalProjects = projectsData?.length || 0;
-    const totalScans = scansData?.length || 0;
+    const totalProjects = projectsData?.total || 0;
+    const totalScans = scansData?.total || 0;
     const activePolicies = policies?.filter((p: { isActive: boolean }) => p.isActive).length || 0;
 
     // Quick actions
@@ -849,7 +848,7 @@ export default function AdminDashboardPage() {
                             </div>
                         ) : severityDistribution.length === 0 ? (
                             <div className="flex flex-col items-center justify-center w-full text-slate-500">
-                                <CircleCheck className="h-12 w-12 mb-2 text-emerald-300 dark:text-emerald-600" />
+                                <CheckCircle className="h-12 w-12 mb-2 text-emerald-300 dark:text-emerald-600" />
                                 <p>취약점이 없습니다</p>
                             </div>
                         ) : (
