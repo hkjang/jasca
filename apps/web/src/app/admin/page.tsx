@@ -403,15 +403,42 @@ export default function AdminDashboardPage() {
         ].filter(item => item.value > 0);
     }, [statsOverview]);
 
-    // Calculate security score
+    // Calculate security score - improved scoring system
     const securityScore = useMemo(() => {
         if (!statsOverview?.bySeverity) return 85;
         const { critical, high, medium, low } = statsOverview.bySeverity;
         const total = critical + high + medium + low;
         if (total === 0) return 100;
-        // Weighted penalty
-        const penalty = (critical * 10 + high * 5 + medium * 2 + low * 0.5);
-        return Math.max(0, Math.min(100, Math.round(100 - penalty)));
+        
+        // Base score starts at 100
+        let score = 100;
+        
+        // Critical vulnerabilities have severe impact
+        if (critical > 0) {
+            score -= Math.min(40, critical * 8); // Max 40 point deduction for critical
+        } else {
+            // Bonus for having no critical vulnerabilities
+            score += 5;
+        }
+        
+        // High vulnerabilities have moderate impact
+        score -= Math.min(25, high * 3); // Max 25 point deduction for high
+        
+        // Medium vulnerabilities have low impact
+        score -= Math.min(15, medium * 1); // Max 15 point deduction for medium
+        
+        // Low vulnerabilities have minimal impact
+        score -= Math.min(10, low * 0.25); // Max 10 point deduction for low
+        
+        // Additional bonus tiers
+        if (critical === 0 && high === 0) {
+            score += 5; // No critical or high
+        }
+        if (critical === 0 && high === 0 && medium <= 5) {
+            score += 5; // Excellent security posture
+        }
+        
+        return Math.max(0, Math.min(100, Math.round(score)));
     }, [statsOverview]);
 
     // Generate trend data

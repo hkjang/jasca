@@ -123,19 +123,53 @@ export default function DashboardPage() {
         medium: t.medium,
     })) || [];
 
-    // Calculate risk score (0-100)
-    const riskScore = overview ? Math.min(100, Math.round(
-        (overview.bySeverity.critical * 40 + 
-         overview.bySeverity.high * 20 + 
-         overview.bySeverity.medium * 5 + 
-         overview.bySeverity.low * 1) / 10
-    )) : 0;
+    // Calculate security score (0-100, higher is better) - improved scoring system
+    const securityScore = (() => {
+        if (!overview?.bySeverity) return 85;
+        const { critical, high, medium, low } = overview.bySeverity;
+        const total = critical + high + medium + low;
+        if (total === 0) return 100;
+        
+        // Base score starts at 100
+        let score = 100;
+        
+        // Critical vulnerabilities have severe impact
+        if (critical > 0) {
+            score -= Math.min(40, critical * 8); // Max 40 point deduction for critical
+        } else {
+            // Bonus for having no critical vulnerabilities
+            score += 5;
+        }
+        
+        // High vulnerabilities have moderate impact
+        score -= Math.min(25, high * 3); // Max 25 point deduction for high
+        
+        // Medium vulnerabilities have low impact
+        score -= Math.min(15, medium * 1); // Max 15 point deduction for medium
+        
+        // Low vulnerabilities have minimal impact
+        score -= Math.min(10, low * 0.25); // Max 10 point deduction for low
+        
+        // Additional bonus tiers
+        if (critical === 0 && high === 0) {
+            score += 5; // No critical or high
+        }
+        if (critical === 0 && high === 0 && medium <= 5) {
+            score += 5; // Excellent security posture
+        }
+        
+        return Math.max(0, Math.min(100, Math.round(score)));
+    })();
+
+    // Convert security score to risk display (inverted for gauge - high security = low risk)
+    const riskScore = 100 - securityScore;
 
     const getRiskLevel = (score: number) => {
-        if (score >= 80) return { label: '위험', color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' };
-        if (score >= 60) return { label: '높음', color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/30' };
-        if (score >= 40) return { label: '보통', color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30' };
-        if (score >= 20) return { label: '낮음', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' };
+        // score here is risk score (inverted), so high score = high risk
+        if (score >= 60) return { label: '위험', color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' };
+        if (score >= 40) return { label: '높음', color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/30' };
+        if (score >= 25) return { label: '보통', color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30' };
+        if (score >= 10) return { label: '낮음', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' };
         return { label: '안전', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' };
     };
 
