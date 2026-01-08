@@ -77,7 +77,8 @@ export class AiService {
                 enabled: (value.enableAutoSummary as boolean) ?? (value.enabled as boolean) ?? true,
                 // Timeout in seconds, default 60s
                 timeout: (value.timeout as number) || 60,
-                maxTokens: (value.maxTokens as number) || 2048,
+                // Validate maxTokens: minimum 100, maximum 16000, default 2048
+                maxTokens: Math.max(100, Math.min(16000, (value.maxTokens as number) || 2048)),
             };
         } catch (error) {
             this.logger.warn('Failed to fetch AI settings:', error);
