@@ -544,7 +544,17 @@ export default function VulnerabilitiesPage() {
     };
 
     const handleAiPriorityReorder = () => {
-        executePriorityReorder({ screen: 'vulnerabilities', vulnerabilities: data?.results || [], total: data?.total || 0, filters, timestamp: new Date().toISOString() });
+        // Summarize vulnerability data to reduce payload size (avoid PayloadTooLarge error)
+        const summarizedVulns = (data?.results || []).slice(0, 100).map((v: Vulnerability) => ({
+            id: v.id,
+            cveId: v.cveId,
+            severity: v.severity,
+            status: v.status,
+            pkgName: v.pkgName,
+            installedVersion: v.installedVersion,
+            fixedVersion: v.fixedVersion,
+        }));
+        executePriorityReorder({ screen: 'vulnerabilities', vulnerabilities: summarizedVulns, total: data?.total || 0, filters, timestamp: new Date().toISOString() });
     };
 
     const estimatedTokens = estimateTokens({ vulnerabilities: data?.results?.slice(0, 10) || [], total: data?.total || 0 });

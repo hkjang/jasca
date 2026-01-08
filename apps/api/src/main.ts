@@ -30,11 +30,13 @@ async function bootstrap() {
     // Validate environment variables first
     validateEnvironment();
 
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule, {
+        bodyParser: false, // Disable default body-parser to apply custom limit
+    });
 
     // Increase body size limit for AI requests
-    app.use(json({ limit: '10mb' }));
-    app.use(urlencoded({ limit: '10mb', extended: true }));
+    app.use(json({ limit: '50mb' }));
+    app.use(urlencoded({ limit: '50mb', extended: true }));
 
     // Global prefix
     app.setGlobalPrefix('api');
