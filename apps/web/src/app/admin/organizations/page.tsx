@@ -38,16 +38,18 @@ import {
 
 // Organization User Management Component
 function OrgUserManagement({ organizationId, organizationName }: { organizationId: string; organizationName: string }) {
-    const { data: allUsers, refetch: refetchUsers } = useUsers();
+    const { data: usersData, refetch: refetchUsers } = useUsers();
     const updateUserMutation = useUpdateUser();
     const [showAddUser, setShowAddUser] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     
+    const allUsers = usersData?.data || [];
+    
     // Users in this organization
-    const orgUsers = (allUsers || []).filter(u => u.organizationId === organizationId);
+    const orgUsers = allUsers.filter((u: User) => u.organizationId === organizationId);
     
     // Users not in this organization (for adding)
-    const availableUsers = (allUsers || []).filter(u => 
+    const availableUsers = allUsers.filter((u: User) => 
         u.organizationId !== organizationId && 
         (u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
          u.email.toLowerCase().includes(searchQuery.toLowerCase()))

@@ -336,21 +336,27 @@ export default function AdminDashboardPage() {
     const { data: projectsData, isLoading: projectsLoading } = useProjects();
 
     // System status simulation (in real app, this would come from health check API)
-    const [systemStatus, setSystemStatus] = useState({
-        api: { status: 'loading' as const, latency: 0 },
-        database: { status: 'loading' as const, latency: 0 },
-        scanner: { status: 'loading' as const, latency: 0 },
-        ai: { status: 'loading' as const, latency: 0 },
+    type StatusType = 'online' | 'warning' | 'offline' | 'loading';
+    const [systemStatus, setSystemStatus] = useState<{
+        api: { status: StatusType; latency: number };
+        database: { status: StatusType; latency: number };
+        scanner: { status: StatusType; latency: number };
+        ai: { status: StatusType; latency: number };
+    }>({
+        api: { status: 'loading', latency: 0 },
+        database: { status: 'loading', latency: 0 },
+        scanner: { status: 'loading', latency: 0 },
+        ai: { status: 'loading', latency: 0 },
     });
 
     useEffect(() => {
         // Simulate system status check
         const timer = setTimeout(() => {
             setSystemStatus({
-                api: { status: 'online', latency: 45 },
-                database: { status: 'online', latency: 12 },
-                scanner: { status: 'online', latency: 156 },
-                ai: { status: 'online', latency: 234 },
+                api: { status: 'online' as const, latency: 45 },
+                database: { status: 'online' as const, latency: 12 },
+                scanner: { status: 'online' as const, latency: 156 },
+                ai: { status: 'online' as const, latency: 234 },
             });
         }, 1000);
         return () => clearTimeout(timer);
@@ -971,7 +977,7 @@ export default function AdminDashboardPage() {
                                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                                 <span className="text-sm text-emerald-600 dark:text-emerald-400">해결된 취약점</span>
                             </div>
-                            <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{statsOverview?.resolved || 0}</p>
+                            <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{statsOverview?.byStatus?.fixed || 0}</p>
                             <p className="text-xs text-emerald-500 mt-1">이번 주</p>
                         </div>
                         <div className="p-4 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-xl">

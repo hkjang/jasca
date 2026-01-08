@@ -489,7 +489,7 @@ export default function VulnerabilityDetailPage() {
                             >
                                 <span className="text-slate-500">할당 해제</span>
                             </button>
-                            {users?.map(user => (
+                            {users?.data?.map(user => (
                                 <button
                                     key={user.id}
                                     onClick={() => setSelectedAssignee(user.id)}
