@@ -6,9 +6,41 @@ import { CreateProjectDto } from './dto/create-project.dto';
 export class ProjectsService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async findAll(organizationId?: string) {
+    async findAll(organizationId?: string, options?: {
+        limit?: number;
+        offset?: number;
+        search?: string;
+        sortBy?: 'name' | 'createdAt' | 'riskLevel';
+        sortOrder?: 'asc' | 'desc';
+        riskLevel?: string;
+    }) {
+        const where: any = {};
+        if (organizationId) {
+            where.organizationId = organizationId;
+        }
+        // Search filter for name and slug
+        if (options?.search) {
+            where.OR = [
+                { name: { contains: options.search, mode: 'insensitive' } },
+                { slug: { contains: options.search, mode: 'insensitive' } },
+            ];
+        }
+
+        // Build dynamic orderBy
+        const sortOrder = options?.sortOrder || 'desc';
+        let orderBy: any;
+        switch (options?.sortBy) {
+            case 'name':
+                orderBy = { name: sortOrder };
+                break;
+            case 'createdAt':
+            default:
+                orderBy = { createdAt: sortOrder };
+                break;
+        }
+
         const projects = await this.prisma.project.findMany({
-            where: organizationId ? { organizationId } : undefined,
+            where,
             include: {
                 organization: true,
                 scanResults: {
@@ -20,11 +52,16 @@ export class ProjectsService {
                     select: { scanResults: true },
                 },
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy,
+            take: options?.limit || 50,
+            skip: options?.offset || 0,
         });
 
+        // Get total count for pagination
+        const total = await this.prisma.project.count({ where });
+
         // Transform projects to include stats like findById does
-        return projects.map(project => {
+        const data = projects.map(project => {
             const latestScan = project.scanResults[0];
             const summary = latestScan?.summary;
             const stats = {
@@ -53,6 +90,13 @@ export class ProjectsService {
                 riskLevel,
             };
         });
+
+        // Filter by risk level if specified (post-filter since it's computed)
+        const filteredData = options?.riskLevel 
+            ? data.filter(p => p.riskLevel === options.riskLevel)
+            : data;
+
+        return { data: filteredData, total };
     }
 
     async findById(id: string) {

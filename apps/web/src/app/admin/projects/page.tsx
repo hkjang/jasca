@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
     FolderKanban,
     Plus,
@@ -19,6 +19,9 @@ import {
     RefreshCw,
     ExternalLink,
     Clock,
+    Loader2,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -38,31 +41,53 @@ const riskLevelLabels: Record<string, { label: string; color: string }> = {
     NONE: { label: 'Safe', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
 };
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
 export default function AdminProjectsPage() {
-    const { data: projectsData, isLoading, error, refetch } = useProjects();
+    // Search with debounce
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    
+    // Debounce search input (300ms)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+            setCurrentPage(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+    
+    // Filters
+    const [orgFilter, setOrgFilter] = useState('');
+    const [riskFilter, setRiskFilter] = useState('');
+    
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
+    
+    // Modal states
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editingProject, setEditingProject] = useState<Project | null>(null);
+    const [viewingProject, setViewingProject] = useState<Project | null>(null);
+
+    // Server-side data fetching with all parameters
+    const { data: projectsData, isLoading, error, refetch, isFetching } = useProjects({
+        organizationId: orgFilter || undefined,
+        riskLevel: riskFilter || undefined,
+        search: debouncedSearch || undefined,
+        page: currentPage,
+        pageSize,
+    });
     const { data: organizations } = useOrganizations();
     const createMutation = useCreateProject();
     const updateMutation = useUpdateProject();
     const deleteMutation = useDeleteProject();
 
     const projects = projectsData?.data || [];
+    const totalCount = projectsData?.total || 0;
+    const totalPages = Math.ceil(totalCount / pageSize);
 
-    const [searchQuery, setSearchQuery] = useState('');
-    const [orgFilter, setOrgFilter] = useState('');
-    const [riskFilter, setRiskFilter] = useState('');
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [editingProject, setEditingProject] = useState<Project | null>(null);
-    const [viewingProject, setViewingProject] = useState<Project | null>(null);
-
-    // Form state
-    const [formData, setFormData] = useState({
-        name: '',
-        slug: '',
-        description: '',
-        organizationId: '',
-    });
-
-    // Statistics
+    // Statistics (from current page data - consider adding server-side stats API for accuracy)
     const stats = useMemo(() => {
         let totalVulnerabilities = 0, criticalHigh = 0, atRisk = 0, safe = 0;
         const byOrg: Record<string, number> = {};
@@ -83,20 +108,24 @@ export default function AdminProjectsPage() {
             byOrg[orgName] = (byOrg[orgName] || 0) + 1;
         });
         
-        return { total: projects.length, totalVulnerabilities, criticalHigh, atRisk, safe, byOrg };
-    }, [projects]);
-
-    const filteredProjects = useMemo(() => {
-        return projects.filter((p) => {
-            const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                p.slug.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesOrg = !orgFilter || p.organizationId === orgFilter;
-            const matchesRisk = !riskFilter || (p.riskLevel || 'NONE') === riskFilter;
-            return matchesSearch && matchesOrg && matchesRisk;
-        });
-    }, [projects, searchQuery, orgFilter, riskFilter]);
+        return { total: totalCount, totalVulnerabilities, criticalHigh, atRisk, safe, byOrg };
+    }, [projects, totalCount]);
 
     const activeFiltersCount = [orgFilter, riskFilter].filter(Boolean).length;
+
+    // Form state for create/edit modals
+    const [formData, setFormData] = useState({
+        name: '',
+        slug: '',
+        description: '',
+        organizationId: '',
+    });
+
+    const clearFilters = () => {
+        setOrgFilter('');
+        setRiskFilter('');
+        setCurrentPage(1);
+    };
 
     const handleNameChange = (name: string) => {
         const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -158,15 +187,11 @@ export default function AdminProjectsPage() {
         }
     };
 
-    const clearFilters = () => {
-        setOrgFilter('');
-        setRiskFilter('');
-    };
 
     const exportProjects = () => {
         const csv = [
             ['프로젝트명', 'Slug', '조직', '위험도', 'Critical', 'High', 'Medium', 'Low', '마지막 스캔'].join(','),
-            ...filteredProjects.map(p => [
+            ...projects.map((p: Project) => [
                 p.name,
                 p.slug,
                 p.organization?.name || '-',
@@ -344,7 +369,7 @@ export default function AdminProjectsPage() {
                 </div>
                 {activeFiltersCount > 0 && (
                     <p className="mt-2 text-sm text-slate-500">
-                        {filteredProjects.length}개 프로젝트 표시 중 ({activeFiltersCount}개 필터 적용)
+                        {totalCount}개 프로젝트 표시 중 ({activeFiltersCount}개 필터 적용)
                     </p>
                 )}
             </div>
@@ -373,7 +398,7 @@ export default function AdminProjectsPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {filteredProjects.map((project) => (
+                        {projects.map((project: Project) => (
                             <tr key={project.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
@@ -458,7 +483,7 @@ export default function AdminProjectsPage() {
                     </tbody>
                 </table>
 
-                {filteredProjects.length === 0 && (
+                {projects.length === 0 && !isFetching && (
                     <div className="p-12 text-center">
                         <FolderKanban className="h-12 w-12 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
@@ -467,6 +492,47 @@ export default function AdminProjectsPage() {
                         <p className="text-slate-600 dark:text-slate-400 mb-4">
                             {searchQuery || activeFiltersCount ? '다른 검색어나 필터를 시도해보세요.' : '첫 번째 프로젝트를 추가하세요.'}
                         </p>
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {totalCount > 0 && (
+                    <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                            <span>페이지당</span>
+                            <select
+                                value={pageSize}
+                                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                                className="border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700"
+                            >
+                                {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <span>개 | 총 {totalCount}개 중 {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)}</span>
+                            {isFetching && <Loader2 className="h-4 w-4 animate-spin text-red-600" />}
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <button 
+                                onClick={() => setCurrentPage(1)} 
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            >처음</button>
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            ><ChevronLeft className="h-4 w-4" /></button>
+                            <span className="px-3 py-1 text-sm">{currentPage} / {totalPages || 1}</span>
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                                disabled={currentPage >= totalPages}
+                                className="px-3 py-1 text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            ><ChevronRight className="h-4 w-4" /></button>
+                            <button 
+                                onClick={() => setCurrentPage(totalPages)} 
+                                disabled={currentPage >= totalPages}
+                                className="px-3 py-1 text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                            >마지막</button>
+                        </div>
                     </div>
                 )}
             </div>

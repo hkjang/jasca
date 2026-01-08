@@ -763,13 +763,36 @@ export interface Project {
     };
 }
 
-export function useProjects(organizationId?: string) {
+export interface ProjectsFilter {
+    organizationId?: string;
+    search?: string;
+    riskLevel?: string;
+    page?: number;
+    pageSize?: number;
+    sortBy?: 'name' | 'createdAt' | 'riskLevel';
+    sortOrder?: 'asc' | 'desc';
+}
+
+export function useProjects(filters?: ProjectsFilter) {
     return useQuery<{ data: Project[]; total: number }>({
-        queryKey: ['projects', organizationId],
+        queryKey: ['projects', filters],
         queryFn: () => {
             const params = new URLSearchParams();
-            if (organizationId) params.set('organizationId', organizationId);
-            params.set('limit', '50');
+            if (filters?.organizationId) params.set('organizationId', filters.organizationId);
+            // Server-side search
+            if (filters?.search) params.set('search', filters.search);
+            // Server-side risk level filter
+            if (filters?.riskLevel) params.set('riskLevel', filters.riskLevel);
+            // Server-side pagination
+            const page = filters?.page || 1;
+            const pageSize = filters?.pageSize || 25;
+            params.set('limit', String(pageSize));
+            params.set('offset', String((page - 1) * pageSize));
+            // Server-side sorting
+            if (filters?.sortBy) {
+                params.set('sortBy', filters.sortBy);
+                params.set('sortOrder', filters?.sortOrder || 'desc');
+            }
             return authFetch(`${API_BASE}/projects?${params.toString()}`);
         },
     });

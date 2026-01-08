@@ -26,9 +26,29 @@ export class ProjectsController {
     @Get()
     @ApiOperation({ summary: 'Get all projects' })
     @ApiQuery({ name: 'organizationId', required: false })
-    async findAll(@Query('organizationId') organizationId?: string) {
-        const data = await this.projectsService.findAll(organizationId);
-        return { data, total: data.length };
+    @ApiQuery({ name: 'limit', required: false, type: Number })
+    @ApiQuery({ name: 'offset', required: false, type: Number })
+    @ApiQuery({ name: 'search', required: false })
+    @ApiQuery({ name: 'sortBy', required: false, enum: ['name', 'createdAt', 'riskLevel'] })
+    @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
+    @ApiQuery({ name: 'riskLevel', required: false, enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'] })
+    async findAll(
+        @Query('organizationId') organizationId?: string,
+        @Query('limit') limit?: string,
+        @Query('offset') offset?: string,
+        @Query('search') search?: string,
+        @Query('sortBy') sortBy?: 'name' | 'createdAt' | 'riskLevel',
+        @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+        @Query('riskLevel') riskLevel?: string,
+    ) {
+        return this.projectsService.findAll(organizationId, {
+            limit: limit ? parseInt(limit, 10) : undefined,
+            offset: offset ? parseInt(offset, 10) : undefined,
+            search,
+            sortBy,
+            sortOrder,
+            riskLevel,
+        });
     }
 
 
