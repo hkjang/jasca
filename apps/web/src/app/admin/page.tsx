@@ -413,29 +413,30 @@ export default function AdminDashboardPage() {
         // Base score starts at 100
         let score = 100;
         
-        // Critical vulnerabilities have severe impact
+        // Critical vulnerabilities have severe impact (major deduction)
         if (critical > 0) {
-            score -= Math.min(40, critical * 8); // Max 40 point deduction for critical
+            score -= Math.min(50, critical * 10); // Max 50 point deduction for critical
         } else {
-            // Bonus for having no critical vulnerabilities
-            score += 5;
+            // Big bonus for having no critical vulnerabilities
+            score += 10;
         }
         
         // High vulnerabilities have moderate impact
-        score -= Math.min(25, high * 3); // Max 25 point deduction for high
+        if (high > 0) {
+            score -= Math.min(20, high * 2); // Max 20 point deduction for high
+        } else if (critical === 0) {
+            score += 5; // Bonus for no high when also no critical
+        }
         
-        // Medium vulnerabilities have low impact
-        score -= Math.min(15, medium * 1); // Max 15 point deduction for medium
+        // Medium vulnerabilities have low impact (very reduced)
+        score -= Math.min(10, medium * 0.3); // Max 10 point deduction for medium
         
         // Low vulnerabilities have minimal impact
-        score -= Math.min(10, low * 0.25); // Max 10 point deduction for low
+        score -= Math.min(5, low * 0.1); // Max 5 point deduction for low
         
-        // Additional bonus tiers
-        if (critical === 0 && high === 0) {
-            score += 5; // No critical or high
-        }
-        if (critical === 0 && high === 0 && medium <= 5) {
-            score += 5; // Excellent security posture
+        // Excellent security posture bonus
+        if (critical === 0 && high <= 2 && medium <= 10) {
+            score += 5;
         }
         
         return Math.max(0, Math.min(100, Math.round(score)));

@@ -133,47 +133,46 @@ export default function DashboardPage() {
         // Base score starts at 100
         let score = 100;
         
-        // Critical vulnerabilities have severe impact
+        // Critical vulnerabilities have severe impact (major deduction)
         if (critical > 0) {
-            score -= Math.min(40, critical * 8); // Max 40 point deduction for critical
+            score -= Math.min(50, critical * 10); // Max 50 point deduction for critical
         } else {
-            // Bonus for having no critical vulnerabilities
-            score += 5;
+            // Big bonus for having no critical vulnerabilities
+            score += 10;
         }
         
         // High vulnerabilities have moderate impact
-        score -= Math.min(25, high * 3); // Max 25 point deduction for high
+        if (high > 0) {
+            score -= Math.min(20, high * 2); // Max 20 point deduction for high (reduced from 3 per)
+        } else if (critical === 0) {
+            score += 5; // Bonus for no high when also no critical
+        }
         
-        // Medium vulnerabilities have low impact
-        score -= Math.min(15, medium * 1); // Max 15 point deduction for medium
+        // Medium vulnerabilities have low impact (very reduced)
+        score -= Math.min(10, medium * 0.3); // Max 10 point deduction for medium
         
         // Low vulnerabilities have minimal impact
-        score -= Math.min(10, low * 0.25); // Max 10 point deduction for low
+        score -= Math.min(5, low * 0.1); // Max 5 point deduction for low
         
-        // Additional bonus tiers
-        if (critical === 0 && high === 0) {
-            score += 5; // No critical or high
-        }
-        if (critical === 0 && high === 0 && medium <= 5) {
-            score += 5; // Excellent security posture
+        // Excellent security posture bonus
+        if (critical === 0 && high <= 2 && medium <= 10) {
+            score += 5;
         }
         
         return Math.max(0, Math.min(100, Math.round(score)));
     })();
 
-    // Convert security score to risk display (inverted for gauge - high security = low risk)
-    const riskScore = 100 - securityScore;
-
-    const getRiskLevel = (score: number) => {
-        // score here is risk score (inverted), so high score = high risk
-        if (score >= 60) return { label: '위험', color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' };
-        if (score >= 40) return { label: '높음', color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/30' };
-        if (score >= 25) return { label: '보통', color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30' };
-        if (score >= 10) return { label: '낮음', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' };
-        return { label: '안전', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' };
+    // Now we display security score directly (higher = better)
+    const getRiskLevel = (secScore: number) => {
+        // secScore is security score, higher is better
+        if (secScore >= 90) return { label: '안전', color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' };
+        if (secScore >= 75) return { label: '양호', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' };
+        if (secScore >= 60) return { label: '보통', color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/30' };
+        if (secScore >= 40) return { label: '주의', color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/30' };
+        return { label: '위험', color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' };
     };
 
-    const riskLevel = getRiskLevel(riskScore);
+    const riskLevel = getRiskLevel(securityScore);
 
     // Drill-down navigation handlers
     const handleSeverityClick = (severity: string) => {
@@ -308,19 +307,19 @@ export default function DashboardPage() {
                                 stroke="currentColor"
                                 strokeWidth="8"
                                 fill="none"
-                                strokeDasharray={`${(riskScore / 100) * 251} 251`}
+                                strokeDasharray={`${(securityScore / 100) * 251} 251`}
                                 strokeLinecap="round"
-                                className={riskScore >= 60 ? 'text-red-500' : riskScore >= 30 ? 'text-yellow-500' : 'text-green-500'}
+                                className={securityScore >= 75 ? 'text-green-500' : securityScore >= 50 ? 'text-yellow-500' : 'text-red-500'}
                             />
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-2xl font-bold text-slate-900 dark:text-white">{riskScore}</span>
+                            <span className="text-2xl font-bold text-slate-900 dark:text-white">{securityScore}</span>
                         </div>
                     </div>
                     <div className={`mt-3 px-3 py-1 rounded-full text-sm font-medium ${riskLevel.bg} ${riskLevel.color}`}>
                         {riskLevel.label}
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">위험도</p>
+                    <p className="text-xs text-slate-500 mt-1">보안점수</p>
                 </Card>
                 )}
 
