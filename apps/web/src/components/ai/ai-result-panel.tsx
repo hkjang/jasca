@@ -80,6 +80,54 @@ export function AiResultPanel({
     const [copied, setCopied] = useState(false);
     const [showPromptModal, setShowPromptModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'result' | 'history' | 'info'>('result');
+    
+    // Resizable panel state
+    const [panelWidth, setPanelWidth] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('ai-panel-width');
+            return saved ? parseInt(saved, 10) : 512; // default 512px (max-w-lg)
+        }
+        return 512;
+    });
+    const [isResizing, setIsResizing] = useState(false);
+    const minWidth = 400;
+    const maxWidth = typeof window !== 'undefined' ? window.innerWidth * 0.8 : 1200;
+
+    // Handle resize
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+    }, []);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizing) return;
+            const newWidth = window.innerWidth - e.clientX;
+            const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+            setPanelWidth(clampedWidth);
+        };
+
+        const handleMouseUp = () => {
+            if (isResizing) {
+                setIsResizing(false);
+                localStorage.setItem('ai-panel-width', panelWidth.toString());
+            }
+        };
+
+        if (isResizing) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'ew-resize';
+            document.body.style.userSelect = 'none';
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [isResizing, panelWidth, maxWidth]);
 
     // Reset state when panel opens/closes
     useEffect(() => {
@@ -120,9 +168,20 @@ export function AiResultPanel({
 
             {/* Panel */}
             <div
-                className={`fixed inset-y-0 right-0 w-full max-w-lg bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'
-                    }`}
+                className={`fixed inset-y-0 right-0 bg-white dark:bg-slate-900 shadow-2xl z-50 transform transition-transform duration-300 ease-out flex ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                style={{ width: `${panelWidth}px` }}
             >
+                {/* Resize Handle */}
+                <div
+                    onMouseDown={handleMouseDown}
+                    className={`absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize group hover:bg-violet-500/20 transition-colors ${isResizing ? 'bg-violet-500/30' : ''}`}
+                    title="드래그하여 너비 조절"
+                >
+                    <div className={`absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-12 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-violet-500 transition-colors ${isResizing ? 'bg-violet-500' : ''}`} />
+                </div>
+                
+                {/* Content Wrapper */}
+                <div className="flex-1 flex flex-col w-full overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
@@ -567,6 +626,7 @@ export function AiResultPanel({
                         <p>결과가 없습니다</p>
                     </div>
                 )}
+                </div>
             </div>
 
             {/* Prompt Modal */}

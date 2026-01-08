@@ -460,11 +460,14 @@ export class AiService {
         prompt: string,
         signal: AbortSignal,
     ): Promise<{ content: string; model: string }> {
+        const systemPrompt = '당신은 보안 취약점 분석 전문가입니다. 반드시 한국어로 답변하세요. 절대로 JSON이나 코드 형식으로 답변하지 마세요. 마크다운 형식(##, -, 이모지 등)을 사용하여 읽기 쉬운 자연어 보고서 형태로 작성하세요.';
+        
         const response = await fetch(`${apiUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model,
+                system: systemPrompt,
                 prompt,
                 stream: false,
                 options: {
@@ -518,7 +521,7 @@ export class AiService {
                     ? {
                         model,
                         messages: [
-                            { role: 'system', content: '당신은 보안 취약점 분석 전문가입니다. 한국어로 답변하세요.' },
+                            { role: 'system', content: '당신은 보안 취약점 분석 전문가입니다. 반드시 한국어로 답변하세요. 절대로 JSON이나 코드 형식으로 답변하지 마세요. 마크다운 형식(##, -, 이모지 등)을 사용하여 읽기 쉬운 자연어 보고서 형태로 작성하세요.' },
                             { role: 'user', content: prompt },
                         ],
                         max_tokens: 2000,
@@ -606,7 +609,7 @@ export class AiService {
             body: JSON.stringify({
                 model,
                 messages: [
-                    { role: 'system', content: '당신은 보안 취약점 분석 전문가입니다. 한국어로 답변하세요.' },
+                    { role: 'system', content: '당신은 보안 취약점 분석 전문가입니다. 반드시 한국어로 답변하세요. 절대로 JSON이나 코드 형식으로 답변하지 마세요. 마크다운 형식(##, -, 이모지 등)을 사용하여 읽기 쉬운 자연어 보고서 형태로 작성하세요.' },
                     { role: 'user', content: prompt },
                 ],
                 temperature: 0.7,
