@@ -59,6 +59,7 @@ export class AiService {
         model: string;
         enabled: boolean;
         timeout: number;
+        maxTokens: number;
     } | null> {
         try {
             const settings = await this.prisma.systemSettings.findUnique({
@@ -76,6 +77,7 @@ export class AiService {
                 enabled: (value.enableAutoSummary as boolean) ?? (value.enabled as boolean) ?? true,
                 // Timeout in seconds, default 60s
                 timeout: (value.timeout as number) || 60,
+                maxTokens: (value.maxTokens as number) || 2048,
             };
         } catch (error) {
             this.logger.warn('Failed to fetch AI settings:', error);
@@ -93,6 +95,7 @@ export class AiService {
         model: string;
         enabled: boolean;
         timeout: number;
+        maxTokens: number;
     } | null> {
         return this.getAiSettings();
     }
@@ -380,7 +383,7 @@ export class AiService {
      * Call AI provider (Ollama, vLLM, OpenAI, etc.)
      */
     private async callAiProvider(
-        settings: { provider: string; apiUrl: string; apiKey?: string; model: string; timeout?: number },
+        settings: { provider: string; apiUrl: string; apiKey?: string; model: string; timeout?: number; maxTokens: number },
         prompt: string,
     ): Promise<{ content: string; model: string }> {
         const controller = new AbortController();
@@ -392,13 +395,13 @@ export class AiService {
         try {
             switch (settings.provider) {
                 case 'ollama':
-                    return await this.callOllama(settings.apiUrl, settings.model, prompt, controller.signal);
+                    return await this.callOllama(settings.apiUrl, settings.model, prompt, settings.maxTokens, controller.signal);
                 case 'vllm':
-                    return await this.callVllm(settings.apiUrl, settings.model, prompt, settings.apiKey, controller.signal);
+                    return await this.callVllm(settings.apiUrl, settings.model, prompt, settings.apiKey, settings.maxTokens, controller.signal);
                 case 'openai':
-                    return await this.callOpenAi(settings.apiUrl, settings.model, prompt, settings.apiKey!, controller.signal);
+                    return await this.callOpenAi(settings.apiUrl, settings.model, prompt, settings.apiKey!, settings.maxTokens, controller.signal);
                 case 'anthropic':
-                    return await this.callAnthropic(settings.apiUrl, settings.model, prompt, settings.apiKey!, controller.signal);
+                    return await this.callAnthropic(settings.apiUrl, settings.model, prompt, settings.apiKey!, settings.maxTokens, controller.signal);
                 default:
                     throw new Error(`Unsupported AI provider: ${settings.provider}`);
             }
@@ -420,6 +423,7 @@ export class AiService {
         model: string,
         prompt: string,
         apiKey: string,
+        maxTokens: number,
         signal: AbortSignal,
     ): Promise<{ content: string; model: string }> {
         const response = await fetch(`${apiUrl}/v1/messages`, {
@@ -431,7 +435,7 @@ export class AiService {
             },
             body: JSON.stringify({
                 model,
-                max_tokens: 2048,
+                max_tokens: maxTokens,
                 messages: [
                     { role: 'user', content: prompt },
                 ],
@@ -458,6 +462,7 @@ export class AiService {
         apiUrl: string,
         model: string,
         prompt: string,
+        maxTokens: number,
         signal: AbortSignal,
     ): Promise<{ content: string; model: string }> {
         const systemPrompt = '당신은 보안 취약점 분석 전문가입니다. 반드시 한국어로 답변하세요. 절대로 JSON이나 코드 형식으로 답변하지 마세요. 마크다운 형식(##, -, 이모지 등)을 사용하여 읽기 쉬운 자연어 보고서 형태로 작성하세요.';
@@ -473,6 +478,7 @@ export class AiService {
                 options: {
                     temperature: 0.7,
                     top_p: 0.9,
+                    num_predict: maxTokens,
                 },
             }),
             signal,
@@ -498,6 +504,7 @@ export class AiService {
         model: string,
         prompt: string,
         apiKey: string | undefined,
+        maxTokens: number,
         signal: AbortSignal,
     ): Promise<{ content: string; model: string }> {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -524,13 +531,13 @@ export class AiService {
                             { role: 'system', content: '당신은 보안 취약점 분석 전문가입니다. 반드시 한국어로 답변하세요. 절대로 JSON이나 코드 형식으로 답변하지 마세요. 마크다운 형식(##, -, 이모지 등)을 사용하여 읽기 쉬운 자연어 보고서 형태로 작성하세요.' },
                             { role: 'user', content: prompt },
                         ],
-                        max_tokens: 2000,
+                        max_tokens: maxTokens,
                         temperature: 0.7,
                     }
                     : {
                         model,
                         prompt,
-                        max_tokens: 2000,
+                        max_tokens: maxTokens,
                         temperature: 0.7,
                     };
 
@@ -598,6 +605,7 @@ export class AiService {
         model: string,
         prompt: string,
         apiKey: string,
+        maxTokens: number,
         signal: AbortSignal,
     ): Promise<{ content: string; model: string }> {
         const response = await fetch(`${apiUrl}/v1/chat/completions`, {
@@ -612,6 +620,7 @@ export class AiService {
                     { role: 'system', content: '당신은 보안 취약점 분석 전문가입니다. 반드시 한국어로 답변하세요. 절대로 JSON이나 코드 형식으로 답변하지 마세요. 마크다운 형식(##, -, 이모지 등)을 사용하여 읽기 쉬운 자연어 보고서 형태로 작성하세요.' },
                     { role: 'user', content: prompt },
                 ],
+                max_tokens: maxTokens,
                 temperature: 0.7,
             }),
             signal,

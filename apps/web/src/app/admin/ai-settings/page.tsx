@@ -99,6 +99,9 @@ export default function AiSettingsPage() {
     const [customVllmModel, setCustomVllmModel] = useState('');
     const [useCustomVllmModel, setUseCustomVllmModel] = useState(false);
 
+    // Cache URLs per provider to prevent reset when switching
+    const [providerUrls, setProviderUrls] = useState<Record<string, string>>({});
+
     // AI Usage stats (mock for now)
     const [usageStats, setUsageStats] = useState<AiUsageStats>({
         totalCalls: 0,
@@ -147,16 +150,33 @@ export default function AiSettingsPage() {
                 setCustomVllmModel(settings.summaryModel);
                 setUseCustomVllmModel(true);
             }
+            
+            // Initialize provider URLs with default values and the current saved URL
+            const initialUrls: Record<string, string> = { ...providerUrls };
+            providers.forEach(p => {
+                if (!initialUrls[p.id]) {
+                    initialUrls[p.id] = p.defaultUrl;
+                }
+            });
+            // Overwrite the current provider's URL with the saved one
+            if (settings.provider && settings.apiUrl) {
+                initialUrls[settings.provider] = settings.apiUrl;
+            }
+            setProviderUrls(initialUrls);
         }
     }, [settings]);
 
     const handleProviderChange = (providerId: string) => {
         const provider = providers.find(p => p.id === providerId);
         const models = staticModelsByProvider[providerId] || [];
+        
+        // Use cached URL or default
+        const nextUrl = providerUrls[providerId] || provider?.defaultUrl || '';
+        
         setConfig(prev => ({
             ...prev,
             provider: providerId as AiSettings['provider'],
-            apiUrl: provider?.defaultUrl || '',
+            apiUrl: nextUrl,
             summaryModel: models[0]?.id || '',
             remediationModel: models[0]?.id || '',
         }));
@@ -165,6 +185,15 @@ export default function AiSettingsPage() {
         setTestResult(null);
         setCustomVllmModel('');
         setUseCustomVllmModel(false);
+    };
+
+    const handleApiUrlChange = (newUrl: string) => {
+        setConfig(prev => ({ ...prev, apiUrl: newUrl }));
+        // Update cache
+        setProviderUrls(prev => ({
+            ...prev,
+            [config.provider]: newUrl
+        }));
     };
 
     const handleSave = async () => {
@@ -513,7 +542,7 @@ export default function AiSettingsPage() {
                             <input
                                 type="text"
                                 value={config.apiUrl || ''}
-                                onChange={(e) => setConfig(prev => ({ ...prev, apiUrl: e.target.value }))}
+                                onChange={(e) => handleApiUrlChange(e.target.value)}
                                 placeholder="https://api.example.com/v1"
                                 className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
                             />
