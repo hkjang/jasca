@@ -15,9 +15,13 @@ import {
     FileJson,
     AlertCircle,
     ExternalLink,
+    WifiOff,
+    HardDrive,
+    Download,
+    FolderSync,
 } from 'lucide-react';
 
-type TabType = 'overview' | 'trivy-vuln' | 'trivy-license' | 'ci-cd' | 'api';
+type TabType = 'overview' | 'trivy-vuln' | 'trivy-license' | 'offline' | 'ci-cd' | 'api';
 
 function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);
@@ -50,6 +54,7 @@ export default function GuidePage() {
         { id: 'overview' as const, label: '개요', icon: Book },
         { id: 'trivy-vuln' as const, label: '취약점 스캔', icon: Shield },
         { id: 'trivy-license' as const, label: '라이선스 스캔', icon: Scale },
+        { id: 'offline' as const, label: '오프라인 환경', icon: WifiOff },
         { id: 'ci-cd' as const, label: 'CI/CD 연동', icon: GitBranch },
         { id: 'api' as const, label: 'API 연동', icon: Server },
     ];
@@ -305,6 +310,189 @@ license:
                                 <p className="font-medium text-slate-700 dark:text-slate-300">미확인 (Unknown)</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">분류되지 않은 라이선스</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'offline' && (
+                <div className="space-y-6">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                            <WifiOff className="h-5 w-5 text-orange-500" />
+                            오프라인/폐쇄망 환경 운용
+                        </h2>
+                        <p className="text-slate-600 dark:text-slate-300 mb-6">
+                            인터넷이 차단된 폐쇄망(Air-gapped) 환경에서 Trivy와 JASCA를 운용하는 방법입니다.
+                        </p>
+
+                        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-6">
+                            <div className="flex items-start gap-2">
+                                <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+                                <div className="text-sm text-orange-700 dark:text-orange-300">
+                                    <strong>중요:</strong> Trivy는 취약점 데이터베이스(DB)를 사용합니다. 
+                                    오프라인 환경에서는 DB를 미리 다운로드하여 이관하거나, 
+                                    DB 업데이트를 건너뛰고 스캔해야 합니다.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <h3 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                                    <Terminal className="h-4 w-4" />
+                                    방법 1: DB 다운로드 건너뛰기 (캐시된 DB 사용)
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                    이미 로컬에 DB가 있는 경우 다운로드를 건너뛸 수 있습니다.
+                                </p>
+                                <CodeBlock code={`# DB 다운로드 건너뛰기 (기존 캐시 사용)
+trivy image --skip-db-update --format json --output scan.json nginx:latest
+
+# 파일시스템 스캔 - DB 업데이트 건너뛰기
+trivy fs --skip-db-update --format json --output scan.json .
+
+# Java DB도 건너뛰기 (Java 프로젝트인 경우)
+trivy fs --skip-db-update --skip-java-db-update --format json --output scan.json .
+
+# 라이선스 스캔 시에도 적용
+trivy fs --skip-db-update --scanners vuln,license --format json --output scan.json .`} />
+                            </div>
+
+                            <div>
+                                <h3 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                                    <Download className="h-4 w-4" />
+                                    방법 2: 온라인에서 DB 다운로드 후 이관
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                    인터넷이 되는 환경에서 DB를 다운로드한 후 오프라인 환경으로 이관합니다.
+                                </p>
+                                <CodeBlock code={`# [온라인 환경] Trivy DB 다운로드
+# 기본 취약점 DB
+trivy image --download-db-only
+
+# DB 파일 위치 확인 (기본 경로)
+# Linux/macOS: ~/.cache/trivy/db/
+# Windows: %USERPROFILE%\\.cache\\trivy\\db\\
+
+# Java DB도 필요한 경우
+trivy image --download-java-db-only
+
+# [오프라인 환경으로 이관]
+# ~/.cache/trivy/ 폴더 전체를 복사하여 오프라인 서버의 동일 경로에 배치`} />
+                            </div>
+
+                            <div>
+                                <h3 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                                    <HardDrive className="h-4 w-4" />
+                                    방법 3: 사설 OCI 레지스트리 미러링
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                    폐쇄망 내 사설 레지스트리에 Trivy DB를 미러링하여 사용합니다.
+                                </p>
+                                <CodeBlock code={`# [온라인 환경] ORAS로 DB 다운로드
+oras pull ghcr.io/aquasecurity/trivy-db:2 -a
+
+# [사설 레지스트리에 푸시]
+oras push your-registry.internal/trivy-db:2 db.tar.gz:application/vnd.aquasec.trivy.db.layer.v1.tar+gzip
+
+# [폐쇄망에서 사설 레지스트리 사용]
+trivy image --db-repository your-registry.internal/trivy-db \\
+  --format json --output scan.json nginx:latest`} />
+                            </div>
+
+                            <div>
+                                <h3 className="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                                    <FolderSync className="h-4 w-4" />
+                                    방법 4: 캐시 디렉토리 지정
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                                    특정 위치에 저장된 DB를 캐시 디렉토리로 지정합니다.
+                                </p>
+                                <CodeBlock code={`# 캐시 디렉토리 지정 (DB 파일이 있는 디렉토리)
+trivy --cache-dir /path/to/trivy-cache \\
+  image --skip-db-update --format json --output scan.json nginx:latest
+
+# 환경 변수로 설정
+export TRIVY_CACHE_DIR=/path/to/trivy-cache
+trivy image --skip-db-update --format json --output scan.json nginx:latest
+
+# Windows PowerShell
+$env:TRIVY_CACHE_DIR = "C:\\trivy-cache"
+trivy image --skip-db-update --format json --output scan.json nginx:latest`} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <h3 className="font-medium text-slate-900 dark:text-white mb-4">오프라인 환경 JASCA 설정</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">1. Docker Compose 환경변수</h4>
+                                <CodeBlock code={`# docker-compose.yml 또는 .env 파일
+# AI 기능 비활성화 (외부 API 호출 방지)
+AI_ENABLED=false
+
+# 외부 연결 없이 작동
+NODE_ENV=production
+CORS_ORIGINS=http://jasca.internal:3000`} language="yaml" />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">2. 로컬 네트워크에서 스캔 업로드</h4>
+                                <CodeBlock code={`# 폐쇄망 내 JASCA 서버로 스캔 결과 업로드
+curl -X POST "http://jasca.internal:3000/api/scans/upload?projectId=xxx" \\
+  -H "Authorization: Bearer YOUR_API_TOKEN" \\
+  -F "file=@scan-result.json" \\
+  -F "sourceType=TRIVY_JSON"`} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                        <h3 className="font-medium text-slate-900 dark:text-white mb-4">자주 사용하는 오프라인 명령어</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-slate-50 dark:bg-slate-700/50">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left text-slate-600 dark:text-slate-300">용도</th>
+                                        <th className="px-4 py-2 text-left text-slate-600 dark:text-slate-300">명령어</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                    <tr>
+                                        <td className="px-4 py-2 text-slate-700 dark:text-slate-300">이미지 스캔 (오프라인)</td>
+                                        <td className="px-4 py-2">
+                                            <code className="text-xs bg-slate-100 dark:bg-slate-700 px-1 py-0.5 rounded">
+                                                trivy image --skip-db-update -f json -o out.json IMG
+                                            </code>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="px-4 py-2 text-slate-700 dark:text-slate-300">FS 스캔 (오프라인)</td>
+                                        <td className="px-4 py-2">
+                                            <code className="text-xs bg-slate-100 dark:bg-slate-700 px-1 py-0.5 rounded">
+                                                trivy fs --skip-db-update -f json -o out.json .
+                                            </code>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="px-4 py-2 text-slate-700 dark:text-slate-300">취약점+라이선스 (오프라인)</td>
+                                        <td className="px-4 py-2">
+                                            <code className="text-xs bg-slate-100 dark:bg-slate-700 px-1 py-0.5 rounded">
+                                                trivy fs --skip-db-update --scanners vuln,license -f json -o out.json .
+                                            </code>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="px-4 py-2 text-slate-700 dark:text-slate-300">DB만 다운로드</td>
+                                        <td className="px-4 py-2">
+                                            <code className="text-xs bg-slate-100 dark:bg-slate-700 px-1 py-0.5 rounded">
+                                                trivy image --download-db-only
+                                            </code>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

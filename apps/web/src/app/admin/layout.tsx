@@ -27,6 +27,7 @@ import {
     BarChart3,
     Database,
     Scale,
+    Code2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHasMounted } from '@/hooks/use-has-mounted';
@@ -53,6 +54,7 @@ const systemNavigation = [
     { name: 'AI 설정', href: '/admin/ai-settings', icon: Sparkles },
     { name: 'AI 프롬프트', href: '/admin/ai-prompts', icon: MessageSquare },
     { name: 'AI 사용 기록', href: '/admin/ai-history', icon: BarChart3 },
+    { name: 'API Explorer', href: '/admin/api-explorer', icon: Code2 },
     { name: '스키마/ERD', href: '/admin/schema', icon: Database },
     { name: '사이트맵', href: '/admin/sitemap', icon: Map },
 ];
