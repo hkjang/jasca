@@ -32,7 +32,36 @@ export class ScansService {
             this.prisma.scanResult.count({ where }),
         ]);
 
-        return { results, total };
+        // Transform to match frontend Scan interface
+        const transformedResults = results.map(scan => ({
+            id: scan.id,
+            projectId: scan.projectId,
+            targetName: scan.artifactName || scan.imageRef || 'Unknown',
+            scanType: scan.sourceType || 'UNKNOWN',
+            status: scan.summary ? 'COMPLETED' : 'PENDING',
+            startedAt: scan.scannedAt?.toISOString() || scan.createdAt.toISOString(),
+            completedAt: scan.summary ? scan.createdAt.toISOString() : undefined,
+            createdAt: scan.createdAt.toISOString(),
+            imageRef: scan.imageRef,
+            imageDigest: scan.imageDigest,
+            tag: scan.tag,
+            summary: scan.summary ? {
+                critical: scan.summary.critical,
+                high: scan.summary.high,
+                medium: scan.summary.medium,
+                low: scan.summary.low,
+            } : undefined,
+            project: scan.project ? {
+                id: scan.project.id,
+                name: scan.project.name,
+                organization: scan.project.organization ? {
+                    id: scan.project.organization.id,
+                    name: scan.project.organization.name,
+                } : undefined,
+            } : undefined,
+        }));
+
+        return { results: transformedResults, total };
     }
 
     async findById(id: string) {
@@ -58,7 +87,69 @@ export class ScansService {
             throw new NotFoundException('Scan result not found');
         }
 
-        return scan;
+        // Transform to match frontend interface
+        return {
+            id: scan.id,
+            projectId: scan.projectId,
+            targetName: scan.artifactName || scan.imageRef || 'Unknown',
+            scanType: scan.sourceType || 'UNKNOWN',
+            status: scan.summary ? 'COMPLETED' : 'PENDING',
+            startedAt: scan.scannedAt?.toISOString() || scan.createdAt.toISOString(),
+            completedAt: scan.summary ? scan.createdAt.toISOString() : undefined,
+            createdAt: scan.createdAt.toISOString(),
+            imageRef: scan.imageRef,
+            imageDigest: scan.imageDigest,
+            tag: scan.tag,
+            summary: scan.summary ? {
+                critical: scan.summary.critical,
+                high: scan.summary.high,
+                medium: scan.summary.medium,
+                low: scan.summary.low,
+                unknown: scan.summary.unknown,
+                total: scan.summary.total,
+            } : undefined,
+            project: scan.project ? {
+                id: scan.project.id,
+                name: scan.project.name,
+                organization: scan.project.organization ? {
+                    id: scan.project.organization.id,
+                    name: scan.project.organization.name,
+                } : undefined,
+            } : undefined,
+            vulnerabilities: scan.vulnerabilities.map(v => ({
+                id: v.id,
+                scanResultId: v.scanResultId,
+                vulnerabilityId: v.vulnerabilityId,
+                pkgName: v.pkgName,
+                installedVersion: v.installedVersion,
+                fixedVersion: v.fixedVersion,
+                remediation: v.remediation,
+                status: v.status,
+                suppressReason: v.suppressReason,
+                notes: v.notes,
+                assigneeId: v.assigneeId,
+                firstSeenAt: v.firstSeenAt?.toISOString(),
+                resolvedAt: v.resolvedAt?.toISOString(),
+                createdAt: v.createdAt?.toISOString(),
+                vulnerability: v.vulnerability ? {
+                    id: v.vulnerability.id,
+                    cveId: v.vulnerability.cveId,
+                    severity: v.vulnerability.severity,
+                    title: v.vulnerability.title,
+                    description: v.vulnerability.description,
+                    cvssScore: v.vulnerability.cvssScore,
+                    cvssVector: v.vulnerability.cvssVector,
+                    publishedDate: v.vulnerability.publishedDate?.toISOString(),
+                    references: v.vulnerability.references,
+                } : undefined,
+                assignee: v.assignee ? {
+                    id: v.assignee.id,
+                    name: v.assignee.name,
+                    email: v.assignee.email,
+                } : undefined,
+            })),
+            rawResult: scan.rawResult,
+        };
     }
 
     async uploadScan(
