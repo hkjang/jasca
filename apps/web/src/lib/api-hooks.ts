@@ -1936,3 +1936,186 @@ export function useUpdateNotificationSettings() {
         },
     });
 }
+
+// ============ Licenses API ============
+
+export type LicenseClassification =
+    | 'FORBIDDEN'
+    | 'RESTRICTED'
+    | 'RECIPROCAL'
+    | 'NOTICE'
+    | 'PERMISSIVE'
+    | 'UNENCUMBERED'
+    | 'UNKNOWN';
+
+export interface License {
+    id: string;
+    spdxId: string;
+    name: string;
+    classification: LicenseClassification;
+    description?: string;
+    osiApproved: boolean;
+    fsfLibre: boolean;
+    url?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface LicenseStats {
+    total: number;
+    byClassification: Record<LicenseClassification, number>;
+    uniqueLicenses: number;
+    uniquePackages: number;
+}
+
+export interface LicenseSummary {
+    id: string;
+    spdxId: string;
+    name: string;
+    classification: LicenseClassification;
+    packageCount: number;
+}
+
+export interface PackageLicense {
+    id: string;
+    licenseName: string;
+    pkgName: string;
+    pkgVersion: string;
+    pkgPath?: string;
+    confidence: number;
+    createdAt: string;
+}
+
+export function useLicenses(params?: { classification?: LicenseClassification; search?: string }) {
+    return useQuery<License[]>({
+        queryKey: ['licenses', params],
+        queryFn: () => {
+            const searchParams = new URLSearchParams();
+            if (params?.classification) searchParams.set('classification', params.classification);
+            if (params?.search) searchParams.set('search', params.search);
+            const queryString = searchParams.toString();
+            return authFetch(`${API_BASE}/licenses${queryString ? `?${queryString}` : ''}`);
+        },
+    });
+}
+
+export function useLicenseStats(projectId?: string) {
+    return useQuery<LicenseStats>({
+        queryKey: ['license-stats', projectId],
+        queryFn: () => {
+            const url = projectId
+                ? `${API_BASE}/licenses/stats?projectId=${projectId}`
+                : `${API_BASE}/licenses/stats`;
+            return authFetch(url);
+        },
+    });
+}
+
+export function useLicensesByProject(projectId: string) {
+    return useQuery<LicenseSummary[]>({
+        queryKey: ['licenses-by-project', projectId],
+        queryFn: () => authFetch(`${API_BASE}/licenses/by-project/${projectId}`),
+        enabled: !!projectId,
+    });
+}
+
+export function useLicensesByScan(scanId: string) {
+    return useQuery<LicenseSummary[]>({
+        queryKey: ['licenses-by-scan', scanId],
+        queryFn: () => authFetch(`${API_BASE}/licenses/by-scan/${scanId}`),
+        enabled: !!scanId,
+    });
+}
+
+export function usePackagesByLicense(scanId: string, licenseName: string) {
+    return useQuery<PackageLicense[]>({
+        queryKey: ['packages-by-license', scanId, licenseName],
+        queryFn: () =>
+            authFetch(
+                `${API_BASE}/licenses/by-scan/${scanId}/packages?licenseName=${encodeURIComponent(licenseName)}`
+            ),
+        enabled: !!scanId && !!licenseName,
+    });
+}
+
+export function useSeedLicenses() {
+    const queryClient = useQueryClient();
+    return useMutation<{ seeded: number }>({
+        mutationFn: () => authFetch(`${API_BASE}/licenses/seed`, { method: 'POST' }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['licenses'] });
+            queryClient.invalidateQueries({ queryKey: ['license-stats'] });
+        },
+    });
+}
+
+// Tracked license with project/scan info
+export interface TrackedLicenseInfo {
+    id: string;
+    licenseName: string;
+    pkgName: string;
+    pkgVersion: string;
+    pkgPath?: string;
+    classification: LicenseClassification;
+    spdxId?: string;
+    scanId: string;
+    scanCreatedAt: string;
+    imageRef?: string;
+    artifactName?: string;
+    projectId: string;
+    projectName: string;
+    organizationName?: string;
+}
+
+export interface ProjectLicenseSummary {
+    projectId: string;
+    projectName: string;
+    organizationName?: string;
+    lastScanAt?: string;
+    licenseStats: {
+        total: number;
+        forbidden: number;
+        restricted: number;
+        unknown: number;
+    };
+}
+
+export function useTrackedLicenses(params?: {
+    projectId?: string;
+    classification?: LicenseClassification;
+    search?: string;
+    limit?: number;
+    offset?: number;
+}) {
+    return useQuery<{ data: TrackedLicenseInfo[]; total: number }>({
+        queryKey: ['tracked-licenses', params],
+        queryFn: () => {
+            const searchParams = new URLSearchParams();
+            if (params?.projectId) searchParams.set('projectId', params.projectId);
+            if (params?.classification) searchParams.set('classification', params.classification);
+            if (params?.search) searchParams.set('search', params.search);
+            if (params?.limit) searchParams.set('limit', params.limit.toString());
+            if (params?.offset) searchParams.set('offset', params.offset.toString());
+            const queryString = searchParams.toString();
+            return authFetch(`${API_BASE}/licenses/tracked${queryString ? `?${queryString}` : ''}`);
+        },
+    });
+}
+
+export function useProjectLicenseSummary(params?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+}) {
+    return useQuery<{ data: ProjectLicenseSummary[]; total: number }>({
+        queryKey: ['project-license-summary', params],
+        queryFn: () => {
+            const searchParams = new URLSearchParams();
+            if (params?.limit) searchParams.set('limit', params.limit.toString());
+            if (params?.offset) searchParams.set('offset', params.offset.toString());
+            if (params?.search) searchParams.set('search', params.search);
+            const queryString = searchParams.toString();
+            return authFetch(`${API_BASE}/licenses/by-project-summary${queryString ? `?${queryString}` : ''}`);
+        },
+    });
+}

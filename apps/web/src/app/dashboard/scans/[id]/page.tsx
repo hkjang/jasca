@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -13,8 +14,27 @@ import {
     Loader2,
     RefreshCw,
     ExternalLink,
+    Scale,
+    Shield,
+    AlertTriangle,
+    Info,
+    HelpCircle,
+    ChevronDown,
+    ChevronUp,
 } from 'lucide-react';
-import { useScan } from '@/lib/api-hooks';
+import { useScan, useLicensesByScan, LicenseClassification } from '@/lib/api-hooks';
+
+// License classification config
+const CLASSIFICATION_CONFIG: Record<LicenseClassification, { label: string; color: string; bgColor: string }> = {
+    FORBIDDEN: { label: '금지', color: '#dc2626', bgColor: 'bg-red-100 dark:bg-red-900/30' },
+    RESTRICTED: { label: '제한적', color: '#ea580c', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
+    RECIPROCAL: { label: '상호적', color: '#ca8a04', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
+    NOTICE: { label: '고지', color: '#2563eb', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+    PERMISSIVE: { label: '허용', color: '#16a34a', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+    UNENCUMBERED: { label: '무제한', color: '#059669', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    UNKNOWN: { label: '미확인', color: '#64748b', bgColor: 'bg-slate-100 dark:bg-slate-700' },
+};
+
 
 function getSeverityColor(severity: string) {
     switch (severity?.toUpperCase()) {
@@ -58,6 +78,8 @@ export default function ScanDetailPage() {
     const params = useParams();
     const id = params?.id as string;
     const { data: scan, isLoading, error, refetch } = useScan(id);
+    const { data: licenses, isLoading: licensesLoading } = useLicensesByScan(id);
+    const [showLicenses, setShowLicenses] = useState(false);
 
     if (isLoading) {
         return (
@@ -291,6 +313,89 @@ export default function ScanDetailPage() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+            </div>
+
+            {/* License Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                <button
+                    onClick={() => setShowLicenses(!showLicenses)}
+                    className="w-full px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <Scale className="h-5 w-5 text-purple-500" />
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                            패키지 라이선스 ({licenses?.length || 0}개)
+                        </h3>
+                        {licenses && licenses.some(l => l.classification === 'FORBIDDEN' || l.classification === 'RESTRICTED') && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full">
+                                주의 필요
+                            </span>
+                        )}
+                    </div>
+                    {showLicenses ? (
+                        <ChevronUp className="h-5 w-5 text-slate-400" />
+                    ) : (
+                        <ChevronDown className="h-5 w-5 text-slate-400" />
+                    )}
+                </button>
+
+                {showLicenses && (
+                    <div className="p-6">
+                        {licensesLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                            </div>
+                        ) : licenses && licenses.length > 0 ? (
+                            <div className="space-y-3">
+                                {licenses.map((license, index) => {
+                                    const config = CLASSIFICATION_CONFIG[license.classification];
+                                    return (
+                                        <div
+                                            key={`${license.spdxId}-${index}`}
+                                            className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span
+                                                    className="px-2 py-1 text-xs font-medium rounded-full"
+                                                    style={{
+                                                        backgroundColor: `${config.color}20`,
+                                                        color: config.color,
+                                                    }}
+                                                >
+                                                    {config.label}
+                                                </span>
+                                                <div>
+                                                    <p className="font-medium text-slate-900 dark:text-white">
+                                                        {license.name}
+                                                    </p>
+                                                    <p className="text-xs text-slate-500">
+                                                        SPDX: {license.spdxId}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-slate-500">
+                                                    {license.packageCount}개 패키지
+                                                </span>
+                                                <Package className="h-4 w-4 text-slate-400" />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-8 text-center">
+                                <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
+                                <p className="text-slate-600 dark:text-slate-400">
+                                    라이선스 정보가 없습니다.
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    스캔 결과에 패키지 라이선스 정보가 포함되지 않았습니다.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

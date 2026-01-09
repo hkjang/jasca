@@ -21,6 +21,7 @@ import {
     Map,
     Database,
     Key,
+    Scale,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/auth-api';
@@ -45,6 +46,7 @@ const allNavigation: NavItem[] = [
     { name: '프로젝트', href: '/dashboard/projects', icon: FolderKanban, roles: 'all' },
     { name: '스캔 결과', href: '/dashboard/scans', icon: FileSearch, roles: 'all' },
     { name: '취약점', href: '/dashboard/vulnerabilities', icon: AlertTriangle, roles: 'all' },
+    { name: '라이선스', href: '/dashboard/licenses', icon: Scale, roles: 'all' },
     { name: 'Trivy DB', href: '/dashboard/trivy-db', icon: Database, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
     { name: '정책', href: '/dashboard/policies', icon: FileText, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
     { name: '리포트', href: '/dashboard/reports', icon: BarChart3, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },

@@ -33,8 +33,11 @@ import {
     Building2,
     Info,
     ExternalLink,
+    Scale,
+    ChevronDown,
+    ChevronUp,
 } from 'lucide-react';
-import { useProject, useProjectScans, useProjectVulnerabilityTrend, Scan, useUpdateProject } from '@/lib/api-hooks';
+import { useProject, useProjectScans, useProjectVulnerabilityTrend, Scan, useUpdateProject, useLicensesByProject } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution, useProjectAiContext } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
@@ -98,8 +101,10 @@ export default function ProjectDetailPage() {
     const { data: project, isLoading: projectLoading, error: projectError, refetch } = useProject(projectId);
     const { data: scansData, isLoading: scansLoading } = useProjectScans(projectId);
     const { data: trendData } = useProjectVulnerabilityTrend(projectId);
+    const { data: licensesData, isLoading: licensesLoading } = useLicensesByProject(projectId);
 
     const [selectedTimeRange, setSelectedTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
+    const [showLicenses, setShowLicenses] = useState(true);
 
     // AI Execution
     const collectProjectContext = useProjectAiContext();
@@ -314,6 +319,121 @@ export default function ProjectDetailPage() {
                 </div>
             </div>
 
+            {/* License Summary Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <button
+                    onClick={() => setShowLicenses(!showLicenses)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors rounded-t-xl"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                            <Scale className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="text-left">
+                            <h3 className="font-semibold text-slate-900 dark:text-white">패키지 라이선스</h3>
+                            <p className="text-sm text-slate-500">
+                                {licensesLoading ? '로딩 중...' : `${licensesData?.length || 0}개 라이선스 발견`}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {licensesData && licensesData.some(l => l.classification === 'FORBIDDEN' || l.classification === 'RESTRICTED') && (
+                            <span className="px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-medium rounded">
+                                주의 필요
+                            </span>
+                        )}
+                        {showLicenses ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
+                    </div>
+                </button>
+                {showLicenses && (
+                    <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+                        {licensesLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                            </div>
+                        ) : licensesData && licensesData.length > 0 ? (
+                            <div className="space-y-4">
+                                {/* License Stats Row */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                                        <p className="text-xs text-red-600 dark:text-red-400">금지</p>
+                                        <p className="text-xl font-bold text-red-700 dark:text-red-300">
+                                            {licensesData.filter(l => l.classification === 'FORBIDDEN').length}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                                        <p className="text-xs text-orange-600 dark:text-orange-400">제한적</p>
+                                        <p className="text-xl font-bold text-orange-700 dark:text-orange-300">
+                                            {licensesData.filter(l => l.classification === 'RESTRICTED').length}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                        <p className="text-xs text-blue-600 dark:text-blue-400">고지</p>
+                                        <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                                            {licensesData.filter(l => l.classification === 'NOTICE').length}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                                        <p className="text-xs text-slate-600 dark:text-slate-400">미확인</p>
+                                        <p className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                                            {licensesData.filter(l => l.classification === 'UNKNOWN').length}
+                                        </p>
+                                    </div>
+                                </div>
+                                {/* License List */}
+                                <div className="flex flex-wrap gap-2">
+                                    {licensesData.slice(0, 15).map((license) => {
+                                        const colors: Record<string, string> = {
+                                            FORBIDDEN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
+                                            RESTRICTED: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+                                            RECIPROCAL: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
+                                            NOTICE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+                                            PERMISSIVE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800',
+                                            UNENCUMBERED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+                                            UNKNOWN: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600',
+                                        };
+                                        return (
+                                            <span
+                                                key={license.id}
+                                                className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-full border ${colors[license.classification] || colors.UNKNOWN}`}
+                                            >
+                                                {license.spdxId}
+                                                <span className="text-xs opacity-75">({license.packageCount})</span>
+                                            </span>
+                                        );
+                                    })}
+                                    {licensesData.length > 15 && (
+                                        <span className="text-xs text-slate-500 self-center">
+                                            +{licensesData.length - 15}개 더보기
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3 pt-2">
+                                    <Link
+                                        href={`/dashboard/licenses?projectId=${projectId}`}
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                                    >
+                                        <Scale className="h-3.5 w-3.5" />
+                                        이 프로젝트 라이선스 상세
+                                    </Link>
+                                    <Link
+                                        href="/dashboard/licenses"
+                                        className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400"
+                                    >
+                                        전체 라이선스 보기 <ExternalLink className="h-3 w-3" />
+                                    </Link>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-slate-500">
+                                <Scale className="h-10 w-10 mx-auto mb-2 text-slate-400" />
+                                <p>라이선스 정보가 없습니다</p>
+                                <p className="text-sm">스캔을 실행하면 라이선스가 분석됩니다</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* Vulnerability Trend Chart */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">

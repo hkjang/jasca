@@ -9,9 +9,12 @@ dist
 coverage
 .nyc_output
 *.tsbuildinfo
+.npmrc
 jasca-offline.tar
 trivy-db/*.db
 trivy-db/*.json
 trivy-db/db
 trivy-db/java-db
 trivy-db/policy
+apps/web/tsc-errors.txt
+apps/web/build-errors.txt

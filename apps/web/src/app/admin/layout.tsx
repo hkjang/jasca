@@ -26,6 +26,7 @@ import {
     Key,
     BarChart3,
     Database,
+    Scale,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHasMounted } from '@/hooks/use-has-mounted';
@@ -37,6 +38,7 @@ const adminNavigation = [
     { name: '사용자 관리', href: '/admin/users', icon: Users },
     { name: '프로젝트 관리', href: '/admin/projects', icon: FolderKanban },
     { name: '취약점 현황', href: '/admin/vulnerabilities', icon: AlertTriangle },
+    { name: '라이선스 관리', href: '/admin/licenses', icon: Scale },
     { name: '정책 관리', href: '/admin/policies', icon: FileText },
     { name: '예외 승인', href: '/admin/exceptions', icon: ShieldCheck },
     { name: '워크플로우', href: '/admin/workflows', icon: Settings },

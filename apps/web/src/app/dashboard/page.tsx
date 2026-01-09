@@ -37,11 +37,12 @@ import {
     ChevronRight,
     Calendar,
     Timer,
+    Scale,
 } from 'lucide-react';
 import { StatCard, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatCardSkeleton, ChartSkeleton } from '@/components/ui/skeleton';
 import { SeverityBadge } from '@/components/ui/badge';
-import { useStatsOverview, useStatsByProject, useStatsTrend, useNotifications } from '@/lib/api-hooks';
+import { useStatsOverview, useStatsByProject, useStatsTrend, useNotifications, useLicenseStats } from '@/lib/api-hooks';
 import { AiButton, AiResultPanel } from '@/components/ai';
 import { useAiExecution, useDashboardAiContext } from '@/hooks/use-ai-execution';
 import { useAiStore } from '@/stores/ai-store';
@@ -78,6 +79,7 @@ export default function DashboardPage() {
     const { data: projectStats, isLoading: projectLoading } = useStatsByProject();
     const { data: trendData, isLoading: trendLoading } = useStatsTrend(undefined, trendPeriod);
     const { data: notifications = [] } = useNotifications();
+    const { data: licenseStats } = useLicenseStats();
 
     const isLoading = overviewLoading || projectLoading || trendLoading;
     const unreadNotifications = notifications.filter(n => !n.isRead).length;
@@ -361,7 +363,7 @@ export default function DashboardPage() {
 
             {/* Summary Stats */}
             {widgetVisibility.summaryStats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/dashboard/vulnerabilities')}>
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
@@ -403,6 +405,17 @@ export default function DashboardPage() {
                         <div>
                             <p className="text-2xl font-bold text-slate-900 dark:text-white">{unreadNotifications}</p>
                             <p className="text-xs text-slate-500">새 알림</p>
+                        </div>
+                    </div>
+                </Card>
+                <Card className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/dashboard/licenses')}>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                            <Scale className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{licenseStats?.uniqueLicenses || 0}</p>
+                            <p className="text-xs text-slate-500">라이선스</p>
                         </div>
                     </div>
                 </Card>

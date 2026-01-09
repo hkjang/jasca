@@ -1,14 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TrivyParserService, ParsedScanResult } from './services/trivy-parser.service';
+import { LicenseParserService } from '../licenses/services/license-parser.service';
 import { UploadScanDto } from './dto/upload-scan.dto';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class ScansService {
+    private readonly logger = new Logger(ScansService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly trivyParser: TrivyParserService,
+        private readonly licenseParser: LicenseParserService,
     ) { }
 
     async findAll(projectId?: string, options?: { limit?: number; offset?: number }) {
@@ -95,6 +99,15 @@ export class ScansService {
 
         // Process vulnerabilities
         await this.processVulnerabilities(scanResult.id, parsed.vulnerabilities);
+
+        // Process licenses from packages
+        try {
+            const licenseResult = await this.licenseParser.processLicenses(scanResult.id, rawResult);
+            this.logger.log(`Processed ${licenseResult.processed} package licenses for scan ${scanResult.id}`);
+        } catch (error) {
+            this.logger.warn(`Failed to process licenses for scan ${scanResult.id}: ${error.message}`);
+            // Don't fail the scan upload if license processing fails
+        }
 
         // Create summary
         await this.createSummary(scanResult.id);

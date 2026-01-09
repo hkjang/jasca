@@ -218,6 +218,7 @@ model ScanResult {
   
   summary         ScanSummary?
   vulnerabilities ScanVulnerability[]
+  packageLicenses PackageLicense[]
   
   scannedAt       DateTime  @default(now())
   createdAt       DateTime  @default(now())
@@ -1145,3 +1146,122 @@ enum AiExecutionStatus {
   ERROR
   TIMEOUT
 }
+
+// ============================================
+// License Management Models
+// ============================================
+
+// License Classification based on Google License Classification
+enum LicenseClassification {
+  FORBIDDEN      // CRITICAL - Commercial use prohibited (AGPL-3.0)
+  RESTRICTED     // HIGH - Copyleft licenses (GPL, LGPL)
+  RECIPROCAL     // MEDIUM - File-level copyleft (EPL, MPL)
+  NOTICE         // LOW - Attribution required (MIT, Apache-2.0, BSD)
+  PERMISSIVE     // INFO - Minimal restrictions
+  UNENCUMBERED   // SAFE - Public domain (CC0, Unlicense)
+  UNKNOWN        // Review needed
+}
+
+model License {
+  id              String    @id @default(uuid())
+  spdxId          String    @unique  // SPDX identifier (e.g., "MIT", "GPL-3.0-only")
+  name            String               // Full license name
+  classification  LicenseClassification
+  description     String?
+  osiApproved     Boolean   @default(false)
+  fsfLibre        Boolean   @default(false)
+  url             String?              // License text URL
+  
+  packageLicenses PackageLicense[]
+  policyRules     LicensePolicyRule[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([spdxId])
+  @@index([classification])
+}
+
+model PackageLicense {
+  id              String    @id @default(uuid())
+  
+  scanResultId    String
+  scanResult      ScanResult @relation(fields: [scanResultId], references: [id], onDelete: Cascade)
+  
+  licenseId       String?
+  license         License?  @relation(fields: [licenseId], references: [id])
+  
+  licenseName     String    // Original license name from Trivy
+  pkgName         String    // Package name
+  pkgVersion      String    // Package version
+  pkgPath         String?   // Package path/location
+  confidence      Float     @default(1.0)  // Detection confidence
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([scanResultId])
+  @@index([licenseId])
+  @@index([pkgName])
+  @@index([licenseName])
+  @@index([scanResultId, licenseId])  // Composite for filtered aggregations
+  @@index([createdAt])                 // For sorting by date
+  @@index([licenseId, createdAt])      // For classification filtering with date sort
+}
+
+model LicensePolicy {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?
+  isActive        Boolean   @default(true)
+  isDefault       Boolean   @default(false)
+  
+  organizationId  String?
+  projectId       String?
+  
+  rules           LicensePolicyRule[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([isActive])
+}
+
+model LicensePolicyRule {
+  id              String    @id @default(uuid())
+  
+  policyId        String
+  policy          LicensePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  
+  ruleType        LicenseRuleType
+  
+  // For specific license rules
+  licenseId       String?
+  license         License?  @relation(fields: [licenseId], references: [id])
+  
+  // For classification-based rules
+  classification  LicenseClassification?
+  
+  action          LicensePolicyAction
+  message         String?   // Custom message when rule triggers
+  priority        Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([policyId])
+  @@index([ruleType])
+}
+
+enum LicenseRuleType {
+  SPECIFIC_LICENSE     // Target specific license by SPDX ID
+  CLASSIFICATION       // Target license classification
+  UNKNOWN_LICENSE      // Target unknown/unrecognized licenses
+}
+
+enum LicensePolicyAction {
+  ALLOW   // Explicitly allow
+  WARN    // Allow but generate warning
+  BLOCK   // Block/fail policy check
+}
+

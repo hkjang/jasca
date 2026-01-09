@@ -22,6 +22,7 @@ import {
     Loader2,
     ChevronLeft,
     ChevronRight,
+    Scale,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -31,6 +32,7 @@ import {
     useDeleteProject,
     useOrganizations,
     Project,
+    useLicensesByProject,
 } from '@/lib/api-hooks';
 
 const riskLevelLabels: Record<string, { label: string; color: string }> = {
@@ -82,6 +84,11 @@ export default function AdminProjectsPage() {
     const createMutation = useCreateProject();
     const updateMutation = useUpdateProject();
     const deleteMutation = useDeleteProject();
+    
+    // Fetch licenses for viewing project
+    const { data: viewingProjectLicenses, isLoading: licensesLoading } = useLicensesByProject(
+        viewingProject?.id || ''
+    );
 
     const projects = projectsData?.data || [];
     const totalCount = projectsData?.total || 0;
@@ -706,6 +713,68 @@ export default function AdminProjectsPage() {
                                 <span className="text-slate-900 dark:text-white">
                                     {viewingProject.stats?.lastScanAt ? new Date(viewingProject.stats.lastScanAt).toLocaleString('ko-KR') : '-'}
                                 </span>
+                            </div>
+
+                            {/* License Summary */}
+                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Scale className="h-4 w-4 text-purple-600" />
+                                    <p className="text-xs text-slate-500">라이선스 현황</p>
+                                </div>
+                                {licensesLoading ? (
+                                    <div className="flex items-center justify-center py-4">
+                                        <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+                                    </div>
+                                ) : viewingProjectLicenses && viewingProjectLicenses.length > 0 ? (
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-4 gap-2 text-center">
+                                            <div className="bg-red-100 dark:bg-red-900/30 rounded-lg p-2">
+                                                <p className="text-lg font-bold text-red-600">
+                                                    {viewingProjectLicenses.filter(l => l.classification === 'FORBIDDEN').length}
+                                                </p>
+                                                <p className="text-xs text-red-600">금지</p>
+                                            </div>
+                                            <div className="bg-orange-100 dark:bg-orange-900/30 rounded-lg p-2">
+                                                <p className="text-lg font-bold text-orange-600">
+                                                    {viewingProjectLicenses.filter(l => l.classification === 'RESTRICTED').length}
+                                                </p>
+                                                <p className="text-xs text-orange-600">제한</p>
+                                            </div>
+                                            <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-2">
+                                                <p className="text-lg font-bold text-blue-600">
+                                                    {viewingProjectLicenses.filter(l => l.classification === 'NOTICE').length}
+                                                </p>
+                                                <p className="text-xs text-blue-600">고지</p>
+                                            </div>
+                                            <div className="bg-slate-200 dark:bg-slate-700 rounded-lg p-2">
+                                                <p className="text-lg font-bold text-slate-600 dark:text-slate-300">
+                                                    {viewingProjectLicenses.filter(l => l.classification === 'UNKNOWN').length}
+                                                </p>
+                                                <p className="text-xs text-slate-500">미확인</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1">
+                                            {viewingProjectLicenses.slice(0, 6).map((lic) => {
+                                                const colors: Record<string, string> = {
+                                                    FORBIDDEN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+                                                    RESTRICTED: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                                                    NOTICE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                                                    UNKNOWN: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
+                                                };
+                                                return (
+                                                    <span key={lic.id} className={`px-1.5 py-0.5 text-xs rounded ${colors[lic.classification] || colors.UNKNOWN}`}>
+                                                        {lic.spdxId}
+                                                    </span>
+                                                );
+                                            })}
+                                            {viewingProjectLicenses.length > 6 && (
+                                                <span className="text-xs text-slate-400">+{viewingProjectLicenses.length - 6}개</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-slate-400">라이선스 데이터 없음</p>
+                                )}
                             </div>
                         </div>
 
