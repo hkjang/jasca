@@ -67,7 +67,8 @@ fi
 # Auto-fix: Locate and Link server.js
 echo "Locating server.js..."
 TARGET_SERVER_JS="/app/apps/web/server.js"
-FOUND_SERVER_JS=$(find /app -name "server.js" -type f | head -n 1)
+# Find server.js excluding node_modules to avoid icons/libs
+FOUND_SERVER_JS=$(find /app -path "*/node_modules/*" -prune -o -name "server.js" -print | head -n 1)
 
 if [ -z "$FOUND_SERVER_JS" ]; then
     echo "CRITICAL ERROR: server.js not found in /app!"

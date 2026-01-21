@@ -56,6 +56,8 @@ RUN pnpm -r run prisma:generate
 RUN pnpm --filter api build
 # Build Web
 RUN pnpm --filter web build
+# DEBUG: List .next directory to verify standalone output
+RUN ls -R apps/web/.next || echo ".next not found"
 # Compile seed.ts to JavaScript for offline execution (using project tsconfig)
 RUN cd apps/api && npx tsc prisma/seed.ts --outDir prisma --skipLibCheck
 
