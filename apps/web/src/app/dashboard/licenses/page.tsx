@@ -28,6 +28,11 @@ import {
     FileSearch,
     Calendar,
     ExternalLink,
+    Lightbulb,
+    X,
+    BookOpen,
+    Scale,
+    Zap,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import {
@@ -106,6 +111,193 @@ function formatDate(dateString: string) {
     });
 }
 
+// Help Guide Modal for Licenses
+function LicenseHelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+    const [activeTab, setActiveTab] = useState<'classification' | 'terms' | 'tips'>('classification');
+    
+    if (!isOpen) return null;
+    
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <HelpCircle className="h-5 w-5 text-blue-500" /> 라이선스 관리 가이드
+                    </h3>
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+                
+                {/* Tabs */}
+                <div className="flex border-b border-slate-200 dark:border-slate-700">
+                    {[
+                        { id: 'classification', label: '분류 설명', icon: <Scale className="h-4 w-4" /> },
+                        { id: 'terms', label: '용어 해설', icon: <BookOpen className="h-4 w-4" /> },
+                        { id: 'tips', label: '사용 팁', icon: <Lightbulb className="h-4 w-4" /> },
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === tab.id
+                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+                
+                {/* Content */}
+                <div className="p-4 overflow-y-auto max-h-[calc(80vh-140px)]">
+                    {activeTab === 'classification' && (
+                        <div className="space-y-4">
+                            <p className="text-slate-600 dark:text-slate-400 text-sm">
+                                라이선스는 다음 7가지 분류로 구분됩니다. 위험도 순서대로 나열되어 있습니다.
+                            </p>
+                            <div className="space-y-3">
+                                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                    <div className="flex items-center gap-2 font-medium text-red-700 dark:text-red-400">
+                                        <Shield className="h-4 w-4" /> 금지 (FORBIDDEN)
+                                    </div>
+                                    <p className="text-sm text-red-600 dark:text-red-300 mt-1">
+                                        AGPL, SSPL 등 네트워크 환경에서 소스코드 공개 의무가 있는 라이선스입니다. 
+                                        <strong className="block mt-1">상업적 프로젝트에서는 사용을 금지합니다.</strong>
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                    <div className="flex items-center gap-2 font-medium text-orange-700 dark:text-orange-400">
+                                        <AlertTriangle className="h-4 w-4" /> 제한적 (RESTRICTED)
+                                    </div>
+                                    <p className="text-sm text-orange-600 dark:text-orange-300 mt-1">
+                                        GPL, CC-BY-NC, CC-BY-ND 등 강한 Copyleft 라이선스입니다. 수정 시 전체 소스코드 공개 의무가 있거나 상업적/파생저작물 제한이 있습니다.
+                                        <strong className="block mt-1">법적 검토 후 사용해야 합니다.</strong>
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                    <div className="flex items-center gap-2 font-medium text-yellow-700 dark:text-yellow-400">
+                                        <AlertCircle className="h-4 w-4" /> 상호적 (RECIPROCAL)
+                                    </div>
+                                    <p className="text-sm text-yellow-600 dark:text-yellow-300 mt-1">
+                                        LGPL, MPL, EPL, CC-BY-SA 등 약한 Copyleft 라이선스입니다. 수정된 파일만 공개하면 되는 경우가 많습니다.
+                                        <strong className="block mt-1">수정 시 해당 파일 공개 필요합니다.</strong>
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <div className="flex items-center gap-2 font-medium text-blue-700 dark:text-blue-400">
+                                        <Info className="h-4 w-4" /> 고지 (NOTICE)
+                                    </div>
+                                    <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
+                                        MIT, Apache, BSD, ISC, CC-BY, Python, OpenSSL 등 허용적 라이선스입니다. 
+                                        <strong className="block mt-1">저작권 표시와 라이선스 고지만 하면 자유롭게 사용 가능합니다.</strong>
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                    <div className="flex items-center gap-2 font-medium text-green-700 dark:text-green-400">
+                                        <CheckCircle className="h-4 w-4" /> 허용 / 무제한 (PERMISSIVE / UNENCUMBERED)
+                                    </div>
+                                    <p className="text-sm text-green-600 dark:text-green-300 mt-1">
+                                        CC0, Unlicense, 0BSD, WTFPL 등 Public Domain 또는 그에 준하는 라이선스입니다.
+                                        <strong className="block mt-1">제한 없이 자유롭게 사용 가능합니다.</strong>
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600">
+                                    <div className="flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300">
+                                        <HelpCircle className="h-4 w-4" /> 미확인 (UNKNOWN)
+                                    </div>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                        시스템에서 자동으로 분류하지 못한 라이선스입니다. 
+                                        <strong className="block mt-1">수동으로 확인하고 관리자에게 분류를 요청하세요.</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === 'terms' && (
+                        <div className="space-y-4">
+                            <p className="text-slate-600 dark:text-slate-400 text-sm">
+                                라이선스 관리에서 자주 사용되는 용어를 설명합니다.
+                            </p>
+                            <div className="grid gap-3">
+                                {[
+                                    { term: 'SPDX ID', desc: 'Software Package Data Exchange에서 정의한 표준 라이선스 식별자입니다. 예: MIT, Apache-2.0, GPL-3.0-only' },
+                                    { term: 'Copyleft', desc: '소스코드 공개 의무가 있는 라이선스입니다. 파생 저작물도 같은 라이선스로 배포해야 합니다.' },
+                                    { term: 'OSI Approved', desc: 'Open Source Initiative에서 오픈소스 정의에 부합한다고 승인한 라이선스입니다.' },
+                                    { term: 'FSF Libre', desc: 'Free Software Foundation에서 자유 소프트웨어 라이선스로 인정한 라이선스입니다.' },
+                                    { term: 'Permissive', desc: '제한이 거의 없는 허용적 라이선스입니다. 저작권 고지만 하면 상업적 사용이 가능합니다.' },
+                                    { term: 'Attribution', desc: '원저작자의 저작권을 표시해야 하는 의무입니다. 대부분의 오픈소스 라이선스에 있습니다.' },
+                                    { term: 'ShareAlike (SA)', desc: '파생 저작물을 같은 라이선스로 배포해야 하는 조건입니다.' },
+                                    { term: 'NonCommercial (NC)', desc: '상업적 목적으로 사용할 수 없는 조건입니다.' },
+                                    { term: 'NoDerivatives (ND)', desc: '원본을 변경할 수 없고 그대로만 사용해야 하는 조건입니다.' },
+                                ].map(item => (
+                                    <div key={item.term} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                        <div className="font-medium text-slate-900 dark:text-white">{item.term}</div>
+                                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">{item.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === 'tips' && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <Zap className="h-4 w-4" /> 빠른 분류 필터
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    "분류별 현황" 카드에서 원하는 분류를 클릭하면 해당 분류의 라이선스만 필터링됩니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <Database className="h-4 w-4" /> 기본 라이선스 등록
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    "기본 라이선스 등록" 버튼을 클릭하면 MIT, Apache, GPL 등 일반적인 라이선스가 사전 분류되어 등록됩니다. 
+                                    새 라이선스가 추가되면 이 버튼을 다시 클릭하세요.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <FolderKanban className="h-4 w-4" /> 프로젝트별 보기
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    "프로젝트별" 탭에서 각 프로젝트의 라이선스 현황을 한눈에 확인할 수 있습니다. 
+                                    위험 라이선스가 있는 프로젝트가 상단에 표시됩니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <Search className="h-4 w-4" /> 패키지 검색
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    "패키지 추적" 탭에서 패키지명이나 라이선스명으로 검색할 수 있습니다. 
+                                    특정 라이선스를 사용하는 모든 패키지를 찾을 때 유용합니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <AlertTriangle className="h-4 w-4" /> 미확인 라이선스 처리
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    미확인(UNKNOWN) 라이선스는 SPDX 표준에 없거나 시스템이 인식하지 못한 라이선스입니다. 
+                                    관리자에게 분류를 요청하거나, 원본 패키지의 라이선스 파일을 확인하세요.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function LicensesPage() {
     const searchParams = useSearchParams();
     const projectIdFromUrl = searchParams.get('projectId');
@@ -114,6 +306,7 @@ export default function LicensesPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClassification, setSelectedClassification] = useState<LicenseClassification | ''>('');
     const [projectIdFilter, setProjectIdFilter] = useState<string | null>(null);
+    const [showHelpModal, setShowHelpModal] = useState(false);
 
     const [trackedPage, setTrackedPage] = useState(0);
     const [projectPage, setProjectPage] = useState(0);
@@ -202,6 +395,13 @@ export default function LicensesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowHelpModal(true)}
+                        className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-blue-500"
+                        title="도움말"
+                    >
+                        <HelpCircle className="h-4 w-4" />
+                    </button>
                     <button
                         onClick={() => refetchStats()}
                         className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
@@ -791,6 +991,9 @@ export default function LicensesPage() {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Help Modal */}
+            <LicenseHelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
         </div>
     );
 }

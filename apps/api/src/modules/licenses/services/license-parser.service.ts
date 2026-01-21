@@ -168,35 +168,38 @@ export class LicenseParserService {
     classifyLicense(spdxId: string): LicenseClassification {
         const normalized = spdxId.toUpperCase().replace(/-/g, '').replace(/ /g, '');
 
-        // Forbidden - AGPL and similar
+        // Forbidden - AGPL and SSPL (network copyleft)
         if (normalized.includes('AGPL') || normalized.includes('SSPL')) {
             return 'FORBIDDEN';
         }
 
-        // Restricted - GPL family (strong copyleft)
+        // Restricted - Strong copyleft (GPL family, some CC licenses)
         if (
             (normalized.includes('GPL') && !normalized.includes('LGPL')) ||
             normalized.includes('CCBYNC') ||
             normalized.includes('CCBYND') ||
+            normalized.includes('CCBYNCND') ||
+            normalized.includes('CCBYNCSA') ||
             normalized.includes('OSL') ||
             normalized.includes('SLEEPYCAT')
         ) {
             return 'RESTRICTED';
         }
 
-        // Reciprocal - Weak copyleft
+        // Reciprocal - Weak copyleft (LGPL, MPL, EPL, CC-BY-SA, etc.)
         if (
             normalized.includes('LGPL') ||
             normalized.includes('MPL') ||
             normalized.includes('EPL') ||
             normalized.includes('CDDL') ||
             normalized.includes('CPL') ||
-            normalized.includes('APSL')
+            normalized.includes('APSL') ||
+            normalized.includes('CCBYSA')  // CC-BY-SA is share-alike (copyleft)
         ) {
             return 'RECIPROCAL';
         }
 
-        // Notice - Permissive with attribution
+        // Notice - Permissive with attribution (most common)
         if (
             normalized.includes('MIT') ||
             normalized.includes('APACHE') ||
@@ -205,9 +208,37 @@ export class LicenseParserService {
             normalized.includes('ZLIB') ||
             normalized.includes('ARTISTIC') ||
             normalized.includes('AFL') ||
-            normalized.includes('BSL1')
+            normalized.includes('BSL') ||
+            normalized.includes('PYTHON') ||       // Python-2.0, PSF-2.0
+            normalized.includes('PSF') ||          // PSF-2.0
+            normalized.includes('OPENSSL') ||      // OpenSSL
+            normalized.includes('SSLEAY') ||       // SSLeay (OpenSSL base)
+            normalized.includes('CCBY') ||         // CC-BY-* (attribution only, no SA/NC/ND)
+            normalized.includes('UNICODE') ||      // Unicode licenses
+            normalized.includes('CURL') ||         // curl license
+            normalized.includes('LIBPNG') ||       // libpng license
+            normalized.includes('LIBTIFF') ||      // libtiff license
+            normalized.includes('IMAGEMAGICK') ||  // ImageMagick license
+            normalized.includes('PHP') ||          // PHP License
+            normalized.includes('RUBY') ||         // Ruby License
+            normalized.includes('NCSA') ||         // NCSA/University of Illinois
+            normalized.includes('W3C') ||          // W3C license
+            normalized.includes('POSTGRESQL') ||   // PostgreSQL license
+            normalized.includes('X11') ||          // X11 license
+            normalized.includes('XFREE86') ||      // XFree86 license
+            normalized.includes('BOOST') ||        // Boost Software License
+            normalized.includes('JSON') ||         // JSON license
+            normalized.includes('OFL') ||          // SIL Open Font License
+            normalized.includes('FONTAWESOME')     // Font Awesome license
         ) {
-            return 'NOTICE';
+            // But exclude CC-BY-NC, CC-BY-ND, CC-BY-SA which are caught above
+            if (
+                !normalized.includes('CCBYNC') &&
+                !normalized.includes('CCBYND') &&
+                !normalized.includes('CCBYSA')
+            ) {
+                return 'NOTICE';
+            }
         }
 
         // Unencumbered - Public domain
@@ -216,7 +247,8 @@ export class LicenseParserService {
             normalized.includes('UNLICENSE') ||
             normalized.includes('0BSD') ||
             normalized.includes('PUBLICDOMAIN') ||
-            normalized.includes('WTFPL')
+            normalized.includes('WTFPL') ||
+            normalized.includes('BEERWARE')
         ) {
             return 'UNENCUMBERED';
         }

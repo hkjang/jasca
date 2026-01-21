@@ -281,30 +281,91 @@ export class LicensesService {
      * Get default classification for common licenses
      */
     private getDefaultClassification(spdxId: string): LicenseClassification {
-        const normalized = spdxId.toUpperCase().replace(/-/g, '');
+        const normalized = spdxId.toUpperCase().replace(/-/g, '').replace(/ /g, '');
 
-        // Forbidden licenses
-        if (['AGPL3.0', 'AGPL30ONLY', 'AGPL30ORLATER'].some(l => normalized.includes(l))) {
+        // Forbidden licenses (AGPL, SSPL - network copyleft)
+        if (['AGPL', 'SSPL'].some(l => normalized.includes(l))) {
             return 'FORBIDDEN';
         }
 
-        // Restricted licenses (Copyleft)
-        if (['GPL', 'LGPL', 'CC BY-NC', 'CC BY-ND', 'SLEEPYCAT', 'OSL'].some(l => normalized.includes(l.replace(/-/g, '').replace(/ /g, '')))) {
+        // Restricted licenses (Strong Copyleft - GPL family, some CC licenses)
+        if (
+            (normalized.includes('GPL') && !normalized.includes('LGPL')) ||
+            normalized.includes('CCBYNC') ||
+            normalized.includes('CCBYND') ||
+            normalized.includes('CCBYNCND') ||
+            normalized.includes('CCBYNCSA') ||
+            normalized.includes('SLEEPYCAT') ||
+            normalized.includes('OSL')
+        ) {
             return 'RESTRICTED';
         }
 
-        // Reciprocal licenses
-        if (['EPL', 'MPL', 'CDDL', 'CPL', 'APSL'].some(l => normalized.includes(l))) {
+        // Reciprocal licenses (Weak Copyleft - LGPL, MPL, EPL, etc.)
+        if (
+            normalized.includes('LGPL') ||
+            normalized.includes('MPL') ||
+            normalized.includes('EPL') ||
+            normalized.includes('CDDL') ||
+            normalized.includes('CPL') ||
+            normalized.includes('APSL') ||
+            normalized.includes('CCBYSA')  // CC-BY-SA is share-alike (copyleft)
+        ) {
             return 'RECIPROCAL';
         }
 
-        // Notice licenses (permissive with attribution)
-        if (['MIT', 'APACHE', 'BSD', 'ISC', 'ZLIB', 'WTFPL', 'ARTISTIC', 'AFL', 'BSL'].some(l => normalized.includes(l))) {
-            return 'NOTICE';
+        // Notice licenses (permissive with attribution) - most common
+        if (
+            normalized.includes('MIT') ||
+            normalized.includes('APACHE') ||
+            normalized.includes('BSD') ||
+            normalized.includes('ISC') ||
+            normalized.includes('ZLIB') ||
+            normalized.includes('WTFPL') ||
+            normalized.includes('ARTISTIC') ||
+            normalized.includes('AFL') ||
+            normalized.includes('BSL') ||
+            normalized.includes('PYTHON') ||       // Python-2.0, PSF-2.0
+            normalized.includes('PSF') ||          // PSF-2.0
+            normalized.includes('OPENSSL') ||      // OpenSSL
+            normalized.includes('SSLEAY') ||       // SSLeay (OpenSSL base)
+            normalized.includes('CCBY') ||         // CC-BY-* (attribution only, no SA/NC/ND)
+            normalized.includes('UNICODE') ||      // Unicode licenses
+            normalized.includes('CURL') ||         // curl license
+            normalized.includes('LIBPNG') ||       // libpng license
+            normalized.includes('LIBTIFF') ||      // libtiff license
+            normalized.includes('IMAGEMAGICK') ||  // ImageMagick license
+            normalized.includes('PHP') ||          // PHP License
+            normalized.includes('RUBY') ||         // Ruby License
+            normalized.includes('NCSA') ||         // NCSA/University of Illinois
+            normalized.includes('W3C') ||          // W3C license
+            normalized.includes('POSTGRESQL') ||   // PostgreSQL license
+            normalized.includes('X11') ||          // X11 license
+            normalized.includes('XFREE86') ||      // XFree86 license
+            normalized.includes('CRYPTOGRAPHYAUTONOMOUSLICENSE') ||  // CAL
+            normalized.includes('BOOST') ||        // Boost Software License
+            normalized.includes('JSON') ||         // JSON license
+            normalized.includes('OFL') ||          // SIL Open Font License
+            normalized.includes('FONTAWESOME')     // Font Awesome license
+        ) {
+            // But exclude CC-BY-NC, CC-BY-ND, CC-BY-SA which are caught above
+            if (
+                !normalized.includes('CCBYNC') &&
+                !normalized.includes('CCBYND') &&
+                !normalized.includes('CCBYSA')
+            ) {
+                return 'NOTICE';
+            }
         }
 
         // Unencumbered (public domain)
-        if (['CC0', 'UNLICENSE', '0BSD', 'PUBLICDOMAIN'].some(l => normalized.includes(l))) {
+        if (
+            normalized.includes('CC0') ||
+            normalized.includes('UNLICENSE') ||
+            normalized.includes('0BSD') ||
+            normalized.includes('PUBLICDOMAIN') ||
+            normalized.includes('BEERWARE')
+        ) {
             return 'UNENCUMBERED';
         }
 
@@ -321,26 +382,70 @@ export class LicensesService {
             { spdxId: 'Apache-2.0', name: 'Apache License 2.0', classification: 'NOTICE' as const, osiApproved: true },
             { spdxId: 'BSD-2-Clause', name: 'BSD 2-Clause "Simplified" License', classification: 'NOTICE' as const, osiApproved: true },
             { spdxId: 'BSD-3-Clause', name: 'BSD 3-Clause "New" or "Revised" License', classification: 'NOTICE' as const, osiApproved: true },
+            { spdxId: 'BSD-4-Clause', name: 'BSD 4-Clause "Original" License', classification: 'NOTICE' as const },
             { spdxId: 'ISC', name: 'ISC License', classification: 'NOTICE' as const, osiApproved: true },
-
-            // Restricted (Copyleft)
-            { spdxId: 'GPL-2.0-only', name: 'GNU General Public License v2.0 only', classification: 'RESTRICTED' as const, osiApproved: true, fsfLibre: true },
-            { spdxId: 'GPL-3.0-only', name: 'GNU General Public License v3.0 only', classification: 'RESTRICTED' as const, osiApproved: true, fsfLibre: true },
-            { spdxId: 'LGPL-2.1-only', name: 'GNU Lesser General Public License v2.1 only', classification: 'RESTRICTED' as const, osiApproved: true, fsfLibre: true },
-            { spdxId: 'LGPL-3.0-only', name: 'GNU Lesser General Public License v3.0 only', classification: 'RESTRICTED' as const, osiApproved: true, fsfLibre: true },
-
-            // Reciprocal
+            { spdxId: 'Zlib', name: 'zlib License', classification: 'NOTICE' as const, osiApproved: true },
+            { spdxId: 'Artistic-2.0', name: 'Artistic License 2.0', classification: 'NOTICE' as const, osiApproved: true },
+            
+            // Creative Commons (permissive with attribution)
+            { spdxId: 'CC-BY-3.0', name: 'Creative Commons Attribution 3.0', classification: 'NOTICE' as const },
+            { spdxId: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0 International', classification: 'NOTICE' as const },
+            
+            // Python licenses
+            { spdxId: 'Python-2.0', name: 'Python License 2.0', classification: 'NOTICE' as const },
+            { spdxId: 'PSF-2.0', name: 'Python Software Foundation License 2.0', classification: 'NOTICE' as const },
+            
+            // OpenSSL and related
+            { spdxId: 'OpenSSL', name: 'OpenSSL License', classification: 'NOTICE' as const },
+            { spdxId: 'SSLeay-standalone', name: 'SSLeay License (standalone)', classification: 'NOTICE' as const },
+            
+            // Other permissive licenses commonly seen in scans
+            { spdxId: 'Curl', name: 'curl License', classification: 'NOTICE' as const },
+            { spdxId: 'Libpng', name: 'libpng License', classification: 'NOTICE' as const },
+            { spdxId: 'libtiff', name: 'libtiff License', classification: 'NOTICE' as const },
+            { spdxId: 'ImageMagick', name: 'ImageMagick License', classification: 'NOTICE' as const },
+            { spdxId: 'PHP-3.01', name: 'PHP License v3.01', classification: 'NOTICE' as const, osiApproved: true },
+            { spdxId: 'Ruby', name: 'Ruby License', classification: 'NOTICE' as const },
+            { spdxId: 'NCSA', name: 'University of Illinois/NCSA Open Source License', classification: 'NOTICE' as const, osiApproved: true },
+            { spdxId: 'W3C', name: 'W3C Software Notice and License', classification: 'NOTICE' as const, osiApproved: true },
+            { spdxId: 'PostgreSQL', name: 'PostgreSQL License', classification: 'NOTICE' as const, osiApproved: true },
+            { spdxId: 'X11', name: 'X11 License', classification: 'NOTICE' as const },
+            { spdxId: 'BSL-1.0', name: 'Boost Software License 1.0', classification: 'NOTICE' as const, osiApproved: true },
+            { spdxId: 'JSON', name: 'JSON License', classification: 'NOTICE' as const },
+            { spdxId: 'OFL-1.1', name: 'SIL Open Font License 1.1', classification: 'NOTICE' as const, osiApproved: true },
+            { spdxId: 'Unicode-DFS-2016', name: 'Unicode License Agreement - Data Files and Software (2016)', classification: 'NOTICE' as const },
+            { spdxId: 'Unicode-3.0', name: 'Unicode License v3', classification: 'NOTICE' as const },
+            
+            // Reciprocal (Weak Copyleft)
+            { spdxId: 'LGPL-2.1-only', name: 'GNU Lesser General Public License v2.1 only', classification: 'RECIPROCAL' as const, osiApproved: true, fsfLibre: true },
+            { spdxId: 'LGPL-3.0-only', name: 'GNU Lesser General Public License v3.0 only', classification: 'RECIPROCAL' as const, osiApproved: true, fsfLibre: true },
             { spdxId: 'MPL-2.0', name: 'Mozilla Public License 2.0', classification: 'RECIPROCAL' as const, osiApproved: true },
             { spdxId: 'EPL-2.0', name: 'Eclipse Public License 2.0', classification: 'RECIPROCAL' as const, osiApproved: true },
+            { spdxId: 'EPL-1.0', name: 'Eclipse Public License 1.0', classification: 'RECIPROCAL' as const, osiApproved: true },
             { spdxId: 'CDDL-1.0', name: 'Common Development and Distribution License 1.0', classification: 'RECIPROCAL' as const, osiApproved: true },
+            { spdxId: 'CC-BY-SA-4.0', name: 'Creative Commons Attribution ShareAlike 4.0', classification: 'RECIPROCAL' as const },
 
-            // Forbidden
+            // Restricted (Strong Copyleft)
+            { spdxId: 'GPL-2.0-only', name: 'GNU General Public License v2.0 only', classification: 'RESTRICTED' as const, osiApproved: true, fsfLibre: true },
+            { spdxId: 'GPL-2.0-or-later', name: 'GNU General Public License v2.0 or later', classification: 'RESTRICTED' as const, osiApproved: true, fsfLibre: true },
+            { spdxId: 'GPL-3.0-only', name: 'GNU General Public License v3.0 only', classification: 'RESTRICTED' as const, osiApproved: true, fsfLibre: true },
+            { spdxId: 'GPL-3.0-or-later', name: 'GNU General Public License v3.0 or later', classification: 'RESTRICTED' as const, osiApproved: true, fsfLibre: true },
+            { spdxId: 'CC-BY-NC-4.0', name: 'Creative Commons Attribution NonCommercial 4.0', classification: 'RESTRICTED' as const },
+            { spdxId: 'CC-BY-ND-4.0', name: 'Creative Commons Attribution NoDerivatives 4.0', classification: 'RESTRICTED' as const },
+            { spdxId: 'CC-BY-NC-SA-4.0', name: 'Creative Commons Attribution NonCommercial ShareAlike 4.0', classification: 'RESTRICTED' as const },
+            { spdxId: 'CC-BY-NC-ND-4.0', name: 'Creative Commons Attribution NonCommercial NoDerivatives 4.0', classification: 'RESTRICTED' as const },
+
+            // Forbidden (Network Copyleft)
             { spdxId: 'AGPL-3.0-only', name: 'GNU Affero General Public License v3.0 only', classification: 'FORBIDDEN' as const, osiApproved: true, fsfLibre: true },
+            { spdxId: 'AGPL-3.0-or-later', name: 'GNU Affero General Public License v3.0 or later', classification: 'FORBIDDEN' as const, osiApproved: true, fsfLibre: true },
+            { spdxId: 'SSPL-1.0', name: 'Server Side Public License v1', classification: 'FORBIDDEN' as const },
 
-            // Unencumbered
+            // Unencumbered (Public Domain)
             { spdxId: 'CC0-1.0', name: 'Creative Commons Zero v1.0 Universal', classification: 'UNENCUMBERED' as const },
             { spdxId: 'Unlicense', name: 'The Unlicense', classification: 'UNENCUMBERED' as const, osiApproved: true },
             { spdxId: '0BSD', name: 'BSD Zero Clause License', classification: 'UNENCUMBERED' as const, osiApproved: true },
+            { spdxId: 'WTFPL', name: 'Do What The F*ck You Want To Public License', classification: 'UNENCUMBERED' as const },
+            { spdxId: 'Beerware', name: 'Beerware License', classification: 'UNENCUMBERED' as const },
         ];
 
         for (const license of defaultLicenses) {
