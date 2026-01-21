@@ -41,7 +41,7 @@ export default function ScanDiffPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const scanId = params.id as string;
-    const compareId = searchParams.get('compareWith') || '';
+    const compareId = searchParams.get('compare') || '';
 
     const [showUnchanged, setShowUnchanged] = useState(false);
     const [selectedCompareId, setSelectedCompareId] = useState(compareId);

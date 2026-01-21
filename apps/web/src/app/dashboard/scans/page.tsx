@@ -990,7 +990,9 @@ export default function ScansPage() {
                                                     {scan.targetName || scan.imageRef || scan.artifactName || 'Unknown'}
                                                 </p>
                                                 <p className="text-sm text-slate-500">
-                                                    {scan.scanType || scan.artifactType || '-'}
+                                                    {scan.artifactType === 'filesystem' ? '📁 파일시스템' : 
+                                                     scan.artifactType === 'container_image' ? '🐳 컨테이너' : 
+                                                     scan.scanType || scan.artifactType || '-'}
                                                 </p>
                                             </div>
                                         </div>
@@ -1072,7 +1074,13 @@ export default function ScansPage() {
                                         <h3 className="font-medium text-slate-900 dark:text-white line-clamp-1">
                                             {scan.targetName || scan.imageRef || scan.artifactName || 'Unknown'}
                                         </h3>
-                                        <p className="text-xs text-slate-500">{scan.project?.name || '-'}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-xs text-slate-500">{scan.project?.name || '-'}</p>
+                                            <span className="text-xs text-slate-400">
+                                                {scan.artifactType === 'filesystem' ? '📁' : 
+                                                 scan.artifactType === 'container_image' ? '🐳' : ''}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                                 {getStatusBadge(scan.status)}

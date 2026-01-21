@@ -17,7 +17,6 @@ import {
     Loader2,
     FolderKanban,
     Bell,
-    BarChart3,
     Map,
     Database,
     Key,
@@ -50,7 +49,7 @@ const allNavigation: NavItem[] = [
     { name: '라이선스', href: '/dashboard/licenses', icon: Scale, roles: 'all' },
     { name: 'Trivy DB', href: '/dashboard/trivy-db', icon: Database, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
     { name: '정책', href: '/dashboard/policies', icon: FileText, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
-    { name: '리포트', href: '/dashboard/reports', icon: BarChart3, roles: ['SYSTEM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'] },
+
     { name: 'API 토큰', href: '/dashboard/api-tokens', icon: Key, roles: 'all' },
     { name: '연동 가이드', href: '/dashboard/guide', icon: Book, roles: 'all' },
     { name: '알림', href: '/dashboard/notifications', icon: Bell, roles: 'all' },

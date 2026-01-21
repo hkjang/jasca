@@ -406,7 +406,7 @@ export interface Vulnerability {
     installedVersion: string;
     fixedVersion?: string;
     severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
-    status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'WONT_FIX' | 'FALSE_POSITIVE';
+    status: 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'FIX_SUBMITTED' | 'VERIFYING' | 'FIXED' | 'CLOSED' | 'IGNORED' | 'FALSE_POSITIVE';
     title: string;
     description?: string;
     assigneeId?: string;

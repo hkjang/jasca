@@ -190,9 +190,22 @@ export default function ScanDetailPage() {
                         </p>
                     </div>
                     <div>
-                        <span className="text-sm text-slate-500 dark:text-slate-400">이미지</span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">
+                            {(scan as any).artifactType === 'filesystem' ? '스캔 경로' : '이미지'}
+                        </span>
                         <p className="font-medium text-slate-900 dark:text-white truncate">
-                            {(scan as any).imageRef || '-'}
+                            {(() => {
+                                const path = (scan as any).artifactType === 'filesystem' 
+                                    ? ((scan as any).artifactName || (scan as any).imageRef)
+                                    : (scan as any).imageRef;
+                                // Handle '.' or empty paths for filesystem scans
+                                if (!path || path === '.') {
+                                    return (scan as any).artifactType === 'filesystem' 
+                                        ? '현재 디렉토리 (.)'
+                                        : '-';
+                                }
+                                return path;
+                            })()}
                         </p>
                     </div>
                     <div>

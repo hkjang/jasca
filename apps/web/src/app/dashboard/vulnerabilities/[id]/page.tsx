@@ -48,8 +48,9 @@ function getStatusBadge(status: string) {
     const config: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
         OPEN: { icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600 bg-red-50 dark:bg-red-900/20', label: '미해결' },
         IN_PROGRESS: { icon: <Clock className="h-4 w-4" />, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20', label: '진행 중' },
-        RESOLVED: { icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600 bg-green-50 dark:bg-green-900/20', label: '해결됨' },
-        WONT_FIX: { icon: <XCircle className="h-4 w-4" />, color: 'text-slate-600 bg-slate-50 dark:bg-slate-700', label: '수정 안함' },
+        FIXED: { icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600 bg-green-50 dark:bg-green-900/20', label: '수정됨' },
+        CLOSED: { icon: <CheckCircle className="h-4 w-4" />, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20', label: '종료됨' },
+        IGNORED: { icon: <XCircle className="h-4 w-4" />, color: 'text-slate-600 bg-slate-50 dark:bg-slate-700', label: '무시' },
         FALSE_POSITIVE: { icon: <Shield className="h-4 w-4" />, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20', label: '오탐' },
     };
     const { icon, color, label } = config[status] || config.OPEN;
@@ -427,7 +428,7 @@ export default function VulnerabilityDetailPage() {
                             </button>
                         </div>
                         <div className="space-y-2 mb-6">
-                            {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'WONT_FIX', 'FALSE_POSITIVE'].map(status => (
+                            {['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED', 'IGNORED', 'FALSE_POSITIVE'].map(status => (
                                 <button
                                     key={status}
                                     onClick={() => setSelectedStatus(status)}
@@ -439,8 +440,9 @@ export default function VulnerabilityDetailPage() {
                                 >
                                     {status === 'OPEN' && '미해결 (OPEN)'}
                                     {status === 'IN_PROGRESS' && '진행 중 (IN_PROGRESS)'}
-                                    {status === 'RESOLVED' && '해결됨 (RESOLVED)'}
-                                    {status === 'WONT_FIX' && '수정 안함 (WONT_FIX)'}
+                                    {status === 'FIXED' && '수정됨 (FIXED)'}
+                                    {status === 'CLOSED' && '종료됨 (CLOSED)'}
+                                    {status === 'IGNORED' && '무시 (IGNORED)'}
                                     {status === 'FALSE_POSITIVE' && '오탐 (FALSE_POSITIVE)'}
                                 </button>
                             ))}

@@ -58,7 +58,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle';
 
 const SEVERITY_OPTIONS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
-const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'WONT_FIX', 'FALSE_POSITIVE'];
+const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED', 'IGNORED', 'FALSE_POSITIVE'];
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -91,8 +91,9 @@ function getStatusBadge(status: string) {
     const config: Record<string, { icon: React.ReactNode; color: string }> = {
         OPEN: { icon: <AlertTriangle className="h-3 w-3" />, color: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
         IN_PROGRESS: { icon: <Clock className="h-3 w-3" />, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
-        RESOLVED: { icon: <CheckCircle className="h-3 w-3" />, color: 'text-green-600 bg-green-50 dark:bg-green-900/20' },
-        WONT_FIX: { icon: <XCircle className="h-3 w-3" />, color: 'text-slate-600 bg-slate-50 dark:bg-slate-700' },
+        FIXED: { icon: <CheckCircle className="h-3 w-3" />, color: 'text-green-600 bg-green-50 dark:bg-green-900/20' },
+        CLOSED: { icon: <CheckCircle className="h-3 w-3" />, color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20' },
+        IGNORED: { icon: <XCircle className="h-3 w-3" />, color: 'text-slate-600 bg-slate-50 dark:bg-slate-700' },
         FALSE_POSITIVE: { icon: <Shield className="h-3 w-3" />, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20' },
     };
     const { icon, color } = config[status] || config.OPEN;
@@ -289,7 +290,7 @@ export default function AdminVulnerabilitiesPage() {
             medium: vulnerabilities.filter((v: Vulnerability) => v.severity === 'MEDIUM').length,
             low: vulnerabilities.filter((v: Vulnerability) => v.severity === 'LOW').length,
             open: vulnerabilities.filter((v: Vulnerability) => v.status === 'OPEN').length,
-            resolved: vulnerabilities.filter((v: Vulnerability) => v.status === 'RESOLVED').length,
+            resolved: vulnerabilities.filter((v: Vulnerability) => v.status === 'FIXED' || v.status === 'CLOSED').length,
         };
     }, [statsOverview, totalCount, vulnerabilities]);
 
@@ -455,7 +456,7 @@ export default function AdminVulnerabilitiesPage() {
                 <StatCard title="Medium" value={stats.medium} icon={<AlertTriangle className="h-5 w-5" />} color="yellow" onClick={() => toggleFilter('severity', 'MEDIUM')} active={filters.severity?.includes('MEDIUM')} />
                 <StatCard title="Low" value={stats.low} icon={<Shield className="h-5 w-5" />} color="blue" onClick={() => toggleFilter('severity', 'LOW')} active={filters.severity?.includes('LOW')} />
                 <StatCard title="미해결" value={stats.open} icon={<XCircle className="h-5 w-5" />} color="purple" onClick={() => toggleFilter('status', 'OPEN')} active={filters.status?.includes('OPEN')} />
-                <StatCard title="해결됨" value={stats.resolved} icon={<CheckCircle className="h-5 w-5" />} color="green" onClick={() => toggleFilter('status', 'RESOLVED')} active={filters.status?.includes('RESOLVED')} />
+                <StatCard title="해결됨" value={stats.resolved} icon={<CheckCircle className="h-5 w-5" />} color="green" onClick={() => toggleFilter('status', 'FIXED')} active={filters.status?.includes('FIXED')} />
             </div>
 
             {/* Charts */}

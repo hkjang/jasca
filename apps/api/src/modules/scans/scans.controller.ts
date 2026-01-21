@@ -99,9 +99,16 @@ export class ScansController {
             tag: tag,
         };
 
-        // Capture source info
-        const uploaderIp = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
-        const userAgent = req.headers['user-agent'] || 'unknown';
+        // Capture source info - handle various IP formats
+        const forwarded = req.headers['x-forwarded-for'];
+        const forwardedIp = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+        let uploaderIp = forwardedIp || req.ip || req.socket?.remoteAddress;
+        // Normalize localhost representations
+        if (uploaderIp === '::1' || uploaderIp === '::ffff:127.0.0.1') {
+            uploaderIp = '127.0.0.1';
+        }
+        uploaderIp = uploaderIp || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'API Client';
         const uploadedById = user?.id;
 
         // The body IS the Trivy result
@@ -148,9 +155,16 @@ export class ScansController {
             ciJobUrl: body.ciJobUrl,
         };
 
-        // Capture upload source info
-        const uploaderIp = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
-        const userAgent = req.headers['user-agent'] || 'unknown';
+        // Capture upload source info - handle various IP formats
+        const forwarded = req.headers['x-forwarded-for'];
+        const forwardedIp = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+        let uploaderIp = forwardedIp || req.ip || req.socket?.remoteAddress;
+        // Normalize localhost representations
+        if (uploaderIp === '::1' || uploaderIp === '::ffff:127.0.0.1') {
+            uploaderIp = '127.0.0.1';
+        }
+        uploaderIp = uploaderIp || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'Browser Upload';
         const uploadedById = (req as any).user?.id;
 
         const rawResult = JSON.parse(file.buffer.toString('utf-8'));
@@ -173,9 +187,16 @@ export class ScansController {
         @Body() body: { metadata: UploadScanDto; result: any },
         @Req() req: Request,
     ) {
-        // Capture upload source info
-        const uploaderIp = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
-        const userAgent = req.headers['user-agent'] || 'unknown';
+        // Capture upload source info - handle various IP formats
+        const forwarded = req.headers['x-forwarded-for'];
+        const forwardedIp = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+        let uploaderIp = forwardedIp || req.ip || req.socket?.remoteAddress;
+        // Normalize localhost representations
+        if (uploaderIp === '::1' || uploaderIp === '::ffff:127.0.0.1') {
+            uploaderIp = '127.0.0.1';
+        }
+        uploaderIp = uploaderIp || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'API Client';
         const uploadedById = (req as any).user?.id;
 
         return this.scansService.uploadScan(projectId, body.metadata, body.result, {
