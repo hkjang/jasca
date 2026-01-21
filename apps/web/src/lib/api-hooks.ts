@@ -432,6 +432,7 @@ export interface VulnerabilitiesFilter {
     pageSize?: number;
     sortBy?: 'severity' | 'cveId' | 'pkgName' | 'status' | 'createdAt';
     sortOrder?: 'asc' | 'desc';
+    latestScanOnly?: boolean;
 }
 
 export function useVulnerabilities(filters?: VulnerabilitiesFilter) {
@@ -461,7 +462,12 @@ export function useVulnerabilities(filters?: VulnerabilitiesFilter) {
                 params.set('sortBy', filters.sortBy);
                 params.set('sortOrder', filters?.sortOrder || 'asc');
             }
+            // Latest scan only filter
+            if (filters?.latestScanOnly) {
+                params.set('latestScanOnly', 'true');
+            }
             const response = await authFetch(`${API_BASE}/vulnerabilities?${params.toString()}`);
+
             
             // Transform API response: flatten vulnerability relation data
             // API returns scanVulnerability with nested vulnerability object

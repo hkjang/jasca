@@ -33,6 +33,7 @@ export class VulnerabilitiesController {
     @ApiQuery({ name: 'offset', required: false, type: Number })
     @ApiQuery({ name: 'sortBy', required: false, enum: ['severity', 'cveId', 'pkgName', 'status', 'createdAt'] })
     @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
+    @ApiQuery({ name: 'latestScanOnly', required: false, type: Boolean, description: 'If true, only show vulnerabilities from the latest scan per project' })
     async findAll(
         @Query('projectId') projectId?: string,
         @Query('severity') severity?: Severity | Severity[],
@@ -43,6 +44,7 @@ export class VulnerabilitiesController {
         @Query('offset') offset?: string,
         @Query('sortBy') sortBy?: 'severity' | 'cveId' | 'pkgName' | 'status' | 'createdAt',
         @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+        @Query('latestScanOnly') latestScanOnly?: string,
     ) {
         const severityArr = severity
             ? Array.isArray(severity)
@@ -62,9 +64,11 @@ export class VulnerabilitiesController {
                 offset: offset ? parseInt(offset, 10) : undefined,
                 sortBy,
                 sortOrder,
+                latestScanOnly: latestScanOnly === 'true',
             },
         );
     }
+
 
     @Get(':id')
     @ApiOperation({ summary: 'Get vulnerability by ID' })

@@ -24,8 +24,24 @@ export class VulnerabilitiesService {
         offset?: number;
         sortBy?: 'severity' | 'cveId' | 'pkgName' | 'status' | 'createdAt';
         sortOrder?: 'asc' | 'desc';
+        latestScanOnly?: boolean;
     }) {
         const where: any = {};
+
+        // If latestScanOnly is true, we need to filter by the latest scan per project
+        if (options?.latestScanOnly) {
+            // Get the latest scan ID for each project
+            const latestScans = await this.prisma.$queryRaw<Array<{ id: string }>>`
+                SELECT DISTINCT ON ("projectId") id 
+                FROM "ScanResult" 
+                ORDER BY "projectId", "createdAt" DESC
+            `;
+            
+            if (latestScans.length > 0) {
+                const latestScanIds = latestScans.map(s => s.id);
+                where.scanResultId = { in: latestScanIds };
+            }
+        }
 
         if (filter.severity?.length) {
             where.vulnerability = { severity: { in: filter.severity } };

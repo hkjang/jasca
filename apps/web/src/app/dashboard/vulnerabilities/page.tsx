@@ -35,7 +35,11 @@ import {
     Zap,
     Timer,
     ExternalLink,
+    HelpCircle,
+    Info,
+    Lightbulb,
 } from 'lucide-react';
+
 import {
     PieChart,
     Pie,
@@ -71,10 +75,11 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 const QUICK_FILTERS = [
-    { id: 'critical-only', label: 'Critical만', severity: ['CRITICAL'], status: undefined },
-    { id: 'high-critical', label: 'High+', severity: ['CRITICAL', 'HIGH'], status: undefined },
-    { id: 'open-only', label: '미해결만', severity: undefined, status: ['OPEN'] },
-    { id: 'in-progress', label: '진행중', severity: undefined, status: ['IN_PROGRESS'] },
+    { id: 'critical-only', label: 'Critical만', severity: ['CRITICAL'], status: undefined, latestScanOnly: undefined },
+    { id: 'high-critical', label: 'High+', severity: ['CRITICAL', 'HIGH'], status: undefined, latestScanOnly: undefined },
+    { id: 'open-only', label: '미해결만', severity: undefined, status: ['OPEN'], latestScanOnly: undefined },
+    { id: 'in-progress', label: '진행중', severity: undefined, status: ['IN_PROGRESS'], latestScanOnly: undefined },
+    { id: 'latest-scan', label: '최신 스캔만', severity: undefined, status: undefined, latestScanOnly: true },
 ];
 
 type SortField = 'severity' | 'status' | 'cveId' | 'pkgName' | 'createdAt';
@@ -303,9 +308,204 @@ function KeyboardShortcutsModal({ isOpen, onClose }: { isOpen: boolean; onClose:
     );
 }
 
+// Help Guide Modal
+function HelpGuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+    const [activeTab, setActiveTab] = useState<'filters' | 'status' | 'workflow' | 'tips'>('filters');
+    
+    if (!isOpen) return null;
+    
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <HelpCircle className="h-5 w-5 text-blue-500" /> 취약점 관리 가이드
+                    </h3>
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+                
+                {/* Tabs */}
+                <div className="flex border-b border-slate-200 dark:border-slate-700">
+                    {[
+                        { id: 'filters', label: '빠른 필터', icon: <Zap className="h-4 w-4" /> },
+                        { id: 'status', label: '상태 설명', icon: <Info className="h-4 w-4" /> },
+                        { id: 'workflow', label: '워크플로우', icon: <RefreshCw className="h-4 w-4" /> },
+                        { id: 'tips', label: '사용 팁', icon: <Lightbulb className="h-4 w-4" /> },
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                activeTab === tab.id
+                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+                
+                {/* Content */}
+                <div className="p-4 overflow-y-auto max-h-[calc(80vh-140px)]">
+                    {activeTab === 'filters' && (
+                        <div className="space-y-4">
+                            <p className="text-slate-600 dark:text-slate-400 text-sm">
+                                빠른 필터를 사용하여 원하는 취약점을 빠르게 찾을 수 있습니다.
+                            </p>
+                            <div className="space-y-3">
+                                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                    <div className="flex items-center gap-2 font-medium text-red-700 dark:text-red-400">
+                                        <Shield className="h-4 w-4" /> Critical만
+                                    </div>
+                                    <p className="text-sm text-red-600 dark:text-red-300 mt-1">가장 심각한 CRITICAL 등급 취약점만 표시합니다. 즉시 조치가 필요합니다.</p>
+                                </div>
+                                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                    <div className="flex items-center gap-2 font-medium text-orange-700 dark:text-orange-400">
+                                        <AlertTriangle className="h-4 w-4" /> High+
+                                    </div>
+                                    <p className="text-sm text-orange-600 dark:text-orange-300 mt-1">CRITICAL과 HIGH 등급 취약점을 함께 표시합니다. 우선 처리 대상입니다.</p>
+                                </div>
+                                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    <div className="flex items-center gap-2 font-medium text-purple-700 dark:text-purple-400">
+                                        <XCircle className="h-4 w-4" /> 미해결만
+                                    </div>
+                                    <p className="text-sm text-purple-600 dark:text-purple-300 mt-1">아직 해결되지 않은 OPEN 상태의 취약점만 표시합니다.</p>
+                                </div>
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <div className="flex items-center gap-2 font-medium text-blue-700 dark:text-blue-400">
+                                        <Clock className="h-4 w-4" /> 진행중
+                                    </div>
+                                    <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">현재 수정 작업이 진행 중인 취약점을 표시합니다.</p>
+                                </div>
+                                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                    <div className="flex items-center gap-2 font-medium text-green-700 dark:text-green-400">
+                                        <CheckCircle className="h-4 w-4" /> 최신 스캔만
+                                    </div>
+                                    <p className="text-sm text-green-600 dark:text-green-300 mt-1">각 프로젝트의 가장 최신 스캔 결과에서 발견된 취약점만 표시합니다. 과거 스캔의 중복 취약점을 제외할 때 유용합니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === 'status' && (
+                        <div className="space-y-4">
+                            <p className="text-slate-600 dark:text-slate-400 text-sm">
+                                취약점 상태는 처리 진행 상황을 나타냅니다.
+                            </p>
+                            <div className="grid gap-2">
+                                {[
+                                    { status: 'OPEN', label: '미해결', desc: '새로 발견되어 아직 처리되지 않은 상태', color: 'text-red-600 bg-red-50 dark:bg-red-900/30' },
+                                    { status: 'ASSIGNED', label: '할당됨', desc: '담당자가 지정되어 검토 예정인 상태', color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30' },
+                                    { status: 'IN_PROGRESS', label: '진행중', desc: '수정 작업이 진행 중인 상태', color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' },
+                                    { status: 'FIX_SUBMITTED', label: '수정 제출', desc: '수정 코드가 제출되어 검증 대기 중', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' },
+                                    { status: 'VERIFYING', label: '검증중', desc: '수정 사항을 검증하고 있는 상태', color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/30' },
+                                    { status: 'FIXED', label: '해결됨', desc: '수정이 완료되어 취약점이 해결된 상태', color: 'text-green-600 bg-green-50 dark:bg-green-900/30' },
+                                    { status: 'CLOSED', label: '종료', desc: '처리가 완전히 완료되어 종료된 상태', color: 'text-teal-600 bg-teal-50 dark:bg-teal-900/30' },
+                                    { status: 'IGNORED', label: '무시', desc: '위험도가 낮거나 해당 환경에 적용되지 않아 무시 처리', color: 'text-slate-600 bg-slate-50 dark:bg-slate-700' },
+                                    { status: 'FALSE_POSITIVE', label: '오탐', desc: '분석 결과 실제 취약점이 아닌 것으로 판명', color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/30' },
+                                ].map(item => (
+                                    <div key={item.status} className={`p-3 rounded-lg ${item.color}`}>
+                                        <div className="font-medium">{item.label} <span className="text-xs opacity-70">({item.status})</span></div>
+                                        <p className="text-sm mt-0.5 opacity-80">{item.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === 'workflow' && (
+                        <div className="space-y-4">
+                            <p className="text-slate-600 dark:text-slate-400 text-sm">
+                                취약점은 아래 워크플로우에 따라 처리됩니다.
+                            </p>
+                            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4">
+                                <div className="flex flex-col items-center space-y-2">
+                                    <div className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg font-medium text-sm">OPEN</div>
+                                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    <div className="px-4 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg font-medium text-sm">ASSIGNED</div>
+                                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg font-medium text-sm">IN_PROGRESS</div>
+                                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    <div className="px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg font-medium text-sm">FIX_SUBMITTED</div>
+                                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    <div className="px-4 py-2 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-lg font-medium text-sm">VERIFYING</div>
+                                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    <div className="px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg font-medium text-sm">FIXED → CLOSED</div>
+                                </div>
+                            </div>
+                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <div className="flex items-center gap-2 font-medium text-blue-700 dark:text-blue-400">
+                                    <Info className="h-4 w-4" /> 자동 상태 변경
+                                </div>
+                                <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
+                                    새 스캔 업로드 시, 이전 스캔에서 발견되었지만 새 스캔에서는 발견되지 않는 취약점은 자동으로 <strong>FIXED</strong> 상태로 변경됩니다.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === 'tips' && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <Keyboard className="h-4 w-4" /> 키보드 단축키 사용
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-xs">?</kbd> 키를 눌러 키보드 단축키를 확인하세요. 
+                                    <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-xs mx-1">j/k</kbd>로 이동, 
+                                    <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-xs">Enter</kbd>로 상세 보기가 가능합니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <CheckSquare className="h-4 w-4" /> 일괄 처리
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    여러 취약점을 선택한 후 "상태 변경" 버튼으로 일괄 처리할 수 있습니다. 
+                                    <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-xs mx-1">Space</kbd>로 선택/해제합니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <Search className="h-4 w-4" /> 검색 활용
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-xs">/</kbd> 키로 검색창에 바로 포커스합니다. 
+                                    CVE ID나 패키지명으로 빠르게 검색할 수 있습니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <Download className="h-4 w-4" /> 데이터 내보내기
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    "내보내기" 버튼으로 CSV 또는 JSON 형식으로 데이터를 다운로드할 수 있습니다. 선택된 항목만 내보내기도 가능합니다.
+                                </p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                                <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                                    <RefreshCw className="h-4 w-4" /> 자동 새로고침
+                                </h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    자동 새로고침 기능을 활성화하면 설정한 간격으로 데이터가 자동 갱신됩니다. 실시간 모니터링에 유용합니다.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function VulnerabilitiesPage() {
     const router = useRouter();
-    const [filters, setFilters] = useState<{ severity?: string[]; status?: string[] }>({});
+    const [filters, setFilters] = useState<{ severity?: string[]; status?: string[]; latestScanOnly?: boolean }>({});
     const [showFilters, setShowFilters] = useState(false);
     const [editingStatus, setEditingStatus] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -325,6 +525,7 @@ export default function VulnerabilitiesPage() {
     // Keyboard navigation
     const [focusedIndex, setFocusedIndex] = useState(-1);
     const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+    const [showHelpModal, setShowHelpModal] = useState(false);
     
     // Quick filter
     const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
@@ -538,7 +739,7 @@ export default function VulnerabilitiesPage() {
             setFilters({});
             setActiveQuickFilter(null);
         } else {
-            setFilters({ severity: f.severity, status: f.status });
+            setFilters({ severity: f.severity, status: f.status, latestScanOnly: f.latestScanOnly });
             setActiveQuickFilter(f.id);
         }
         setCurrentPage(1);
@@ -611,6 +812,8 @@ export default function VulnerabilitiesPage() {
                     </div>
                     <ThemeToggle />
                     <button onClick={() => setShowShortcutsModal(true)} className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700" title="키보드 단축키 (?)"><Keyboard className="h-4 w-4" /></button>
+                    <button onClick={() => setShowHelpModal(true)} className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-blue-500" title="도움말"><HelpCircle className="h-4 w-4" /></button>
+
                     <AiButton action="vuln.priorityReorder" variant="primary" size="md" estimatedTokens={estimatedTokens} loading={aiLoading} onExecute={handleAiPriorityReorder} onCancel={cancelAi} />
                     <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30' : 'bg-white border-slate-200 text-slate-700 dark:bg-slate-800'}`}><Filter className="h-4 w-4" /> 필터</button>
                     <div className="relative">
@@ -768,7 +971,9 @@ export default function VulnerabilitiesPage() {
 
             {/* Modals */}
             <KeyboardShortcutsModal isOpen={showShortcutsModal} onClose={() => setShowShortcutsModal(false)} />
+            <HelpGuideModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
             <AiResultPanel isOpen={activePanel?.key === 'vuln.priorityReorder'} onClose={closePanel} result={aiResult} previousResults={aiPreviousResults} loading={aiLoading} loadingProgress={aiProgress} onRegenerate={handleAiPriorityReorder} action="vuln.priorityReorder" />
+
         </div>
     );
 }

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TrivyParserService, ParsedScanResult } from './services/trivy-parser.service';
+import { VulnSyncService } from './services/vuln-sync.service';
 import { LicenseParserService } from '../licenses/services/license-parser.service';
 import { UploadScanDto } from './dto/upload-scan.dto';
 import * as crypto from 'crypto';
@@ -13,6 +14,7 @@ export class ScansService {
         private readonly prisma: PrismaService,
         private readonly trivyParser: TrivyParserService,
         private readonly licenseParser: LicenseParserService,
+        private readonly vulnSyncService: VulnSyncService,
     ) { }
 
     async findAll(projectId?: string, options?: { limit?: number; offset?: number }) {
@@ -183,8 +185,23 @@ export class ScansService {
             },
         });
 
-        // Process vulnerabilities
-        await this.processVulnerabilities(scanResult.id, parsed.vulnerabilities);
+        // Process vulnerabilities and collect hashes for sync
+        const newVulnHashes = await this.processVulnerabilities(scanResult.id, parsed.vulnerabilities);
+
+        // Sync resolved vulnerabilities (auto-mark FIXED if not in new scan)
+        try {
+            const syncResult = await this.vulnSyncService.syncResolvedVulnerabilities(
+                resolvedProjectId,
+                scanResult.id,
+                newVulnHashes,
+            );
+            if (syncResult.resolvedCount > 0) {
+                this.logger.log(`Auto-resolved ${syncResult.resolvedCount} vulnerabilities for project ${resolvedProjectId}`);
+            }
+        } catch (error) {
+            this.logger.warn(`Failed to sync resolved vulnerabilities: ${error.message}`);
+            // Don't fail the scan upload if sync fails
+        }
 
         // Process licenses from packages
         try {
@@ -311,7 +328,9 @@ export class ScansService {
     private async processVulnerabilities(
         scanResultId: string,
         vulnerabilities: ParsedScanResult['vulnerabilities'],
-    ) {
+    ): Promise<Set<string>> {
+        const vulnHashes = new Set<string>();
+
         for (const vuln of vulnerabilities) {
             // Upsert vulnerability (CVE)
             await this.prisma.vulnerability.upsert({
@@ -349,6 +368,7 @@ export class ScansService {
 
             // Create vulnerability hash for deduplication
             const vulnHash = this.generateVulnHash(vuln.cveId, vuln.pkgName, vuln.pkgVersion);
+            vulnHashes.add(vulnHash);
 
             // Create scan-vulnerability mapping
             await this.prisma.scanVulnerability.upsert({
@@ -375,7 +395,10 @@ export class ScansService {
                 },
             });
         }
+
+        return vulnHashes;
     }
+
 
     private generateVulnHash(cveId: string, pkgName: string, pkgVersion: string): string {
         const data = `${cveId}:${pkgName}:${pkgVersion}`;
