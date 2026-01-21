@@ -64,39 +64,5 @@ if [ -z "$(ls -A "$PG_DATA")" ]; then
     echo "Database initialization complete."
 fi
 
-# Auto-fix: Locate and Link server.js
-echo "Locating server.js..."
-TARGET_SERVER_JS="/app/apps/web/server.js"
-# Find server.js excluding node_modules to avoid icons/libs
-FOUND_SERVER_JS=$(find /app -path "*/node_modules/*" -prune -o -name "server.js" -print | head -n 1)
-
-if [ -z "$FOUND_SERVER_JS" ]; then
-    echo "CRITICAL ERROR: server.js not found in /app!"
-    echo "Listing /app contents for debugging:"
-    ls -R /app | head -n 50
-    # Do not exit, let supervisord try (and fail) so logs are visible, or exit?
-    # Better to exit or sleep to prevent restart loop spam if desired, but failure is honest.
-else
-    echo "Found server.js at: $FOUND_SERVER_JS"
-    if [ "$FOUND_SERVER_JS" != "$TARGET_SERVER_JS" ]; then
-        echo "WARNING: Path mismatch. Expected $TARGET_SERVER_JS. Creating symlink..."
-        mkdir -p "$(dirname "$TARGET_SERVER_JS")"
-        ln -sf "$FOUND_SERVER_JS" "$TARGET_SERVER_JS"
-        echo "Symlink created."
-    else
-        echo "server.js is in the correct location."
-    fi
-fi
-
-# Debug: Check for 'next' module
-echo "Checking for 'next' module..."
-if [ -d "/app/node_modules/next" ]; then
-    echo "SUCCESS: 'next' module found in /app/node_modules"
-else
-    echo "ERROR: 'next' module NOT found in /app/node_modules"
-    echo "Listing /app/node_modules:"
-    ls -F /app/node_modules | head -n 20
-fi
-
 # Execute the passed command (usually supervisord)
 exec "$@"

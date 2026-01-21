@@ -25,7 +25,7 @@ ENV TZ=Asia/Seoul
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Install Node.js 20
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g pnpm
 
@@ -36,8 +36,8 @@ WORKDIR /app
 FROM base AS prod-deps
 WORKDIR /app
 COPY . .
-# Force flat node_modules structure (npm-style) for Docker compatibility
-RUN echo "node-linker=hoisted" > .npmrc
+# Force hoisting to ensure simple node_modules structure for copying
+RUN echo "shamefully-hoist=true" > .npmrc
 RUN pnpm install --frozen-lockfile
 # Generate prisma client (requires dev deps)
 RUN pnpm -r run prisma:generate
@@ -56,8 +56,6 @@ RUN pnpm -r run prisma:generate
 RUN pnpm --filter api build
 # Build Web
 RUN pnpm --filter web build
-# DEBUG: List .next directory to verify standalone output
-RUN ls -R apps/web/.next || echo ".next not found"
 # Compile seed.ts to JavaScript for offline execution (using project tsconfig)
 RUN cd apps/api && npx tsc prisma/seed.ts --outDir prisma --skipLibCheck
 
