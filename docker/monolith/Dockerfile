@@ -36,8 +36,8 @@ WORKDIR /app
 FROM base AS prod-deps
 WORKDIR /app
 COPY . .
-# Force hoisting to ensure simple node_modules structure for copying
-RUN echo "shamefully-hoist=true" > .npmrc
+# Force flat node_modules structure (npm-style) for Docker compatibility
+RUN echo "node-linker=hoisted" > .npmrc
 RUN pnpm install --frozen-lockfile
 # Generate prisma client (requires dev deps)
 RUN pnpm -r run prisma:generate

@@ -88,5 +88,15 @@ else
     fi
 fi
 
+# Debug: Check for 'next' module
+echo "Checking for 'next' module..."
+if [ -d "/app/node_modules/next" ]; then
+    echo "SUCCESS: 'next' module found in /app/node_modules"
+else
+    echo "ERROR: 'next' module NOT found in /app/node_modules"
+    echo "Listing /app/node_modules:"
+    ls -F /app/node_modules | head -n 20
+fi
+
 # Execute the passed command (usually supervisord)
 exec "$@"
