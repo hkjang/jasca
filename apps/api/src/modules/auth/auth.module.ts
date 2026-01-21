@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -8,6 +8,7 @@ import { ApiTokenController } from './api-token.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ApiKeyStrategy } from './strategies/api-key.strategy';
 import { UsersModule } from '../users/users.module';
+import { SettingsModule } from '../settings/settings.module';
 
 // Auth extension services
 import { MfaService } from './services/mfa.service';
@@ -19,6 +20,7 @@ import { EmailVerificationService } from './services/email-verification.service'
 import { InvitationService } from './services/invitation.service';
 import { ApiTokenService } from './services/api-token.service';
 import { KeycloakService } from './services/keycloak.service';
+import { LdapService } from './services/ldap.service';
 
 @Module({
     imports: [
@@ -34,6 +36,7 @@ import { KeycloakService } from './services/keycloak.service';
             inject: [ConfigService],
         }),
         UsersModule,
+        forwardRef(() => SettingsModule),
     ],
     controllers: [AuthController, ApiTokenController],
     providers: [
@@ -50,6 +53,7 @@ import { KeycloakService } from './services/keycloak.service';
         InvitationService,
         ApiTokenService,
         KeycloakService,
+        LdapService,
     ],
     exports: [
         AuthService,
@@ -63,6 +67,7 @@ import { KeycloakService } from './services/keycloak.service';
         InvitationService,
         ApiTokenService,
         KeycloakService,
+        LdapService,
     ],
 })
 export class AuthModule { }

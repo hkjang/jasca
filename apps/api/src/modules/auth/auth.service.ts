@@ -5,6 +5,8 @@ import {
     BadRequestException,
     ForbiddenException,
     Logger,
+    Inject,
+    forwardRef,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -16,6 +18,8 @@ import { LoginHistoryService } from './services/login-history.service';
 import { PasswordPolicyService } from './services/password-policy.service';
 import { IpControlService } from './services/ip-control.service';
 import { EmailVerificationService } from './services/email-verification.service';
+import { SettingsService } from '../settings/settings.service';
+import { LdapService, LdapConfig } from './services/ldap.service';
 
 export interface JwtPayload {
     sub: string;
@@ -51,6 +55,8 @@ export class AuthService {
         private readonly passwordPolicyService: PasswordPolicyService,
         private readonly ipControlService: IpControlService,
         private readonly emailVerificationService: EmailVerificationService,
+        private readonly ldapService: LdapService,
+        @Inject(forwardRef(() => SettingsService)) private readonly settingsService: SettingsService,
     ) { }
 
     async register(dto: RegisterDto): Promise<TokenResponse> {
@@ -138,7 +144,32 @@ export class AuthService {
             }
         }
 
-        const isPasswordValid = await this.passwordPolicyService.verifyPassword(dto.password, user.passwordHash);
+        let isPasswordValid = await this.passwordPolicyService.verifyPassword(dto.password, user.passwordHash);
+
+        // Try LDAP if local password failed
+        if (!isPasswordValid) {
+            try {
+                const ldapSettings = await this.settingsService.get('ldap') as LdapConfig;
+                if (ldapSettings?.enabled) {
+                    const isLdapValid = await this.ldapService.verifyPassword(ldapSettings, user.email, dto.password);
+                    if (isLdapValid) {
+                        isPasswordValid = true;
+                        // Sync password to local DB for fallback and faster subsequent logins
+                        try {
+                            const passwordHash = await this.passwordPolicyService.hashPassword(dto.password);
+                            await this.prisma.user.update({
+                                where: { id: user.id },
+                                data: { passwordHash, passwordChangedAt: new Date() }
+                            });
+                        } catch (e) {
+                            this.logger.warn('Failed to update password hash from LDAP login', e);
+                        }
+                    }
+                }
+            } catch (error) {
+                this.logger.warn('LDAP authentication attempt failed', error);
+            }
+        }
 
         if (!isPasswordValid) {
             await this.loginHistoryService.recordLoginAttempt({

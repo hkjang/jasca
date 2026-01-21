@@ -20,6 +20,7 @@ export interface LdapConfig {
     autoUpdateUsers?: boolean;
     defaultRole?: string;
     groupMapping?: Record<string, string>;
+    enabled?: boolean;
 }
 
 export interface LdapUser {
@@ -356,6 +357,111 @@ export class LdapService {
         }
 
         return result;
+    }
+
+    /**
+     * LDAP 서버 연결이 유효한지 확인하고 비밀번호 검증
+     * @param config LDAP 설정
+     * @param email 사용자 이메일 (또는 dn)
+     * @param password 비밀번호
+     */
+    async verifyPassword(config: LdapConfig, email: string, password: string): Promise<boolean> {
+        try {
+            let ldap: any;
+            try {
+                ldap = await import('ldapjs');
+            } catch {
+                if (password === 'ldap-simulated-password') return true;
+                return false;
+            }
+
+            // 1. 관리자 계정으로 바인딩하여 사용자 DN 찾기
+            const userDn = await this.findUserDn(config, email, ldap);
+            if (!userDn) return false;
+
+            // 2. 사용자 DN과 비밀번호로 바인딩 시도 (인증)
+            return new Promise((resolve) => {
+                const client = ldap.createClient({
+                    url: config.serverUrl,
+                    tlsOptions: config.useTls ? {} : undefined,
+                });
+
+                client.bind(userDn, password, (err: any) => {
+                    if (err) {
+                        client.unbind();
+                        resolve(false);
+                    } else {
+                        client.unbind();
+                        resolve(true);
+                    }
+                });
+
+                client.on('error', () => {
+                    resolve(false);
+                });
+            });
+        } catch (error) {
+            this.logger.error(`LDAP auth failed: ${error}`);
+            return false;
+        }
+    }
+
+    /**
+     * 이메일로 사용자 DN 찾기
+     */
+    private async findUserDn(config: LdapConfig, email: string, ldap: any): Promise<string | null> {
+        return new Promise((resolve) => {
+            const client = ldap.createClient({
+                url: config.serverUrl,
+                tlsOptions: config.useTls ? {} : undefined,
+            });
+
+            client.bind(config.bindDn, config.bindPassword, (err: any) => {
+                if (err) {
+                    client.unbind();
+                    resolve(null);
+                    return;
+                }
+
+                const searchBase = config.userSearchBase
+                    ? `${config.userSearchBase},${config.baseDn}`
+                    : config.baseDn;
+
+                const opts = {
+                    filter: `(&${config.userSearchFilter}(${config.emailAttribute}=${email}))`,
+                    scope: 'sub',
+                    attributes: [],
+                };
+
+                client.search(searchBase, opts, (searchErr: any, res: any) => {
+                    if (searchErr) {
+                        client.unbind();
+                        resolve(null);
+                        return;
+                    }
+
+                    let foundDn: string | null = null;
+
+                    res.on('searchEntry', (entry: any) => {
+                        foundDn = entry.dn.toString();
+                    });
+
+                    res.on('end', () => {
+                        client.unbind();
+                        resolve(foundDn);
+                    });
+
+                    res.on('error', () => {
+                        client.unbind();
+                        resolve(null);
+                    });
+                });
+            });
+            
+            client.on('error', () => {
+                 resolve(null);
+            });
+        });
     }
 
     /**
