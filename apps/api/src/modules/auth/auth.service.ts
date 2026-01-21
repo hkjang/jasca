@@ -18,7 +18,7 @@ import { LoginHistoryService } from './services/login-history.service';
 import { PasswordPolicyService } from './services/password-policy.service';
 import { IpControlService } from './services/ip-control.service';
 import { EmailVerificationService } from './services/email-verification.service';
-import { SettingsService } from '../settings/settings.service';
+import { SettingsService } from '@/modules/settings/settings.service';
 import { LdapService, LdapConfig } from './services/ldap.service';
 
 export interface JwtPayload {
