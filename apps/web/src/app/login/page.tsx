@@ -7,12 +7,28 @@ import { Shield, Mail, Lock, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/lib/auth-api';
 
-// SSO Provider icons (simplified)
-const SsoProviders = [
-    { id: 'google', name: 'Google', icon: '🔵', color: 'hover:bg-red-50 dark:hover:bg-red-900/20' },
-    { id: 'github', name: 'GitHub', icon: '⚫', color: 'hover:bg-slate-100 dark:hover:bg-slate-700' },
-    { id: 'microsoft', name: 'Microsoft', icon: '🟦', color: 'hover:bg-blue-50 dark:hover:bg-blue-900/20' },
-];
+// SSO Provider configs
+const SsoProviderConfigs = {
+    google: { name: 'Google', icon: '🔵', color: 'hover:bg-red-50 dark:hover:bg-red-900/20' },
+    github: { name: 'GitHub', icon: '⚫', color: 'hover:bg-slate-100 dark:hover:bg-slate-700' },
+    microsoft: { name: 'Microsoft', icon: '🟦', color: 'hover:bg-blue-50 dark:hover:bg-blue-900/20' },
+    keycloak: { name: 'Keycloak', icon: '🔐', color: 'hover:bg-orange-50 dark:hover:bg-orange-900/20' },
+};
+
+interface PublicSsoSettings {
+    enabled: boolean;
+    providers: {
+        google: boolean;
+        github: boolean;
+        microsoft: boolean;
+        keycloak: boolean;
+    };
+    keycloakConfig?: {
+        serverUrl: string;
+        realm: string;
+        clientId: string;
+    };
+}
 
 export default function LoginPage() {
     const router = useRouter();
@@ -22,6 +38,26 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [mfaCode, setMfaCode] = useState('');
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+    const [ssoSettings, setSsoSettings] = useState<PublicSsoSettings | null>(null);
+    const [ssoLoading, setSsoLoading] = useState(true);
+
+    // SSO 설정 조회
+    useEffect(() => {
+        const fetchSsoSettings = async () => {
+            try {
+                const response = await fetch('/api/settings/sso/public');
+                if (response.ok) {
+                    const data = await response.json();
+                    setSsoSettings(data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch SSO settings:', error);
+            } finally {
+                setSsoLoading(false);
+            }
+        };
+        fetchSsoSettings();
+    }, []);
 
     // 이미 로그인된 상태라면 대시보드로 리다이렉트
     useEffect(() => {
@@ -111,6 +147,16 @@ export default function LoginPage() {
         }
     };
 
+    // 활성화된 SSO providers 목록
+    const enabledProviders = ssoSettings?.enabled
+        ? Object.entries(ssoSettings.providers)
+            .filter(([_, enabled]) => enabled)
+            .map(([id]) => ({
+                id,
+                ...SsoProviderConfigs[id as keyof typeof SsoProviderConfigs],
+            }))
+        : [];
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
@@ -137,31 +183,40 @@ export default function LoginPage() {
 
                     {!requiresMfa ? (
                         <>
-                            {/* SSO Options */}
-                            <div className="space-y-3 mb-6">
-                                <p className="text-sm text-slate-400 text-center">SSO로 로그인</p>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {SsoProviders.map((provider) => (
-                                        <button
-                                            key={provider.id}
-                                            onClick={() => handleSsoLogin(provider.id)}
-                                            className={`flex flex-col items-center gap-1 p-3 border border-slate-600 rounded-lg transition-colors ${provider.color}`}
-                                        >
-                                            <span className="text-xl">{provider.icon}</span>
-                                            <span className="text-xs text-slate-400">{provider.name}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                            {/* SSO Options - 설정에 따라 조건부 렌더링 */}
+                            {!ssoLoading && enabledProviders.length > 0 && (
+                                <>
+                                    <div className="space-y-3 mb-6">
+                                        <p className="text-sm text-slate-400 text-center">SSO로 로그인</p>
+                                        <div className={`grid gap-3 ${
+                                            enabledProviders.length === 1 ? 'grid-cols-1' :
+                                            enabledProviders.length === 2 ? 'grid-cols-2' :
+                                            enabledProviders.length === 3 ? 'grid-cols-3' :
+                                            'grid-cols-2 md:grid-cols-4'
+                                        }`}>
+                                            {enabledProviders.map((provider) => (
+                                                <button
+                                                    key={provider.id}
+                                                    onClick={() => handleSsoLogin(provider.id)}
+                                                    className={`flex flex-col items-center gap-1 p-3 border border-slate-600 rounded-lg transition-colors ${provider.color}`}
+                                                >
+                                                    <span className="text-xl">{provider.icon}</span>
+                                                    <span className="text-xs text-slate-400">{provider.name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
 
-                            <div className="relative mb-6">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-slate-700" />
-                                </div>
-                                <div className="relative flex justify-center text-sm">
-                                    <span className="px-2 bg-slate-800/50 text-slate-500">또는 이메일로 로그인</span>
-                                </div>
-                            </div>
+                                    <div className="relative mb-6">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <div className="w-full border-t border-slate-700" />
+                                        </div>
+                                        <div className="relative flex justify-center text-sm">
+                                            <span className="px-2 bg-slate-800/50 text-slate-500">또는 이메일로 로그인</span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             <form onSubmit={handleLogin} className="space-y-5">
                                 <div>

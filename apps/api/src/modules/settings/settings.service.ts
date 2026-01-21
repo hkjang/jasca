@@ -40,6 +40,30 @@ const defaultSettings: Record<string, unknown> = {
         enableAutoSummary: true,
         enableRemediationGuide: true,
     },
+    sso: {
+        enabled: false, // SSO 전역 활성화 여부 (기본: 비활성화)
+        providers: {
+            google: { enabled: false, clientId: '', clientSecret: '' },
+            github: { enabled: false, clientId: '', clientSecret: '' },
+            microsoft: { enabled: false, clientId: '', clientSecret: '', tenantId: '' },
+            keycloak: { enabled: false },
+        },
+    },
+    keycloak: {
+        enabled: false,
+        serverUrl: '',           // Keycloak 서버 URL (예: https://keycloak.example.com)
+        realm: '',               // Realm 이름
+        clientId: '',            // OIDC Client ID
+        clientSecret: '',        // OIDC Client Secret
+        syncEnabled: false,      // 계정 동기화 활성화
+        syncInterval: 3600,      // 동기화 주기 (초, 기본: 1시간)
+        autoCreateUsers: false,  // 신규 사용자 자동 생성
+        autoUpdateUsers: true,   // 기존 사용자 정보 자동 업데이트
+        defaultRole: 'VIEWER',   // 기본 역할
+        groupMapping: {},        // Keycloak 그룹 → JASCA 역할 매핑
+        lastSyncAt: null,        // 마지막 동기화 시간
+        lastSyncResult: null,    // 마지막 동기화 결과
+    },
 
 };
 

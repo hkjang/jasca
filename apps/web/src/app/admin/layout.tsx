@@ -28,6 +28,7 @@ import {
     Database,
     Scale,
     Code2,
+    KeyRound,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHasMounted } from '@/hooks/use-has-mounted';
@@ -46,6 +47,7 @@ const adminNavigation = [
 ];
 
 const systemNavigation = [
+    { name: 'SSO 설정', href: '/admin/sso-settings', icon: KeyRound },
     { name: 'API 토큰', href: '/admin/api-tokens', icon: Key },
     { name: 'Trivy 설정', href: '/admin/trivy-settings', icon: Cpu },
     { name: 'CI 연동', href: '/admin/ci-integration', icon: LinkIcon },

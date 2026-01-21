@@ -18,6 +18,7 @@ import { IpControlService } from './services/ip-control.service';
 import { EmailVerificationService } from './services/email-verification.service';
 import { InvitationService } from './services/invitation.service';
 import { ApiTokenService } from './services/api-token.service';
+import { KeycloakService } from './services/keycloak.service';
 
 @Module({
     imports: [
@@ -48,6 +49,7 @@ import { ApiTokenService } from './services/api-token.service';
         EmailVerificationService,
         InvitationService,
         ApiTokenService,
+        KeycloakService,
     ],
     exports: [
         AuthService,
@@ -60,6 +62,7 @@ import { ApiTokenService } from './services/api-token.service';
         EmailVerificationService,
         InvitationService,
         ApiTokenService,
+        KeycloakService,
     ],
 })
 export class AuthModule { }
