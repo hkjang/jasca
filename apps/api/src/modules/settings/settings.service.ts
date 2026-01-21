@@ -64,6 +64,31 @@ const defaultSettings: Record<string, unknown> = {
         lastSyncAt: null,        // 마지막 동기화 시간
         lastSyncResult: null,    // 마지막 동기화 결과
     },
+    ldap: {
+        enabled: false,
+        serverUrl: '',           // LDAP 서버 URL (예: ldap://ldap.example.com:389)
+        bindDn: '',              // Bind DN (예: cn=admin,dc=example,dc=com)
+        bindPassword: '',        // Bind 비밀번호
+        baseDn: '',              // 검색 Base DN (예: dc=example,dc=com)
+        userSearchBase: '',      // 사용자 검색 Base (예: ou=users)
+        userSearchFilter: '(objectClass=inetOrgPerson)', // 사용자 검색 필터
+        usernameAttribute: 'uid',       // 사용자 ID 속성
+        emailAttribute: 'mail',          // 이메일 속성
+        nameAttribute: 'cn',             // 이름 속성
+        groupSearchBase: '',             // 그룹 검색 Base (예: ou=groups)
+        groupSearchFilter: '(objectClass=groupOfNames)', // 그룹 검색 필터
+        groupMemberAttribute: 'member',  // 그룹 멤버 속성
+        useTls: false,                   // TLS 사용 여부
+        tlsOptions: {},                  // TLS 옵션
+        syncEnabled: false,              // 계정 동기화 활성화
+        syncInterval: 3600,              // 동기화 주기 (초)
+        autoCreateUsers: false,          // 신규 사용자 자동 생성
+        autoUpdateUsers: true,           // 기존 사용자 정보 자동 업데이트
+        defaultRole: 'VIEWER',           // 기본 역할
+        groupMapping: {},                // LDAP 그룹 → JASCA 역할 매핑
+        lastSyncAt: null,                // 마지막 동기화 시간
+        lastSyncResult: null,            // 마지막 동기화 결과
+    },
 
 };
 
