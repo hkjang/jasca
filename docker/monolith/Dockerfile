@@ -87,16 +87,18 @@ COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/prisma/seed.js ./apps/api/prisma/seed.js
 
 # Copy Web artifacts (Standalone)
-# In monorepo, Next.js standalone build creates: apps/web/.next/standalone/apps/web/server.js
-# We copy the standalone folder content to /app, which preserves the apps/web/server.js structure
+# Next.js standalone build output: server.js is at the root of the standalone folder
 COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-# apps/web/public does not exist, so skipping
-# Verify the server.js location after copy
-RUN echo "=== Checking web server.js location ===" && \
-    ls -la apps/web/ 2>/dev/null || echo "apps/web/ not found" && \
-    ls -la . | head -20 && \
-    find . -path "*/node_modules" -prune -o -name "server.js" -type f -print 2>/dev/null | head -5
+COPY --from=builder /app/apps/web/.next/static ./.next/static
+
+# Ensure server.js is accessible and create fallback symlink for compatibility
+RUN echo "=== Verifying server.js location ===" && \
+    ls -la server.js && \
+    echo "server.js found at /app/server.js" && \
+    # Create apps/web directory structure and symlink for backward compatibility
+    mkdir -p apps/web && \
+    ln -sf /app/server.js /app/apps/web/server.js && \
+    echo "Created symlink: /app/apps/web/server.js -> /app/server.js"
 
 
 # Copy Configs
