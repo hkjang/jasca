@@ -76,8 +76,31 @@ RUN mkdir -p /app/trivy-db
 COPY trivy-d[b] /app/trivy-db/
 ENV TRIVY_CACHE_DIR=/app/trivy-db
 
-# Copy production node_modules from prod-deps
+# Copy Web artifacts (Standalone) FIRST to avoid node_modules conflicts
+# Next.js standalone build output: server.js is at the root of the standalone folder
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./.next/static
+
+# Preserve standalone's node_modules (contains 'next' and required deps)
+RUN mv node_modules node_modules_web
+
+# Copy production node_modules from prod-deps (for API)
 COPY --from=prod-deps /app/node_modules ./node_modules
+
+# Merge web's node_modules into main node_modules (copy missing modules)
+RUN cp -rn node_modules_web/* node_modules/ 2>/dev/null || true && \
+    rm -rf node_modules_web && \
+    echo "=== Verifying next module ===" && \
+    ls -la node_modules/next && \
+    echo "next module found"
+
+# Ensure server.js is accessible and create fallback symlink for compatibility
+RUN echo "=== Verifying server.js location ===" && \
+    ls -la server.js && \
+    echo "server.js found at /app/server.js" && \
+    mkdir -p apps/web && \
+    ln -sf /app/server.js /app/apps/web/server.js && \
+    echo "Created symlink: /app/apps/web/server.js -> /app/server.js"
 
 # Copy API artifacts
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
@@ -85,20 +108,6 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 # Copy compiled seed.js
 COPY --from=builder /app/apps/api/prisma/seed.js ./apps/api/prisma/seed.js
-
-# Copy Web artifacts (Standalone)
-# Next.js standalone build output: server.js is at the root of the standalone folder
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./.next/static
-
-# Ensure server.js is accessible and create fallback symlink for compatibility
-RUN echo "=== Verifying server.js location ===" && \
-    ls -la server.js && \
-    echo "server.js found at /app/server.js" && \
-    # Create apps/web directory structure and symlink for backward compatibility
-    mkdir -p apps/web && \
-    ln -sf /app/server.js /app/apps/web/server.js && \
-    echo "Created symlink: /app/apps/web/server.js -> /app/server.js"
 
 
 # Copy Configs
