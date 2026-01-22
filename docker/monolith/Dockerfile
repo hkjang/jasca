@@ -87,10 +87,16 @@ COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/prisma/seed.js ./apps/api/prisma/seed.js
 
 # Copy Web artifacts (Standalone)
-# Next.js standalone folder puts files in a structure like .next/standalone/apps/web/server.js
+# In monorepo, Next.js standalone build creates: apps/web/.next/standalone/apps/web/server.js
+# We copy the standalone folder content to /app, which preserves the apps/web/server.js structure
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 # apps/web/public does not exist, so skipping
+# Verify the server.js location after copy
+RUN echo "=== Checking web server.js location ===" && \
+    ls -la apps/web/ 2>/dev/null || echo "apps/web/ not found" && \
+    ls -la . | head -20 && \
+    find . -path "*/node_modules" -prune -o -name "server.js" -type f -print 2>/dev/null | head -5
 
 
 # Copy Configs
