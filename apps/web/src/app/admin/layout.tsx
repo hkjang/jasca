@@ -58,6 +58,7 @@ const systemNavigation = [
     { name: 'AI 사용 기록', href: '/admin/ai-history', icon: BarChart3 },
     { name: 'API Explorer', href: '/admin/api-explorer', icon: Code2 },
     { name: '스키마/ERD', href: '/admin/schema', icon: Database },
+    { name: 'DB 관리', href: '/admin/database', icon: Database },
     { name: '사이트맵', href: '/admin/sitemap', icon: Map },
 ];
 

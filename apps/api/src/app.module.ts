@@ -26,6 +26,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { TrivyDbModule } from './modules/trivy-db/trivy-db.module';
 import { ExceptionsModule } from './modules/exceptions/exceptions.module';
 import { LicensesModule } from './modules/licenses/licenses.module';
+import { DatabaseModule } from './modules/database/database.module';
 
 @Module({
     imports: [
@@ -59,6 +60,7 @@ import { LicensesModule } from './modules/licenses/licenses.module';
         TrivyDbModule,
         ExceptionsModule,
         LicensesModule,
+        DatabaseModule,
     ],
 })
 export class AppModule { }
