@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
     Shield,
     LayoutDashboard,
@@ -71,8 +71,9 @@ export default function DashboardLayout({
 }) {
     const pathname = usePathname();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [collapsed, setCollapsed] = useState(false);
-    const { user, isAuthenticated, refreshToken, logout } = useAuthStore();
+    const { user, isAuthenticated, refreshToken, logout, setTokens, setUser } = useAuthStore();
     const hasMounted = useHasMounted();
 
     // Get user roles from user object
@@ -84,6 +85,37 @@ export default function DashboardLayout({
 
     // Filter navigation based on user role
     const navigation = useMemo(() => getNavigationForRole(userRoles), [userRoles]);
+
+    // Handle SSO callback tokens from URL
+    useEffect(() => {
+        const accessToken = searchParams.get('accessToken');
+        const refreshTokenParam = searchParams.get('refreshToken');
+
+        if (accessToken && refreshTokenParam) {
+            // Store tokens from SSO callback
+            setTokens(accessToken, refreshTokenParam);
+
+            // Decode JWT to get user info
+            try {
+                const payload = JSON.parse(atob(accessToken.split('.')[1]));
+                setUser({
+                    id: payload.sub,
+                    email: payload.email,
+                    name: payload.email?.split('@')[0] || 'User',
+                    organizationId: payload.organizationId,
+                    roles: payload.roles || [],
+                });
+            } catch (e) {
+                console.error('Failed to decode JWT:', e);
+            }
+
+            // Clean URL by removing token params
+            const url = new URL(window.location.href);
+            url.searchParams.delete('accessToken');
+            url.searchParams.delete('refreshToken');
+            window.history.replaceState({}, '', url.pathname);
+        }
+    }, [searchParams, setTokens, setUser]);
 
     // Auth guard - redirect if not authenticated (after hydration)
     useEffect(() => {

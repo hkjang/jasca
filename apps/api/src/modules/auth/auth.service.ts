@@ -385,6 +385,48 @@ export class AuthService {
         return apiToken;
     }
 
+    /**
+     * Generate tokens for SSO login (public method for controller use)
+     */
+    async generateTokensForUser(userId: string, context?: LoginContext): Promise<TokenResponse> {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            include: { roles: true },
+        });
+
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+
+        if (!user.isActive) {
+            throw new UnauthorizedException('User is disabled');
+        }
+
+        const tokens = this.generateTokens(user);
+
+        // Create session
+        await this.sessionService.createSession(
+            user.id,
+            tokens.refreshToken,
+            context?.ipAddress,
+            {
+                userAgent: context?.userAgent,
+                deviceId: context?.deviceId,
+            }
+        );
+
+        // Record successful login
+        await this.loginHistoryService.recordLoginAttempt({
+            userId: user.id,
+            status: 'SUCCESS',
+            ipAddress: context?.ipAddress,
+            userAgent: context?.userAgent,
+            deviceId: context?.deviceId,
+        });
+
+        return tokens;
+    }
+
     private generateTokens(user: any): TokenResponse {
         const payload: JwtPayload = {
             sub: user.id,

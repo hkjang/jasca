@@ -306,4 +306,182 @@ export class KeycloakService {
 
         return response.json();
     }
+
+    /**
+     * OIDC Authorization URL 생성
+     */
+    getAuthorizationUrl(config: KeycloakConfig, redirectUri: string, state: string): string {
+        this.logger.debug(`Building authorization URL - realm: ${config.realm}, clientId: ${config.clientId}`);
+        
+        const params = new URLSearchParams({
+            client_id: config.clientId,
+            redirect_uri: redirectUri,
+            response_type: 'code',
+            scope: 'openid email profile',
+            state: state,
+        });
+
+        const authUrl = `${config.serverUrl}/realms/${config.realm}/protocol/openid-connect/auth?${params.toString()}`;
+        this.logger.debug(`Authorization URL generated: ${config.serverUrl}/realms/${config.realm}/...`);
+        
+        return authUrl;
+    }
+
+    /**
+     * Authorization Code를 Access Token으로 교환
+     */
+    async exchangeCodeForToken(
+        config: KeycloakConfig,
+        code: string,
+        redirectUri: string,
+    ): Promise<{ accessToken: string; refreshToken: string; idToken?: string }> {
+        const tokenUrl = `${config.serverUrl}/realms/${config.realm}/protocol/openid-connect/token`;
+        this.logger.debug(`Exchanging code for token - tokenUrl: ${tokenUrl}`);
+
+        const params = new URLSearchParams();
+        params.append('grant_type', 'authorization_code');
+        params.append('client_id', config.clientId);
+        params.append('client_secret', config.clientSecret);
+        params.append('code', code);
+        params.append('redirect_uri', redirectUri);
+
+        try {
+            const startTime = Date.now();
+            const response = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params.toString(),
+            });
+
+            const duration = Date.now() - startTime;
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                this.logger.error(`Token exchange failed (${duration}ms) - status: ${response.status}, error: ${errorText}`);
+                
+                // Parse error for better message
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson.error === 'invalid_grant') {
+                        throw new Error('Authorization code expired or already used. Please try again.');
+                    }
+                    throw new Error(`Token exchange failed: ${errorJson.error_description || errorJson.error}`);
+                } catch (parseErr) {
+                    if (parseErr instanceof Error && parseErr.message.includes('Token exchange failed')) {
+                        throw parseErr;
+                    }
+                    throw new Error('Failed to exchange authorization code for token');
+                }
+            }
+
+            const data = await response.json();
+            this.logger.debug(`Token exchange successful (${duration}ms) - hasAccessToken: ${!!data.access_token}, hasRefreshToken: ${!!data.refresh_token}`);
+            
+            return {
+                accessToken: data.access_token,
+                refreshToken: data.refresh_token,
+                idToken: data.id_token,
+            };
+        } catch (err: any) {
+            if (err.message && !err.message.includes('fetch')) {
+                throw err;
+            }
+            this.logger.error(`Token exchange network error: ${err.message}`);
+            throw new Error('Cannot connect to Keycloak server. Please check network connectivity.');
+        }
+    }
+
+    /**
+     * Keycloak 토큰에서 사용자 정보를 가져와 로컬 사용자 생성 또는 조회
+     */
+    async findOrCreateUserFromToken(
+        config: KeycloakConfig,
+        accessToken: string,
+    ): Promise<{ userId: string; email: string; name: string; isNew: boolean }> {
+        this.logger.debug('Fetching user info from Keycloak token...');
+        
+        // Keycloak에서 사용자 정보 조회
+        let userInfo: any;
+        try {
+            userInfo = await this.validateToken(config, accessToken);
+            this.logger.debug(`User info retrieved - email: ${userInfo.email}, emailVerified: ${userInfo.email_verified}`);
+        } catch (err: any) {
+            this.logger.error(`Failed to validate token: ${err.message}`);
+            throw new Error('Failed to retrieve user information from Keycloak');
+        }
+
+        if (!userInfo.email) {
+            this.logger.error('Email not found in Keycloak user info');
+            throw new Error('Email not provided by Keycloak. Please ensure email scope is configured.');
+        }
+
+        // 기존 사용자 조회
+        this.logger.debug(`Looking up existing user by email: ${userInfo.email}`);
+        let user = await this.prisma.user.findUnique({
+            where: { email: userInfo.email },
+        });
+
+        const name = userInfo.name || 
+            [userInfo.given_name, userInfo.family_name].filter(Boolean).join(' ') || 
+            userInfo.preferred_username || 
+            userInfo.email.split('@')[0];
+
+        if (user) {
+            this.logger.debug(`Existing user found - userId: ${user.id}, name: ${user.name}`);
+            
+            // 기존 사용자 업데이트
+            if (config.autoUpdateUsers !== false) {
+                this.logger.debug('Updating existing user info...');
+                user = await this.prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        name,
+                        emailVerifiedAt: userInfo.email_verified ? new Date() : user.emailVerifiedAt,
+                    },
+                });
+            }
+            return { userId: user.id, email: user.email, name: user.name, isNew: false };
+        }
+
+        // 새 사용자 생성
+        this.logger.debug(`No existing user found for ${userInfo.email}`);
+        
+        if (!config.autoCreateUsers) {
+            this.logger.warn(`Auto-creation disabled, rejecting new user: ${userInfo.email}`);
+            throw new Error('User does not exist and auto-creation is disabled. Please contact administrator.');
+        }
+
+        this.logger.log(`Creating new user from Keycloak: ${userInfo.email}`);
+
+        // 랜덤 비밀번호 생성 (SSO 로그인만 사용하므로 직접 사용되지 않음)
+        const randomPassword = Math.random().toString(36).slice(-16);
+        const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+        const newUser = await this.prisma.user.create({
+            data: {
+                email: userInfo.email,
+                passwordHash,
+                name,
+                emailVerifiedAt: userInfo.email_verified ? new Date() : null,
+                isActive: true,
+            },
+        });
+
+        // 기본 역할 할당
+        const defaultRole = config.defaultRole || 'VIEWER';
+        this.logger.debug(`Assigning default role: ${defaultRole}`);
+        
+        await this.prisma.userRole.create({
+            data: {
+                userId: newUser.id,
+                role: defaultRole as any,
+                scope: 'ORGANIZATION',
+            },
+        });
+
+        this.logger.log(`New user created successfully - userId: ${newUser.id}, email: ${newUser.email}, role: ${defaultRole}`);
+        return { userId: newUser.id, email: newUser.email, name: newUser.name, isNew: true };
+    }
 }

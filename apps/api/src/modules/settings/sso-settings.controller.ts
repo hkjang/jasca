@@ -104,19 +104,38 @@ export class SsoSettingsController {
         const ssoSettings = await this.settingsService.get('sso') as SsoSettings;
         const keycloakSettings = await this.settingsService.get('keycloak') as KeycloakSettings;
 
+        // Keycloak은 설정이 완전히 구성되었을 때만 활성화로 표시
+        const isKeycloakConfigured = !!(
+            keycloakSettings?.enabled &&
+            keycloakSettings?.serverUrl &&
+            keycloakSettings?.realm &&
+            keycloakSettings?.clientId &&
+            keycloakSettings?.clientSecret
+        );
+
+        // LDAP 설정 조회 및 구성 확인
+        const ldapSettings = await this.settingsService.get('ldap') as any;
+        const isLdapConfigured = !!(
+            ldapSettings?.enabled &&
+            ldapSettings?.serverUrl &&
+            ldapSettings?.bindDn
+        );
+
         const result: PublicSsoSettings = {
             enabled: ssoSettings?.enabled || false,
             providers: {
                 google: ssoSettings?.providers?.google?.enabled || false,
                 github: ssoSettings?.providers?.github?.enabled || false,
                 microsoft: ssoSettings?.providers?.microsoft?.enabled || false,
-                keycloak: ssoSettings?.providers?.keycloak?.enabled || false,
-                ldap: ssoSettings?.providers?.ldap?.enabled || false,
+                keycloak: ssoSettings?.providers?.keycloak?.enabled && isKeycloakConfigured,
+                // LDAP은 리다이렉트 SSO가 아닌 로그인 폼 방식이므로 providers에서 제외
+                // 대신 백엔드 login 엔드포인트에서 LDAP 인증을 시도함
+                ldap: false,
             },
         };
 
         // Keycloak이 활성화된 경우 OIDC 연동에 필요한 공개 정보 제공
-        if (result.providers.keycloak && keycloakSettings?.enabled) {
+        if (result.providers.keycloak) {
             result.keycloakConfig = {
                 serverUrl: keycloakSettings.serverUrl,
                 realm: keycloakSettings.realm,
